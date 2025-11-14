@@ -4,14 +4,19 @@ import { useStudents } from "@/lib/hooks/use-students"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Cake, Calendar } from "lucide-react"
+import { Cake, Calendar } from 'lucide-react'
 import { AppHeader } from "@/components/app-header"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getDayOfMonthLocal, getMonthFromDateLocal, getAgeLocal } from "@/lib/utils/date-timezone"
+import { useAuth } from "@/lib/contexts/auth-context"
+import { useRouter } from 'next/navigation'
 
 export default function AdminBirthdaysPage() {
-  const { students, isLoading } = useStudents()
+  const { user, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+  const [hasAccess, setHasAccess] = useState(false)
+  const { students, isLoading: studentsLoading } = useStudents()
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
 
   const months = [
@@ -68,7 +73,17 @@ export default function AdminBirthdaysPage() {
   const displayMonth = selectedMonth || currentMonthName
   const birthdaysThisMonth = birthdaysByMonth[displayMonth] || []
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!authLoading) {
+      if (user?.role !== "admin") {
+        router.push(user?.role === "coach" ? "/trainer/dashboard" : "/login")
+      } else {
+        setHasAccess(true)
+      }
+    }
+  }, [user, authLoading, router])
+
+  if (authLoading || !hasAccess || studentsLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <AppHeader />
@@ -76,7 +91,7 @@ export default function AdminBirthdaysPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
               <Cake className="h-16 w-16 sm:h-20 sm:w-20 text-muted-foreground mb-4 opacity-50" />
-              <p className="text-lg sm:text-xl font-semibold text-foreground">Carregando alunos...</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground">Carregando...</p>
             </CardContent>
           </Card>
         </main>

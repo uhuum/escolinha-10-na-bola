@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { AppHeader } from "@/components/app-header"
 import { AppFooter } from "@/components/app-footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { useAttendance } from "@/lib/hooks/use-attendance"
 import { useStudents } from "@/lib/hooks/use-students"
-import { Calendar, Users, Eye, Search, X, AlertTriangle } from "lucide-react"
+import { Calendar, Users, Eye, Search, X, AlertTriangle } from 'lucide-react'
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -96,7 +96,7 @@ export default function PresencasPage() {
   )
 
   const getStudentsWithConsecutiveAbsences = () => {
-    const studentMaxConsecutive: Record<string, number> = {}
+    const studentMaxConsecutive: Record<string, { max: number; current: number }> = {}
     const sortedAttendances = [...attendances].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     for (const attendance of sortedAttendances) {
@@ -125,7 +125,7 @@ export default function PresencasPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <AppHeader />
+      {/* <AppHeader /> */}
 
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto space-y-6">
