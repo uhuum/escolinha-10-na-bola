@@ -72,7 +72,7 @@ export default function LoginPage() {
             <p className="text-xl sm:text-2xl text-blue-100 px-4 font-semibold">
               Sistema Integrado de Gestão de Alunos
             </p>
-            <p className="text-base sm:text-lg text-slate-300 mt-2 px-4">Centro de Educação Além da Educação - CEAP</p>
+            <p className="text-base sm:text-lg text-slate-300 mt-2 px-4">Escola de Futebol 10 Na Bola</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 px-2 sm:px-0">
@@ -189,20 +189,6 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
-              <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-xs sm:text-sm text-blue-800">
-                <p className="font-medium mb-1"></p>
-                <p className="text-xs">
-                  <code className="font-mono bg-blue-100 px-1"></code> /{" "}
-                  <code className="font-mono bg-blue-100 px-1"></code>
-                </p>
-                <p className="text-xs">
-                  <code className="font-mono bg-blue-100 px-1"></code> /{" "}
-                  <code className="font-mono bg-blue-100 px-1"></code>
-                </p>
-              </div>
-            </div>
 
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4">
               <Button

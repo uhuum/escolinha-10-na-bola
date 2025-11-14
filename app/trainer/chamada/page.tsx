@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useCoaches } from "@/lib/hooks/use-coaches"
 import { useStudents } from "@/lib/hooks/use-students"
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react"
+import { CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react'
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { ClassSchedule, AttendanceRecord, WeekDay } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -115,19 +115,31 @@ export default function TrainerChamadaPage() {
       trainerName,
       records,
       selectedDay as WeekDay,
-    )
+    ).then(() => {
+      // Force refetch after a short delay to ensure data is synced
+      setTimeout(() => {
+        // Trigger a new query to get the latest attendance data
+        const newAttendances = attendances.filter(
+          (att) => att.date === today && att.classSchedule === selectedSchedule && att.dayOfWeek === selectedDay,
+        )
+        if (newAttendances.length > 0) {
+          console.log("[v0] Attendance successfully recorded, navigating to report...")
+          router.push(`/trainer/relatorio?edit=${newAttendances[0].id}`)
+        }
+      }, 500)
+    }).catch((error) => {
+      console.error("[v0] Failed to record attendance:", error)
+      toast({
+        title: "Erro ao registrar chamada",
+        description: "Tente novamente ou contate o administrador.",
+        variant: "destructive",
+      })
+    })
 
     toast({
       title: "Sucesso!",
-      description: `Chamada de ${selectedDay} às ${selectedSchedule} registrada em tempo real.`,
+      description: `Chamada de ${selectedDay} às ${selectedSchedule} registrada.`,
     })
-
-    const newAttendances = attendances.filter(
-      (att) => att.date === today && att.classSchedule === selectedSchedule && att.dayOfWeek === selectedDay,
-    )
-    if (newAttendances.length > 0) {
-      router.push(`/trainer/relatorio?edit=${newAttendances[0].id}`)
-    }
 
     setAttendanceRecords({})
     setTrainerName("")

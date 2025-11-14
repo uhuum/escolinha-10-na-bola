@@ -3,14 +3,14 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { useStudents } from "@/lib/hooks/use-students"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, UserPlus, Camera } from "lucide-react"
+import { ArrowLeft, Save, UserPlus, Camera } from 'lucide-react'
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import type { ClassSchedule, WeekDay } from "@/lib/types"
@@ -19,6 +19,7 @@ import Image from "next/image"
 import { AppHeader } from "@/components/app-header"
 import { AppFooter } from "@/components/app-footer"
 import { formatCPF, formatRG, formatPhone } from "@/lib/utils/input-masks"
+import { PhotoCropModal } from "@/components/photo-crop-modal"
 
 export default function NewStudentPage() {
   const router = useRouter()
@@ -40,6 +41,8 @@ export default function NewStudentPage() {
   })
 
   const [photoPreview, setPhotoPreview] = useState<string>("/diverse-students.png")
+  const [showCropModal, setShowCropModal] = useState(false)
+  const [tempPhotoForCrop, setTempPhotoForCrop] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
 
   const weekDays: WeekDay[] = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
@@ -49,10 +52,22 @@ export default function NewStudentPage() {
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
+        const result = reader.result as string
+        setTempPhotoForCrop(result)
+        setShowCropModal(true)
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleCropComplete = (croppedImage: string) => {
+    setPhotoPreview(croppedImage)
+    setShowCropModal(false)
+    setTempPhotoForCrop("")
+    toast({
+      title: "Foto ajustada",
+      description: "Sua foto foi cortada com sucesso.",
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,8 +225,8 @@ export default function NewStudentPage() {
                       id="rg"
                       value={formData.rg}
                       onChange={(e) => setFormData({ ...formData, rg: formatRG(e.target.value) })}
-                      placeholder="12.345.678-9"
-                      maxLength={12}
+                      placeholder="12.345.678-9 ou 12.345.67-X"
+                      maxLength={14}
                       className="h-10 sm:h-11 text-sm"
                     />
                   </div>
@@ -226,7 +241,6 @@ export default function NewStudentPage() {
                     value={formData.birthDate}
                     onChange={(e) => {
                       if (e.target.value) {
-                        // Ensures date is in YYYY-MM-DD format without timezone conversion
                         setFormData({ ...formData, birthDate: e.target.value })
                       }
                     }}
@@ -404,6 +418,17 @@ export default function NewStudentPage() {
             </div>
           </div>
         </form>
+
+        {/* Crop Modal */}
+        <PhotoCropModal
+          isOpen={showCropModal}
+          imageSrc={tempPhotoForCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => {
+            setShowCropModal(false)
+            setTempPhotoForCrop("")
+          }}
+        />
       </main>
 
       <AppFooter />

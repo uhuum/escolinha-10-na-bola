@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
 import { formatCurrency } from "@/lib/utils/currency"
-import { ArrowLeft, DollarSign, Calendar, User, FileText, Trash2, Camera, Eye } from "lucide-react"
+import { ArrowLeft, DollarSign, Calendar, User, FileText, Trash2, Camera, Eye } from 'lucide-react'
 import Link from "next/link"
-import { notFound } from "next/navigation"
-import { useRouter } from "next/navigation"
+import { notFound } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
@@ -435,6 +435,9 @@ export function StudentDetailClient({ id }: { id: string }) {
                       id="edit-rg"
                       value={editForm.rg}
                       onChange={(e) => setEditForm({ ...editForm, rg: e.target.value })}
+                      placeholder="12.345.678-9 ou 12.345.67-X"
+                      maxLength={14}
+                      className="h-10 sm:h-11 text-sm"
                     />
                   </div>
                   <div className="space-y-2">

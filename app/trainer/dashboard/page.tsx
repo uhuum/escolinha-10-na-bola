@@ -82,7 +82,7 @@ export default function TrainerDashboardPage() {
             <div className="text-3xl sm:text-4xl font-bold text-foreground mb-1">{totalStudents}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Alunos ativos nas suas turmas</p>
             <div className="mt-4 text-xs text-muted-foreground space-y-1">
-              <p>Total de alunos da academia: {students.filter((s) => s.isActive).length}</p>
+              <p>Total de alunos da Escolinha: {students.filter((s) => s.isActive).length}</p>
             </div>
           </CardContent>
         </Card>
@@ -96,7 +96,7 @@ export default function TrainerDashboardPage() {
             </div>
             Suas Turmas
           </CardTitle>
-          <CardDescription className="text-sm sm:text-base">Horários e dias da semana que você treina</CardDescription>
+          <CardDescription className="text-sm sm:text-base">Horários e dias da semana</CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0">
           {coachClasses.length === 0 ? (

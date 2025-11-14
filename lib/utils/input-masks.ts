@@ -18,13 +18,15 @@ export function formatCPF(value: string): string {
 }
 
 export function formatRG(value: string): string {
-  // Remove all non-numeric characters
-  const numbers = value.replace(/\D/g, "")
+  // Remove all non-numeric characters except X
+  const upperValue = value.toUpperCase()
+  const characters = upperValue.replace(/[^0-9X]/g, "")
 
-  // Limit to 9 digits
-  const limited = numbers.slice(0, 9)
+  // Limit to 10 characters (9 digits + X, or 10 digits)
+  const limited = characters.slice(0, 10)
 
-  // Apply mask: XX.XXX.XXX-X
+  // Apply mask: XX.XXX.XXX-X (or XX) for various RG formats
+  // Support formats like: 12.345.678-9, 12.345.678-X, 12.345.67-90
   if (limited.length <= 2) {
     return limited
   } else if (limited.length <= 5) {
