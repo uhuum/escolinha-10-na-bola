@@ -4,6 +4,11 @@ export type ClassSchedule = "18:00-19:30" | "19:30-21:00"
 
 export type WeekDay = "Segunda" | "Terça" | "Quarta" | "Quinta" | "Sexta"
 
+export interface DayScheduleConfig {
+  day: WeekDay
+  schedule: ClassSchedule
+}
+
 export interface TrainerProfile {
   id: string
   username: string
@@ -18,6 +23,7 @@ export interface MonthlyPayment {
   postponedTo?: string
   receipt?: string | File
   paidAt?: string
+  chargedAt?: string // Added chargedAt field
 }
 
 export interface Student {
@@ -34,8 +40,10 @@ export interface Student {
   payments: MonthlyPayment[]
   photo?: string
   isActive: boolean
+  isScholarship?: boolean // Added scholarship field
   classSchedule?: ClassSchedule
   classDays?: WeekDay[]
+  scheduleConfigs?: DayScheduleConfig[]
 }
 
 export interface PaymentSummary {

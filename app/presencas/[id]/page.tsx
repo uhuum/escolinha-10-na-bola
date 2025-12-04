@@ -1,5 +1,4 @@
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,10 +13,6 @@ import { BackButton } from "./back-button"
 export default async function AttendanceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  // Note: In Next.js, hooks like useAttendance and useStudents must be called from client components
-  // For this server component to work with these hooks, we need to move data fetching logic
-  // This is a temporary structure - in production, consider moving to API routes or server actions
-
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AppHeader />
@@ -25,13 +20,9 @@ export default async function AttendanceDetailPage({ params }: { params: Promise
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <BackButton />
-
-          {/* Placeholder while we refactor - actual data loading happens in client component */}
           <AttendanceDetailContent attendanceId={id} />
         </div>
       </main>
-
-      <AppFooter />
     </div>
   )
 }
@@ -105,7 +96,6 @@ function AttendanceDetailContent({ attendanceId }: { attendanceId: string }) {
         </CardContent>
       </Card>
 
-      {/* Present Students */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -147,7 +137,6 @@ function AttendanceDetailContent({ attendanceId }: { attendanceId: string }) {
         </CardContent>
       </Card>
 
-      {/* Absent Students */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

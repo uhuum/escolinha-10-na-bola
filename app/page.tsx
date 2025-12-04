@@ -4,7 +4,7 @@ import { useStudents } from "@/lib/hooks/use-students"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils/currency"
 import { Button } from "@/components/ui/button"
-import { Users, DollarSign, AlertCircle, TrendingUp, Calendar, ArrowRight, CheckCircle2, BookOpen } from "lucide-react"
+import { Users, DollarSign, AlertCircle, TrendingUp, Calendar, ArrowRight, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { Progress } from "@/components/ui/progress"
 import { AppHeader } from "@/components/app-header"
@@ -154,105 +154,52 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                </div>
-                Alunos com Pendência
-              </CardTitle>
-              <CardDescription className="text-base">
-                {pendingStudents.length} alunos precisam de cobrança
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingStudents.slice(0, 5).map((student) => (
-                  <div
-                    key={student.id}
-                    className="flex items-center justify-between p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground">{student.name}</p>
-                      <p className="text-sm text-muted-foreground">{student.responsible}</p>
-                    </div>
-                    <Button asChild size="sm" className="gap-1">
-                      <Link href={`/students/${student.id}`}>
-                        Ver
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    </Button>
+        {/* Removed card of Quick Actions, kept only card of Students with Pending Payments */}
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              </div>
+              Alunos com Pendência
+            </CardTitle>
+            <CardDescription className="text-base">
+              {pendingStudents.length} alunos precisam de cobrança
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingStudents.slice(0, 5).map((student) => (
+                <div
+                  key={student.id}
+                  className="flex items-center justify-between p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div>
+                    <p className="font-semibold text-foreground">{student.name}</p>
+                    <p className="text-sm text-muted-foreground">{student.responsible}</p>
                   </div>
-                ))}
-                {pendingStudents.length > 5 && (
-                  <Button asChild variant="outline" className="w-full mt-4 bg-transparent">
-                    <Link href="/payments">Ver todos ({pendingStudents.length})</Link>
+                  <Button asChild size="sm" className="gap-1">
+                    <Link href={`/students/${student.id}`}>
+                      Ver
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
                   </Button>
-                )}
-                {pendingStudents.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-accent" />
-                    <p>Nenhum pagamento pendente</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
-                Ações Rápidas
-              </CardTitle>
-              <CardDescription className="text-base">Acesso rápido às funcionalidades principais</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button asChild className="w-full justify-between h-auto py-4 px-5">
-                  <Link href="/carometro">
-                    <span className="flex items-center gap-3">
-                      <BookOpen className="h-5 w-5" />
-                      <span className="font-semibold">Carômetro (Diretório)</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+              ))}
+              {pendingStudents.length > 5 && (
+                <Button asChild variant="outline" className="w-full mt-4 bg-transparent">
+                  <Link href="/payments">Ver todos ({pendingStudents.length})</Link>
                 </Button>
-                <Button asChild className="w-full justify-between h-auto py-4 px-5 bg-transparent" variant="outline">
-                  <Link href="/students">
-                    <span className="flex items-center gap-3">
-                      <Users className="h-5 w-5" />
-                      <span className="font-semibold">Ver Todos os Alunos</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild className="w-full justify-between h-auto py-4 px-5 bg-transparent" variant="outline">
-                  <Link href="/payments">
-                    <span className="flex items-center gap-3">
-                      <DollarSign className="h-5 w-5" />
-                      <span className="font-semibold">Gerenciar Pagamentos</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild className="w-full justify-between h-auto py-4 px-5 bg-transparent" variant="outline">
-                  <Link href="/students/new">
-                    <span className="flex items-center gap-3">
-                      <Users className="h-5 w-5" />
-                      <span className="font-semibold">Cadastrar Novo Aluno</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              )}
+              {pendingStudents.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-accent" />
+                  <p>Nenhum pagamento pendente</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   )

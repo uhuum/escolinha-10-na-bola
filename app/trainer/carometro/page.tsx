@@ -6,7 +6,7 @@ import { useCoaches } from "@/lib/hooks/use-coaches"
 import { useStudents } from "@/lib/hooks/use-students"
 import { useAttendance } from "@/lib/hooks/use-attendance"
 import { Card, CardContent } from "@/components/ui/card"
-import { Clock, Search, X, Calendar, BadgeCent as BadgeComp } from "lucide-react"
+import { Clock, Search, X, Calendar } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,6 @@ interface StudentModalProps {
 function StudentDetailModal({ student, onClose, attendanceHistory }: StudentModalProps) {
   const age = calculateAge(student.birthDate)
 
-  // Count absences
   const totalAbsences = attendanceHistory.reduce((sum, att) => {
     const record = att.records.find((r: any) => r.studentId === student.id)
     return sum + (record?.status === "Ausente" ? 1 : 0)
@@ -58,7 +57,6 @@ function StudentDetailModal({ student, onClose, attendanceHistory }: StudentModa
         </div>
 
         <CardContent className="p-4 sm:p-6 space-y-6">
-          {/* Student Header */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center pb-6 border-b">
             <div className="relative h-32 w-32 rounded-lg overflow-hidden bg-primary/10 border-2 border-primary/20 flex-shrink-0">
               <Image
@@ -74,25 +72,39 @@ function StudentDetailModal({ student, onClose, attendanceHistory }: StudentModa
                 <p className="text-sm text-muted-foreground">{student.responsible}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <BadgeComp variant="outline">{age} anos</BadgeComp>
-                <BadgeComp className="bg-primary/10 text-primary border-0">{student.classSchedule}</BadgeComp>
+                <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">{age} anos</span>
               </div>
             </div>
           </div>
 
-          {/* Class Information */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-accent/5 border border-accent/20">
-              <p className="text-xs text-muted-foreground mb-1 font-medium">Turma</p>
-              <p className="text-lg font-semibold text-foreground">{student.classSchedule}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-accent/5 border border-accent/20">
-              <p className="text-xs text-muted-foreground mb-1 font-medium">Dias da Semana</p>
-              <p className="text-lg font-semibold text-foreground">{student.classDays?.join(", ") || "N/A"}</p>
-            </div>
+          <div className="space-y-3">
+            <p className="font-semibold text-foreground">Horários de Aula</p>
+            {student.scheduleConfigs && student.scheduleConfigs.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {student.scheduleConfigs.map((config: any, index: number) => (
+                  <div key={index} className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{config.schedule}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{config.day}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-accent/5 border border-accent/20">
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Turma</p>
+                  <p className="text-lg font-semibold text-foreground">{student.classSchedule}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-accent/5 border border-accent/20">
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Dias da Semana</p>
+                  <p className="text-lg font-semibold text-foreground">{student.classDays?.join(", ") || "N/A"}</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Attendance Statistics */}
           <div className="space-y-3">
             <p className="font-semibold text-foreground">Histórico de Presenças</p>
             <div className="grid grid-cols-3 gap-3">
@@ -111,7 +123,6 @@ function StudentDetailModal({ student, onClose, attendanceHistory }: StudentModa
             </div>
           </div>
 
-          {/* Contact Information */}
           <div className="space-y-3 pt-4 border-t">
             <p className="font-semibold text-foreground">Contato</p>
             <div className="space-y-2 text-sm">
@@ -124,13 +135,9 @@ function StudentDetailModal({ student, onClose, attendanceHistory }: StudentModa
               <p>
                 <span className="font-medium">Telefone Mãe:</span> {student.motherPhone || "N/A"}
               </p>
-              <p>
-                <span className="font-medium">CPF Responsável:</span> {student.responsibleCpf || "N/A"}
-              </p>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
             <Button onClick={onClose} variant="outline" className="flex-1 bg-transparent">
               Fechar
@@ -157,10 +164,23 @@ export default function TrainerCarometroPage() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
 
   const filteredStudents = activeStudents.filter((student) => {
+    const matchesName = nameFilter === "" || student.name.toLowerCase().includes(nameFilter.toLowerCase())
+
+    if (!matchesName) return false
+
+    if (selectedSchedule === "all" && selectedDay === "all") return true
+
+    if (student.scheduleConfigs && student.scheduleConfigs.length > 0) {
+      return student.scheduleConfigs.some((config) => {
+        const matchesSchedule = selectedSchedule === "all" || config.schedule === selectedSchedule
+        const matchesDay = selectedDay === "all" || config.day === selectedDay
+        return matchesSchedule && matchesDay
+      })
+    }
+
     const matchesSchedule = selectedSchedule === "all" || student.classSchedule === selectedSchedule
     const matchesDay = selectedDay === "all" || (student.classDays && student.classDays.includes(selectedDay))
-    const matchesName = nameFilter === "" || student.name.toLowerCase().includes(nameFilter.toLowerCase())
-    return matchesSchedule && matchesDay && matchesName
+    return matchesSchedule && matchesDay
   })
 
   const uniqueSchedules: ClassSchedule[] = Array.from(
@@ -287,19 +307,31 @@ export default function TrainerCarometroPage() {
                         <p className="text-xs sm:text-sm text-muted-foreground">
                           <span className="font-semibold">{age} anos</span>
                         </p>
-                        {student.classDays && student.classDays.length > 0 && (
+                        {student.scheduleConfigs && student.scheduleConfigs.length > 0 ? (
                           <div className="flex flex-wrap gap-1 justify-center">
-                            {student.classDays.map((day) => (
-                              <span key={day} className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
-                                {day}
+                            {student.scheduleConfigs.map((config, idx) => (
+                              <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                                {config.day.slice(0, 3)} {config.schedule.split("-")[0]}
                               </span>
                             ))}
                           </div>
+                        ) : (
+                          <>
+                            {student.classDays && student.classDays.length > 0 && (
+                              <div className="flex flex-wrap gap-1 justify-center">
+                                {student.classDays.map((day) => (
+                                  <span key={day} className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                                    {day}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                              <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+                              <span className="font-medium text-foreground">{student.classSchedule}</span>
+                            </div>
+                          </>
                         )}
-                        <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                          <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-                          <span className="font-medium text-foreground">{student.classSchedule}</span>
-                        </div>
                       </div>
                     </div>
                   </div>

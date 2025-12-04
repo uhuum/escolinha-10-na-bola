@@ -11,7 +11,6 @@ import type { ClassSchedule, WeekDay } from "@/lib/types"
 import type { Student } from "@/lib/types"
 import Image from "next/image"
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
 import { StudentDetailModal } from "@/components/student-detail-modal"
 
 function calculateAge(birthDate: string): number {
@@ -36,10 +35,24 @@ export default function CarometroPage() {
   const activeStudents = students.filter((s) => s.isActive)
 
   const filteredStudents = activeStudents.filter((student) => {
+    const matchesName = nameFilter === "" || student.name.toLowerCase().includes(nameFilter.toLowerCase())
+    if (!matchesName) return false
+
+    if (scheduleFilter === "all" && dayFilter === "all") return true
+
+    // Check scheduleConfigs first (new format)
+    if (student.scheduleConfigs && student.scheduleConfigs.length > 0) {
+      return student.scheduleConfigs.some((config) => {
+        const matchesSchedule = scheduleFilter === "all" || config.schedule === scheduleFilter
+        const matchesDay = dayFilter === "all" || config.day === dayFilter
+        return matchesSchedule && matchesDay
+      })
+    }
+
+    // Fallback to old format
     const matchesSchedule = scheduleFilter === "all" || student.classSchedule === scheduleFilter
     const matchesDay = dayFilter === "all" || (student.classDays && student.classDays.includes(dayFilter))
-    const matchesName = nameFilter === "" || student.name.toLowerCase().includes(nameFilter.toLowerCase())
-    return matchesSchedule && matchesDay && matchesName
+    return matchesSchedule && matchesDay
   })
 
   const handleStudentClick = (student: Student) => {
@@ -140,19 +153,34 @@ export default function CarometroPage() {
                         <p className="text-sm text-muted-foreground">
                           <span className="font-semibold">{age} anos</span>
                         </p>
-                        {student.classDays && student.classDays.length > 0 && (
-                          <div className="flex flex-wrap gap-1 justify-center mb-2">
-                            {student.classDays.map((day) => (
-                              <span key={day} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                {day}
+                        {student.scheduleConfigs && student.scheduleConfigs.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 justify-center">
+                            {student.scheduleConfigs.map((config, idx) => (
+                              <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {config.day.slice(0, 3)} {config.schedule.split("-")[0]}
                               </span>
                             ))}
                           </div>
+                        ) : (
+                          <>
+                            {student.classDays && student.classDays.length > 0 && (
+                              <div className="flex flex-wrap gap-1 justify-center mb-2">
+                                {student.classDays.map((day) => (
+                                  <span
+                                    key={day}
+                                    className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary"
+                                  >
+                                    {day}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-center gap-2 text-sm">
+                              <Clock className="h-3.5 w-3.5 text-primary" />
+                              <span className="font-medium text-foreground">{student.classSchedule}</span>
+                            </div>
+                          </>
                         )}
-                        <div className="flex items-center justify-center gap-2 text-sm">
-                          <Clock className="h-3.5 w-3.5 text-primary" />
-                          <span className="font-medium text-foreground">{student.classSchedule}</span>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -183,8 +211,6 @@ export default function CarometroPage() {
           )}
         </div>
       </main>
-
-      <AppFooter />
 
       <StudentDetailModal student={selectedStudent} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>

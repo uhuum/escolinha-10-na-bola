@@ -38,8 +38,6 @@ export function useStudents(): StudentsStore {
       try {
         setIsLoading(true)
 
-        console.log("[v0] Fetching students from database...")
-
         const { data: studentsData, error: studentError } = await supabase
           .from("students")
           .select("*")
@@ -66,8 +64,10 @@ export function useStudents(): StudentsStore {
           motherPhone: dbStudent.mother_phone || "",
           monthlyValue: dbStudent.monthly_value || 0,
           isActive: dbStudent.is_active ?? true,
+          isScholarship: dbStudent.is_scholarship ?? false, // Added scholarship field
           classSchedule: dbStudent.class_schedule || undefined,
           classDays: dbStudent.class_days || [],
+          scheduleConfigs: dbStudent.schedule_configs || undefined,
           photo: dbStudent.photo || undefined,
           payments: (paymentsData || [])
             .filter((p: any) => p.student_id === dbStudent.id)
@@ -78,6 +78,7 @@ export function useStudents(): StudentsStore {
               receipt: p.receipt || undefined,
               paidAt: p.paid_at || undefined,
               postponedTo: p.postponed_to || undefined,
+              chargedAt: p.charged_at || undefined, // Added chargedAt field
             })),
         }))
 
@@ -114,8 +115,10 @@ export function useStudents(): StudentsStore {
         motherPhone: dbStudent.mother_phone || "",
         monthlyValue: dbStudent.monthly_value || 0,
         isActive: dbStudent.is_active ?? true,
+        isScholarship: dbStudent.is_scholarship ?? false,
         classSchedule: dbStudent.class_schedule || undefined,
         classDays: dbStudent.class_days || [],
+        scheduleConfigs: dbStudent.schedule_configs || undefined,
         photo: dbStudent.photo || undefined,
         payments: (paymentsData || [])
           .filter((p: any) => p.student_id === dbStudent.id)
@@ -126,6 +129,7 @@ export function useStudents(): StudentsStore {
             receipt: p.receipt || undefined,
             paidAt: p.paid_at || undefined,
             postponedTo: p.postponed_to || undefined,
+            chargedAt: p.charged_at || undefined,
           })),
       }))
 
@@ -137,14 +141,10 @@ export function useStudents(): StudentsStore {
 
   const getStudent = useCallback(
     async (id: string): Promise<Student | null> => {
-      console.log("[v0] Procurando aluno com ID:", id)
       const local = students.find((s) => s.id === id)
       if (local) {
-        console.log("[v0] Aluno encontrado localmente:", local.name)
         return local
       }
-
-      console.log("[v0] Buscando aluno direto no Supabase...")
 
       const { data: studentData, error: studentError } = await supabase
         .from("students")
@@ -180,8 +180,10 @@ export function useStudents(): StudentsStore {
         motherPhone: studentData.mother_phone || "",
         monthlyValue: studentData.monthly_value || 0,
         isActive: studentData.is_active ?? true,
+        isScholarship: studentData.is_scholarship ?? false,
         classSchedule: studentData.class_schedule || undefined,
         classDays: studentData.class_days || [],
+        scheduleConfigs: studentData.schedule_configs || undefined,
         photo: studentData.photo || undefined,
         payments: (paymentsData || []).map((p: any) => ({
           month: p.month,
@@ -190,10 +192,10 @@ export function useStudents(): StudentsStore {
           receipt: p.receipt || undefined,
           paidAt: p.paid_at || undefined,
           postponedTo: p.postponed_to || undefined,
+          chargedAt: p.charged_at || undefined,
         })),
       }
 
-      console.log("[v0] Aluno carregado diretamente do banco:", student.name)
       return student
     },
     [students, supabase],
@@ -214,8 +216,10 @@ export function useStudents(): StudentsStore {
           mother_phone: student.motherPhone || null,
           monthly_value: student.monthlyValue,
           is_active: student.isActive,
+          is_scholarship: student.isScholarship || false, // Added scholarship field
           class_schedule: student.classSchedule || null,
           class_days: student.classDays || [],
+          schedule_configs: student.scheduleConfigs || null, // Added scheduleConfigs
           photo: student.photo || null,
         })
         .select()
@@ -239,15 +243,13 @@ export function useStudents(): StudentsStore {
         "Dezembro",
       ]
 
-      // Get current month index
       const currentDate = new Date()
       const currentMonthIndex = currentDate.getMonth()
 
-      // Create payments only from current month onwards
       const paymentsToInsert = months.slice(currentMonthIndex).map((month) => ({
         student_id: studentId,
         month,
-        status: "Em Aberto",
+        status: student.isScholarship ? "Bolsista" : "Em Aberto",
         value: student.monthlyValue,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -275,8 +277,10 @@ export function useStudents(): StudentsStore {
           mother_phone: updates.motherPhone || null,
           monthly_value: updates.monthlyValue,
           is_active: updates.isActive,
+          is_scholarship: updates.isScholarship || false,
           class_schedule: updates.classSchedule || null,
           class_days: updates.classDays || [],
+          schedule_configs: updates.scheduleConfigs || null,
           photo: updates.photo || null,
           updated_at: new Date().toISOString(),
         })
@@ -308,6 +312,7 @@ export function useStudents(): StudentsStore {
         updated_at: new Date().toISOString(),
       }
       if (status === "Pago") updateData.paid_at = new Date().toISOString()
+      if (status === "Cobrado") updateData.charged_at = new Date().toISOString()
 
       const { error } = await supabase
         .from("payments")
@@ -429,8 +434,10 @@ export function useStudents(): StudentsStore {
             mother_phone: student.motherPhone || null,
             monthly_value: student.monthlyValue,
             is_active: student.isActive,
+            is_scholarship: student.isScholarship || false,
             class_schedule: student.classSchedule || null,
             class_days: student.classDays || [],
+            schedule_configs: student.scheduleConfigs || null,
             photo: student.photo || null,
           })
           .select()
@@ -440,11 +447,10 @@ export function useStudents(): StudentsStore {
 
         const studentId = created.id
 
-        // Create payments only from current month onwards
         const paymentsToInsert = months.slice(currentMonthIndex).map((month) => ({
           student_id: studentId,
           month,
-          status: "Em Aberto",
+          status: student.isScholarship ? "Bolsista" : "Em Aberto",
           value: student.monthlyValue,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -481,18 +487,23 @@ export function useStudents(): StudentsStore {
         return { student: s, payment }
       })
 
-      const totalExpected = activeStudents.reduce((sum, s) => sum + (s.monthlyValue || 0), 0)
+      const totalExpected = activeStudents.reduce((sum, s) => {
+        if (!s.isScholarship) return sum + (s.monthlyValue || 0)
+        return sum
+      }, 0)
+
       const totalReceived = currentMonthPayments.reduce(
         (sum, { payment }) => (payment?.status === "Pago" ? sum + (payment.value || 0) : sum),
         0,
       )
 
       const pendingPayments = currentMonthPayments.filter(
-        ({ payment }) =>
-          payment?.status === "Não Pagou" || payment?.status === "Cobrado" || payment?.status === "Em Aberto",
+        ({ student, payment }) =>
+          !student.isScholarship &&
+          (payment?.status === "Não Pagou" || payment?.status === "Cobrado" || payment?.status === "Em Aberto"),
       ).length
 
-      const scholarshipStudents = activeStudents.filter((s) => s.monthlyValue === 0).length
+      const scholarshipStudents = activeStudents.filter((s) => s.isScholarship || s.monthlyValue === 0).length
 
       return {
         totalStudents: students.length,
@@ -516,7 +527,7 @@ export function useStudents(): StudentsStore {
     },
 
     getMonthlyReport: (month: string) => {
-      const activeStudents = students.filter((s) => s.isActive)
+      const activeStudents = students.filter((s) => s.isActive && !s.isScholarship)
 
       const totalReceived = activeStudents.reduce((sum, s) => {
         const payment = s.payments.find((p) => p.month === month)

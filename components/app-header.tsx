@@ -12,9 +12,9 @@ import {
   ClipboardCheck,
   CalendarCheck,
   BookOpen,
-  BarChart3,
   Menu,
   Cake,
+  FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -46,7 +46,7 @@ export function AppHeader() {
     { href: "/trainer/dashboard", label: "Painel", icon: LayoutDashboard, roles: ["coach"] },
     { href: "/trainer/carometro", label: "Carômetro", icon: BookOpen, roles: ["coach"] },
     { href: "/trainer/chamada", label: "Chamada", icon: ClipboardCheck, roles: ["coach"] },
-    { href: "/trainer/relatorio", label: "Relatório", icon: BarChart3, roles: ["coach"] },
+    { href: "/trainer/relatorio", label: "Relatório", icon: FileText, roles: ["coach"] },
     { href: "/trainer/birthdays", label: "Aniversariantes", icon: Cake, roles: ["coach"] },
   ]
 

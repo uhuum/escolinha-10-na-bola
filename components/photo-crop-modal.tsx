@@ -1,12 +1,13 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useRef, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Card } from "@/components/ui/card"
-import { ZoomIn, RotateCw } from 'lucide-react'
-import Image from "next/image"
+import { ZoomIn, RotateCw } from "lucide-react"
 
 interface PhotoCropModalProps {
   isOpen: boolean
@@ -24,7 +25,7 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
-  const canvasSize = 280 // Size of the circular preview
+  const canvasSize = 240
 
   useEffect(() => {
     if (!isOpen || !imageSrc || !canvasRef.current) return
@@ -81,6 +82,26 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
     setIsDragging(false)
   }
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true)
+      setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDragging || e.touches.length !== 1) return
+    const deltaX = e.touches[0].clientX - dragStart.x
+    const deltaY = e.touches[0].clientY - dragStart.y
+    setOffsetX(offsetX + deltaX / zoom / 2)
+    setOffsetY(offsetY + deltaY / zoom / 2)
+    setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+  }
+
   const handleSaveCrop = () => {
     if (canvasRef.current) {
       const croppedImage = canvasRef.current.toDataURL("image/jpeg", 0.9)
@@ -97,26 +118,27 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ajustar Foto do Aluno</DialogTitle>
-          <DialogDescription>
-            Redimensione, mova e gire a foto para encaixá-la perfeitamente no círculo
-          </DialogDescription>
+          <DialogDescription>Redimensione e posicione a foto no círculo</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Preview Canvas */}
-          <div className="flex justify-center bg-muted rounded-lg p-8">
+        <div className="space-y-4">
+          <div className="flex justify-center bg-muted rounded-lg p-4 sm:p-6">
             <canvas
               ref={canvasRef}
-              className="rounded-full border-4 border-primary shadow-lg cursor-move"
+              className="rounded-full border-4 border-primary shadow-lg cursor-move touch-none"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               width={canvasSize}
               height={canvasSize}
+              style={{ maxWidth: "100%", height: "auto" }}
             />
           </div>
 
@@ -127,6 +149,7 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
               <div className="flex items-center gap-2">
                 <ZoomIn className="h-4 w-4 text-muted-foreground" />
                 <label className="text-sm font-medium">Zoom</label>
+                <span className="ml-auto text-xs text-muted-foreground">{(zoom * 100).toFixed(0)}%</span>
               </div>
               <Slider
                 value={[zoom]}
@@ -136,7 +159,6 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
                 step={0.1}
                 className="w-full"
               />
-              <p className="text-xs text-muted-foreground text-right">{(zoom * 100).toFixed(0)}%</p>
             </div>
 
             {/* Rotation */}
@@ -144,6 +166,7 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
               <div className="flex items-center gap-2">
                 <RotateCw className="h-4 w-4 text-muted-foreground" />
                 <label className="text-sm font-medium">Rotação</label>
+                <span className="ml-auto text-xs text-muted-foreground">{rotation}°</span>
               </div>
               <Slider
                 value={[rotation]}
@@ -153,19 +176,17 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
                 step={5}
                 className="w-full"
               />
-              <p className="text-xs text-muted-foreground text-right">{rotation}°</p>
             </div>
 
             {/* Info */}
-            <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 p-3">
-              <p className="text-xs sm:text-sm text-blue-900 dark:text-blue-100">
-                <strong>Dica:</strong> Arraste a foto para mover, use os controles abaixo para zoom e rotação
+            <Card className="bg-primary/5 border-primary/20 p-3">
+              <p className="text-xs text-muted-foreground">
+                <strong>Dica:</strong> Arraste a foto para mover, use os controles para zoom e rotação
               </p>
             </Card>
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Button variant="outline" onClick={handleReset} className="flex-1 bg-transparent">
               Redefinir
             </Button>

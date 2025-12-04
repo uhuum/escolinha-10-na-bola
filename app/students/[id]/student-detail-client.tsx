@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
 import { formatCurrency } from "@/lib/utils/currency"
-import { ArrowLeft, DollarSign, Calendar, User, FileText, Trash2, Camera, Eye } from 'lucide-react'
+import { ArrowLeft, DollarSign, Calendar, User, FileText, Trash2, Camera, Eye } from "lucide-react"
 import Link from "next/link"
-import { notFound } from 'next/navigation'
-import { useRouter } from 'next/navigation'
+import { notFound } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
@@ -20,7 +20,6 @@ import type { ClassSchedule, WeekDay, Student } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
 
 export function StudentDetailClient({ id }: { id: string }) {
   const { getStudent, deleteStudent, updateStudent } = useStudents()
@@ -55,9 +54,7 @@ export function StudentDetailClient({ id }: { id: string }) {
   useEffect(() => {
     const loadStudent = async () => {
       setIsLoadingStudent(true)
-      console.log("[v0] StudentDetailClient - Looking for student with ID:", id)
       const fetchedStudent = await getStudent(id)
-      console.log("[v0] StudentDetailClient - Student found:", fetchedStudent ? fetchedStudent.name : "NOT FOUND")
       setStudent(fetchedStudent)
       setIsLoadingStudent(false)
 
@@ -86,13 +83,12 @@ export function StudentDetailClient({ id }: { id: string }) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <AppHeader />
-        <main className="container mx-auto px-4 py-8 flex-1 flex items-center justify-center">
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Carregando dados do aluno...</p>
           </div>
         </main>
-        <AppFooter />
       </div>
     )
   }
@@ -179,8 +175,8 @@ export function StudentDetailClient({ id }: { id: string }) {
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
 
-      <main className="container mx-auto px-4 py-8 flex-1">
-        <div className="mb-8">
+      <main className="flex-1 container mx-auto px-4 py-8">
+        <div className="mb-6">
           <Button asChild variant="ghost" className="mb-4">
             <Link href="/students">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -189,7 +185,7 @@ export function StudentDetailClient({ id }: { id: string }) {
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3 mb-8">
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -208,6 +204,9 @@ export function StudentDetailClient({ id }: { id: string }) {
                   />
                 </div>
                 <h2 className="text-2xl font-bold text-foreground mb-1">{student.name}</h2>
+                {student.isScholarship && (
+                  <span className="text-xs px-3 py-1 rounded-full bg-accent text-accent-foreground mb-1">Bolsista</span>
+                )}
                 {!student.isActive && (
                   <span className="text-xs px-3 py-1 rounded-full bg-muted text-muted-foreground">Inativo</span>
                 )}
@@ -222,7 +221,7 @@ export function StudentDetailClient({ id }: { id: string }) {
                 {student.responsibleEmail && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Email</p>
-                    <p className="font-medium text-foreground text-sm">{student.responsibleEmail}</p>
+                    <p className="font-medium text-foreground text-sm break-all">{student.responsibleEmail}</p>
                   </div>
                 )}
 
@@ -242,7 +241,9 @@ export function StudentDetailClient({ id }: { id: string }) {
 
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Mensalidade</p>
-                  <p className="text-2xl font-bold text-foreground">{formatCurrency(student.monthlyValue)}</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {student.isScholarship ? "Bolsista" : formatCurrency(student.monthlyValue)}
+                  </p>
                 </div>
 
                 {student.rg && (
@@ -266,24 +267,45 @@ export function StudentDetailClient({ id }: { id: string }) {
                   </div>
                 )}
 
-                {student.classSchedule && (
+                {student.scheduleConfigs && student.scheduleConfigs.length > 0 ? (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Horário da Turma</p>
-                    <p className="font-medium text-foreground">{student.classSchedule}</p>
-                  </div>
-                )}
-
-                {student.classDays && student.classDays.length > 0 && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Dias de Aula</p>
-                    <div className="flex flex-wrap gap-1">
-                      {student.classDays.map((day) => (
-                        <span key={day} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                          {day}
-                        </span>
+                    <p className="text-sm text-muted-foreground mb-2">Dias e Horários de Aula</p>
+                    <div className="space-y-2">
+                      {student.scheduleConfigs.map((config: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-foreground">{config.day}</span>
+                          </div>
+                          <span className="text-sm px-2 py-1 rounded bg-primary/10 text-primary font-medium">
+                            {config.schedule}
+                          </span>
+                        </div>
                       ))}
                     </div>
                   </div>
+                ) : (
+                  <>
+                    {student.classSchedule && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Horário da Turma</p>
+                        <p className="font-medium text-foreground">{student.classSchedule}</p>
+                      </div>
+                    )}
+
+                    {student.classDays && student.classDays.length > 0 && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Dias de Aula</p>
+                        <div className="flex flex-wrap gap-1">
+                          {student.classDays.map((day) => (
+                            <span key={day} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                              {day}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -389,7 +411,54 @@ export function StudentDetailClient({ id }: { id: string }) {
         </div>
       </main>
 
-      <AppFooter />
+      {showReceiptModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto border-2">
+            <CardHeader>
+              <CardTitle>Comprovante de Pagamento</CardTitle>
+              <CardDescription>Visualização do comprovante anexado</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {typeof selectedReceipt === "string" ? (
+                <img
+                  src={selectedReceipt || "/placeholder.svg"}
+                  alt="Receipt"
+                  className="w-full rounded-lg border max-h-[500px] object-contain"
+                />
+              ) : (
+                <div className="text-center p-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3" />
+                  <p>Arquivo: {selectedReceipt?.name}</p>
+                </div>
+              )}
+            </CardContent>
+            <div className="flex gap-3 justify-end p-6 border-t">
+              <Button onClick={() => setShowReceiptModal(false)}>Fechar</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Confirmar Exclusão</CardTitle>
+              <CardDescription>
+                Tem certeza que deseja excluir o aluno <strong>{student.name}</strong>? Esta ação não pode ser desfeita.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleDelete}>
+                Excluir
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {showEditDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -435,9 +504,6 @@ export function StudentDetailClient({ id }: { id: string }) {
                       id="edit-rg"
                       value={editForm.rg}
                       onChange={(e) => setEditForm({ ...editForm, rg: e.target.value })}
-                      placeholder="12.345.678-9 ou 12.345.67-X"
-                      maxLength={14}
-                      className="h-10 sm:h-11 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -450,11 +516,10 @@ export function StudentDetailClient({ id }: { id: string }) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-monthlyValue">Mensalidade (R$)</Label>
+                    <Label htmlFor="edit-monthlyValue">Mensalidade</Label>
                     <Input
                       id="edit-monthlyValue"
                       type="number"
-                      step="0.01"
                       value={editForm.monthlyValue}
                       onChange={(e) => setEditForm({ ...editForm, monthlyValue: e.target.value })}
                     />
@@ -466,7 +531,7 @@ export function StudentDetailClient({ id }: { id: string }) {
                 <h3 className="font-semibold">Dados do Responsável</h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-responsible">Nome Completo</Label>
+                    <Label htmlFor="edit-responsible">Nome do Responsável</Label>
                     <Input
                       id="edit-responsible"
                       value={editForm.responsible}
@@ -474,7 +539,7 @@ export function StudentDetailClient({ id }: { id: string }) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-responsibleCpf">CPF</Label>
+                    <Label htmlFor="edit-responsibleCpf">CPF do Responsável</Label>
                     <Input
                       id="edit-responsibleCpf"
                       value={editForm.responsibleCpf}
@@ -510,39 +575,39 @@ export function StudentDetailClient({ id }: { id: string }) {
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold">Informações da Turma</h3>
+                <h3 className="font-semibold">Turma</h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-classSchedule">Horário</Label>
+                    <Label>Horário</Label>
                     <Select
                       value={editForm.classSchedule}
-                      onValueChange={(value) => setEditForm({ ...editForm, classSchedule: value as ClassSchedule })}
+                      onValueChange={(v) => setEditForm({ ...editForm, classSchedule: v as ClassSchedule })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="18:00-19:30">Primeiro Horário (18:00 - 19:30)</SelectItem>
-                        <SelectItem value="19:30-21:00">Segundo Horário (19:30 - 21:00)</SelectItem>
+                        <SelectItem value="18:00-19:30">18:00-19:30</SelectItem>
+                        <SelectItem value="19:30-21:00">19:30-21:00</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Dias da Semana</Label>
-                  <div className="flex flex-wrap gap-4">
-                    {weekDays.map((day) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-${day}`}
-                          checked={editForm.classDays.includes(day)}
-                          onCheckedChange={() => toggleClassDay(day)}
-                        />
-                        <Label htmlFor={`edit-${day}`} className="cursor-pointer">
-                          {day}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    <Label>Dias da Semana</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {weekDays.map((day) => (
+                        <div key={day} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`edit-day-${day}`}
+                            checked={editForm.classDays.includes(day)}
+                            onCheckedChange={() => toggleClassDay(day)}
+                          />
+                          <label htmlFor={`edit-day-${day}`} className="text-sm">
+                            {day.slice(0, 3)}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -552,64 +617,6 @@ export function StudentDetailClient({ id }: { id: string }) {
                 Cancelar
               </Button>
               <Button onClick={handleSaveEdit}>Salvar Alterações</Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {showDeleteDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Confirmar Exclusão</CardTitle>
-              <CardDescription>
-                Tem certeza que deseja excluir {student.name}? Esta ação não pode ser desfeita e todos os dados serão
-                perdidos permanentemente.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Excluir Permanentemente
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {showReceiptModal && selectedReceipt && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto border-2">
-            <CardHeader>
-              <CardTitle>Comprovante de Pagamento</CardTitle>
-              <CardDescription>Visualização do comprovante anexado</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {typeof selectedReceipt === "string" ? (
-                selectedReceipt.startsWith("data:") ? (
-                  <img
-                    src={selectedReceipt || "/placeholder.svg"}
-                    alt="Receipt"
-                    className="w-full rounded-lg border max-h-[500px] object-contain"
-                  />
-                ) : (
-                  <img
-                    src={selectedReceipt || "/placeholder.svg"}
-                    alt="Receipt"
-                    className="w-full rounded-lg border max-h-[500px] object-contain"
-                  />
-                )
-              ) : (
-                <div className="text-center p-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3" />
-                  <p>Arquivo: {selectedReceipt.name}</p>
-                </div>
-              )}
-            </CardContent>
-            <div className="flex gap-3 justify-end p-6 border-t">
-              <Button onClick={() => setShowReceiptModal(false)}>Fechar</Button>
             </div>
           </Card>
         </div>

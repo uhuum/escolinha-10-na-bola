@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { PaymentStatus } from "@/lib/types"
 import { toast } from "@/components/ui/use-toast"
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
 import Image from "next/image"
 
 export default function StudentsPage() {
@@ -224,8 +223,6 @@ export default function StudentsPage() {
           </Card>
         )}
       </main>
-
-      <AppFooter />
 
       {showDeleteDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">

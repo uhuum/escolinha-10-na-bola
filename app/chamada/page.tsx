@@ -1,9 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,13 +19,19 @@ export default function ChamadaPage() {
   const { addAttendance } = useAttendance()
   const { user } = useAuth()
   const { toast } = useToast()
-  const router = useRouter()
 
   const [selectedSchedule, setSelectedSchedule] = useState<ClassSchedule | "">("")
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, "Presente" | "Ausente">>({})
 
   const filteredStudents = selectedSchedule
-    ? students.filter((s) => s.isActive && s.classSchedule === selectedSchedule)
+    ? students.filter((s) => {
+        if (!s.isActive) return false
+        // Check scheduleConfigs first
+        if (s.scheduleConfigs && s.scheduleConfigs.length > 0) {
+          return s.scheduleConfigs.some((config) => config.schedule === selectedSchedule)
+        }
+        return s.classSchedule === selectedSchedule
+      })
     : []
 
   const handleToggleAttendance = (studentId: string) => {
@@ -56,13 +60,11 @@ export default function ChamadaPage() {
       return
     }
 
-    // Create attendance records for all students in the class
     const records: AttendanceRecord[] = filteredStudents.map((student) => ({
       studentId: student.id,
       status: attendanceRecords[student.id] || "Ausente",
     }))
 
-    // Get class days from first student (all students in same schedule should have same days)
     const classDays = filteredStudents[0]?.classDays || []
 
     addAttendance(selectedSchedule, classDays, user?.username || "Treinador", records)
@@ -72,7 +74,6 @@ export default function ChamadaPage() {
       description: `Chamada da turma ${selectedSchedule} registrada com sucesso.`,
     })
 
-    // Reset form
     setAttendanceRecords({})
     setSelectedSchedule("")
   }
@@ -87,11 +88,10 @@ export default function ChamadaPage() {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Relatório de Chamadas</h1>
-            <p className="text-muted-foreground">Registre e visualize a presença dos alunos</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Registrar Chamada</h1>
+            <p className="text-muted-foreground">Registre a presença dos alunos</p>
           </div>
 
-          {/* Class Selection */}
           <Card>
             <CardHeader>
               <CardTitle>Selecione a Turma</CardTitle>
@@ -110,7 +110,6 @@ export default function ChamadaPage() {
             </CardContent>
           </Card>
 
-          {/* Attendance Summary */}
           {selectedSchedule && filteredStudents.length > 0 && (
             <div className="grid grid-cols-3 gap-4">
               <Card>
@@ -151,7 +150,6 @@ export default function ChamadaPage() {
             </div>
           )}
 
-          {/* Student List */}
           {selectedSchedule && filteredStudents.length > 0 && (
             <Card>
               <CardHeader>
@@ -185,7 +183,9 @@ export default function ChamadaPage() {
                           <div>
                             <p className="font-semibold">{student.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {student.classDays?.join(", ")} - {student.classSchedule}
+                              {student.scheduleConfigs && student.scheduleConfigs.length > 0
+                                ? student.scheduleConfigs.map((c) => `${c.day} ${c.schedule}`).join(", ")
+                                : `${student.classDays?.join(", ")} - ${student.classSchedule}`}
                             </p>
                           </div>
                         </div>
@@ -239,8 +239,6 @@ export default function ChamadaPage() {
           )}
         </div>
       </main>
-
-      <AppFooter />
     </div>
   )
 }

@@ -1,25 +1,23 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { useStudents } from "@/lib/hooks/use-students"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, UserPlus, Camera } from 'lucide-react'
+import { ArrowLeft, Save, UserPlus, Camera, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
-import type { ClassSchedule, WeekDay } from "@/lib/types"
+import type { ClassSchedule, WeekDay, DayScheduleConfig } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
-import { formatCPF, formatRG, formatPhone } from "@/lib/utils/input-masks"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
+import { formatRG, formatCPF, formatPhone } from "@/lib/formatters" // Added imports for format functions
 
 export default function NewStudentPage() {
   const router = useRouter()
@@ -36,9 +34,12 @@ export default function NewStudentPage() {
     fatherPhone: "",
     motherPhone: "",
     monthlyValue: "100",
-    classSchedule: "18:00-19:30" as ClassSchedule,
-    classDays: [] as WeekDay[],
+    isScholarship: false, // Added scholarship field
   })
+
+  const [scheduleConfigs, setScheduleConfigs] = useState<DayScheduleConfig[]>([
+    { day: "Segunda", schedule: "18:00-19:30" },
+  ])
 
   const [photoPreview, setPhotoPreview] = useState<string>("/diverse-students.png")
   const [showCropModal, setShowCropModal] = useState(false)
@@ -70,6 +71,67 @@ export default function NewStudentPage() {
     })
   }
 
+  const addScheduleConfig = () => {
+    // Find a day that hasn't been used yet
+    const usedDays = scheduleConfigs.map((c) => c.day)
+    const availableDay = weekDays.find((d) => !usedDays.includes(d))
+
+    if (!availableDay) {
+      toast({
+        title: "Erro",
+        description: "Todos os dias já foram configurados.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setScheduleConfigs([...scheduleConfigs, { day: availableDay, schedule: "18:00-19:30" }])
+  }
+
+  const removeScheduleConfig = (index: number) => {
+    if (scheduleConfigs.length > 1) {
+      setScheduleConfigs(scheduleConfigs.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateConfigDay = (index: number, day: WeekDay) => {
+    // Check if day is already used in another config
+    const isDayUsed = scheduleConfigs.some((config, i) => i !== index && config.day === day)
+
+    if (isDayUsed) {
+      const existingConfig = scheduleConfigs.find((c, i) => i !== index && c.day === day)
+      toast({
+        title: "Dia já utilizado",
+        description: `${day} já está configurado com horário ${existingConfig?.schedule}. Escolha outro dia.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    const newConfigs = [...scheduleConfigs]
+    newConfigs[index].day = day
+    setScheduleConfigs(newConfigs)
+  }
+
+  const updateConfigSchedule = (index: number, schedule: ClassSchedule) => {
+    const config = scheduleConfigs[index]
+    // Check if same day+schedule combination exists
+    const isDuplicate = scheduleConfigs.some((c, i) => i !== index && c.day === config.day && c.schedule === schedule)
+
+    if (isDuplicate) {
+      toast({
+        title: "Configuração duplicada",
+        description: `${config.day} no horário ${schedule} já está configurado.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    const newConfigs = [...scheduleConfigs]
+    newConfigs[index].schedule = schedule
+    setScheduleConfigs(newConfigs)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -82,6 +144,23 @@ export default function NewStudentPage() {
       return
     }
 
+    const seen = new Set<string>()
+    for (const config of scheduleConfigs) {
+      const key = `${config.day}-${config.schedule}`
+      if (seen.has(key)) {
+        toast({
+          title: "Erro",
+          description: `Configuração duplicada: ${config.day} no horário ${config.schedule}`,
+          variant: "destructive",
+        })
+        return
+      }
+      seen.add(key)
+    }
+
+    const allDays: WeekDay[] = [...new Set(scheduleConfigs.map((c) => c.day))]
+    const primarySchedule = scheduleConfigs[0]?.schedule || "18:00-19:30"
+
     try {
       setIsSaving(true)
       const newStudent = {
@@ -93,12 +172,14 @@ export default function NewStudentPage() {
         responsibleEmail: formData.responsibleEmail,
         fatherPhone: formData.fatherPhone,
         motherPhone: formData.motherPhone,
-        monthlyValue: Number.parseFloat(formData.monthlyValue),
+        monthlyValue: formData.isScholarship ? 0 : Number.parseFloat(formData.monthlyValue),
         isActive: true,
-        classSchedule: formData.classSchedule,
-        classDays: formData.classDays,
+        isScholarship: formData.isScholarship,
+        classSchedule: primarySchedule,
+        classDays: allDays,
+        scheduleConfigs: scheduleConfigs,
         photo: photoPreview,
-        payments: [], // Will be created by the hook
+        payments: [],
       }
 
       await addStudent(newStudent)
@@ -119,13 +200,6 @@ export default function NewStudentPage() {
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const toggleClassDay = (day: WeekDay) => {
-    setFormData((prev) => ({
-      ...prev,
-      classDays: prev.classDays.includes(day) ? prev.classDays.filter((d) => d !== day) : [...prev.classDays, day],
-    }))
   }
 
   return (
@@ -334,31 +408,26 @@ export default function NewStudentPage() {
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-base sm:text-lg">Informações da Turma</CardTitle>
-                <CardDescription className="text-sm">Horário e dias de aula</CardDescription>
+                <CardDescription className="text-sm">Configure os dias e horários de aula do aluno</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
-                <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="classSchedule" className="text-sm">
-                      Horário da Turma
+              <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
+                <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-dashed bg-accent/5">
+                  <Checkbox
+                    id="isScholarship"
+                    checked={formData.isScholarship}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isScholarship: checked as boolean })}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="isScholarship" className="cursor-pointer text-sm font-medium">
+                      Aluno Bolsista
                     </Label>
-                    <Select
-                      value={formData.classSchedule}
-                      onValueChange={(value) => setFormData({ ...formData, classSchedule: value as ClassSchedule })}
-                    >
-                      <SelectTrigger className="h-10 sm:h-11 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="18:00-19:30" className="text-sm">
-                          Primeiro Horário (18:00 - 19:30)
-                        </SelectItem>
-                        <SelectItem value="19:30-21:00" className="text-sm">
-                          Segundo Horário (19:30 - 21:00)
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Marque se o aluno possui bolsa de estudos (mensalidade será R$ 0,00)
+                    </p>
                   </div>
+                </div>
+
+                {!formData.isScholarship && (
                   <div className="space-y-2">
                     <Label htmlFor="monthlyValue" className="text-sm">
                       Valor da Mensalidade (R$)
@@ -370,26 +439,84 @@ export default function NewStudentPage() {
                       value={formData.monthlyValue}
                       onChange={(e) => setFormData({ ...formData, monthlyValue: e.target.value })}
                       placeholder="100.00"
-                      className="h-10 sm:h-11 text-sm"
+                      className="h-10 sm:h-11 text-sm max-w-xs"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Dias da Semana</Label>
-                  <div className="flex flex-wrap gap-3 sm:gap-4">
-                    {weekDays.map((day) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={day}
-                          checked={formData.classDays.includes(day)}
-                          onCheckedChange={() => toggleClassDay(day)}
-                        />
-                        <Label htmlFor={day} className="cursor-pointer text-sm">
-                          {day}
-                        </Label>
+                )}
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Dias e Horários de Aula</Label>
+
+                  {scheduleConfigs.map((config, index) => (
+                    <div key={index} className="flex flex-col sm:flex-row gap-3 p-4 rounded-lg border bg-card">
+                      <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                        <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                          {index === 0 ? "Primeiro Dia" : `${index + 1}º Dia`}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="flex-1 grid grid-cols-2 gap-3">
+                        <Select value={config.day} onValueChange={(value) => updateConfigDay(index, value as WeekDay)}>
+                          <SelectTrigger className="h-10 text-sm">
+                            <SelectValue placeholder="Dia" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {weekDays.map((day) => (
+                              <SelectItem key={day} value={day} className="text-sm">
+                                {day}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={config.schedule}
+                          onValueChange={(value) => updateConfigSchedule(index, value as ClassSchedule)}
+                        >
+                          <SelectTrigger className="h-10 text-sm">
+                            <SelectValue placeholder="Horário" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="18:00-19:30" className="text-sm">
+                              18:00 - 19:30
+                            </SelectItem>
+                            <SelectItem value="19:30-21:00" className="text-sm">
+                              19:30 - 21:00
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {scheduleConfigs.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeScheduleConfig(index)}
+                          className="h-10 w-10 p-0 text-destructive hover:text-destructive shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+
+                  {scheduleConfigs.length < 5 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addScheduleConfig}
+                      className="w-full sm:w-auto bg-transparent"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Outro Dia
+                    </Button>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    Cada dia pode ter apenas um horário. Ex: Terça às 18:00-19:30 e Quinta às 19:30-21:00.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -430,8 +557,6 @@ export default function NewStudentPage() {
           }}
         />
       </main>
-
-      <AppFooter />
     </div>
   )
 }

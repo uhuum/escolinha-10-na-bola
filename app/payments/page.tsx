@@ -19,6 +19,9 @@ import {
   BarChart3,
   Flag,
   Lock,
+  Users,
+  Phone,
+  X,
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
@@ -27,11 +30,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getAllMonths, getCurrentDay, getCurrentMonthName, getCurrentMonthIndex } from "@/lib/utils/date"
+import { Badge } from "@/components/ui/badge"
 
 export default function PaymentsPage() {
   const {
@@ -45,6 +48,7 @@ export default function PaymentsPage() {
   } = useStudents()
   const { toast } = useToast()
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthName())
+  const [showPendingModal, setShowPendingModal] = useState(false)
 
   const months = getAllMonths()
   const currentMonthIndex = getCurrentMonthIndex()
@@ -53,14 +57,8 @@ export default function PaymentsPage() {
 
   const studentsWithPayments = activeStudents
     .map((student) => {
-      const studentCreatedMonth = new Date(student.created_at || new Date()).getMonth()
-
-      // Only show payments from the month the student was created onwards
-      const payment = student.payments.find(
-        (p) => p.month === selectedMonth && months.indexOf(p.month) >= studentCreatedMonth,
-      )
-
-      return { student, payment, shouldShow: months.indexOf(selectedMonth) >= studentCreatedMonth }
+      const payment = student.payments.find((p) => p.month === selectedMonth)
+      return { student, payment, shouldShow: true }
     })
     .filter((item) => item.shouldShow)
 
@@ -68,7 +66,7 @@ export default function PaymentsPage() {
     const currentDay = getCurrentDay()
 
     studentsWithPayments.forEach(({ student, payment }) => {
-      if (student.monthlyValue === 0) return
+      if (student.monthlyValue === 0 || student.isScholarship) return
 
       if (payment && payment.status !== "Pago" && payment.status !== "Adiado") {
         if (currentDay >= 1 && currentDay <= 10) {
@@ -85,12 +83,19 @@ export default function PaymentsPage() {
   }, [selectedMonth, studentsWithPayments, updatePaymentStatus])
 
   const paidCount = studentsWithPayments.filter((s) => s.payment?.status === "Pago").length
-  const pendingCount = studentsWithPayments.filter(
-    (s) => s.payment?.status === "Não Pagou" || s.payment?.status === "Cobrado" || s.payment?.status === "Em Aberto",
+  const pendingStudents = studentsWithPayments.filter(
+    (s) =>
+      !s.student.isScholarship &&
+      s.student.monthlyValue > 0 &&
+      (s.payment?.status === "Não Pagou" || s.payment?.status === "Cobrado" || s.payment?.status === "Em Aberto"),
+  )
+  const pendingCount = pendingStudents.length
+  const scholarshipCount = studentsWithPayments.filter(
+    (s) => s.student.isScholarship || s.student.monthlyValue === 0,
   ).length
 
   const totalExpected = studentsWithPayments.reduce((sum, { student, payment }) => {
-    if (student.monthlyValue > 0) {
+    if (student.monthlyValue > 0 && !student.isScholarship) {
       return sum + (payment?.value || student.monthlyValue)
     }
     return sum
@@ -185,7 +190,7 @@ export default function PaymentsPage() {
     const student = students.find((s) => s.id === studentId)
     toast({
       title: "Marcado como Cobrado",
-      description: `${student?.name} foi marcado como cobrado. Aguardando envio do comprovante.`,
+      description: `${student?.name} foi marcado como cobrado em ${format(new Date(), "dd/MM/yyyy", { locale: ptBR })}.`,
     })
   }
 
@@ -217,7 +222,7 @@ export default function PaymentsPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8 lg:mb-10">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 mb-6 sm:mb-8 lg:mb-10">
           <Card className="border-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm sm:text-base font-semibold">Selecionar Mês</CardTitle>
@@ -248,12 +253,15 @@ export default function PaymentsPage() {
             <CardContent>
               <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-1">{paidCount}</div>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                {((paidCount / activeStudents.length) * 100).toFixed(0)}% dos alunos
+                {((paidCount / (activeStudents.length - scholarshipCount)) * 100 || 0).toFixed(0)}% dos pagantes
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 hover:border-destructive/50 transition-colors">
+          <Card
+            className="border-2 hover:border-destructive/50 transition-colors cursor-pointer"
+            onClick={() => setShowPendingModal(true)}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
               <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-destructive/10">
@@ -262,7 +270,20 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-destructive mb-1">{pendingCount}</div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Requerem atenção</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Clique para ver detalhes</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 hover:border-blue-500/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Bolsistas</CardTitle>
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-blue-500/10">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-500 mb-1">{scholarshipCount}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Alunos com bolsa</p>
             </CardContent>
           </Card>
 
@@ -290,7 +311,7 @@ export default function PaymentsPage() {
           <CardContent>
             <div className="space-y-3 sm:space-y-4">
               {studentsWithPayments.map(({ student, payment }) => {
-                const isScholarship = student.monthlyValue === 0
+                const isScholarship = student.isScholarship || student.monthlyValue === 0
                 const isPaid = payment?.status === "Pago"
                 const isNotPaid = payment?.status === "Não Pagou"
                 const isCharged = payment?.status === "Cobrado"
@@ -313,7 +334,11 @@ export default function PaymentsPage() {
                         <p className="font-semibold text-foreground text-sm sm:text-base truncate">{student.name}</p>
                         <p className="text-xs sm:text-sm text-muted-foreground truncate">{student.responsible}</p>
                         <p className="text-xs sm:text-sm font-medium text-foreground mt-1">
-                          {formatCurrency(payment?.value || student.monthlyValue)}
+                          {isScholarship ? (
+                            <span className="text-blue-500">Bolsista</span>
+                          ) : (
+                            formatCurrency(payment?.value || student.monthlyValue)
+                          )}
                         </p>
                         {payment?.postponedTo && (
                           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
@@ -326,8 +351,19 @@ export default function PaymentsPage() {
                             Comprovante anexado
                           </p>
                         )}
+                        {isCharged && payment?.chargedAt && (
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">
+                            Cobrado em: {format(new Date(payment.chargedAt), "dd/MM/yyyy", { locale: ptBR })}
+                          </p>
+                        )}
                       </div>
-                      <div className="flex-shrink-0">{payment && <PaymentStatusBadge status={payment.status} />}</div>
+                      <div className="flex-shrink-0">
+                        {isScholarship ? (
+                          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Bolsista</Badge>
+                        ) : (
+                          payment && <PaymentStatusBadge status={payment.status} />
+                        )}
+                      </div>
                     </div>
 
                     {!isScholarship && (
@@ -409,9 +445,6 @@ export default function PaymentsPage() {
                         )}
                       </div>
                     )}
-                    {isScholarship && (
-                      <span className="text-sm text-muted-foreground italic text-center">Bolsista</span>
-                    )}
                   </div>
                 )
               })}
@@ -425,7 +458,7 @@ export default function PaymentsPage() {
             className="gap-2 bg-transparent text-sm sm:text-base h-10 sm:h-11"
             onClick={() => {
               studentsWithPayments.forEach(({ student, payment }) => {
-                if (payment?.status === "Em Aberto") {
+                if (payment?.status === "Em Aberto" && !student.isScholarship) {
                   updatePaymentStatus(student.id, selectedMonth, "Cobrado")
                 }
               })
@@ -451,7 +484,97 @@ export default function PaymentsPage() {
         </div>
       </main>
 
-      <AppFooter />
+      {showPendingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl border-2 max-h-[90vh] overflow-hidden flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between border-b">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  Pagamentos Pendentes - {selectedMonth}
+                </CardTitle>
+                <CardDescription>{pendingCount} alunos com pagamento pendente</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowPendingModal(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0 overflow-y-auto flex-1">
+              <div className="divide-y">
+                {pendingStudents.map(({ student, payment }) => (
+                  <div key={student.id} className="p-4 hover:bg-accent/5 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="relative h-12 w-12 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 flex-shrink-0">
+                        <Image
+                          src={student.photo || "/placeholder.svg?height=48&width=48&query=student"}
+                          alt={student.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="font-semibold text-foreground truncate">{student.name}</p>
+                          <PaymentStatusBadge status={payment?.status || "Em Aberto"} />
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">Responsável: {student.responsible}</p>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {student.fatherPhone && (
+                            <a
+                              href={`tel:${student.fatherPhone.replace(/\D/g, "")}`}
+                              className="flex items-center gap-1 px-2 py-1 rounded bg-accent/10 hover:bg-accent/20 transition-colors"
+                            >
+                              <Phone className="h-3 w-3" />
+                              Pai: {student.fatherPhone}
+                            </a>
+                          )}
+                          {student.motherPhone && (
+                            <a
+                              href={`tel:${student.motherPhone.replace(/\D/g, "")}`}
+                              className="flex items-center gap-1 px-2 py-1 rounded bg-accent/10 hover:bg-accent/20 transition-colors"
+                            >
+                              <Phone className="h-3 w-3" />
+                              Mãe: {student.motherPhone}
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-sm font-medium">
+                            {formatCurrency(payment?.value || student.monthlyValue)}
+                          </span>
+                          {payment?.chargedAt && (
+                            <span className="text-xs text-orange-600">
+                              Cobrado em {format(new Date(payment.chargedAt), "dd/MM", { locale: ptBR })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          handleMarkAsCharged(student.id)
+                        }}
+                        disabled={payment?.status === "Cobrado"}
+                        className="shrink-0"
+                      >
+                        <Flag className="h-4 w-4 mr-1" />
+                        {payment?.status === "Cobrado" ? "Cobrado" : "Marcar Cobrado"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {pendingStudents.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Check className="h-12 w-12 mx-auto mb-3 text-accent opacity-50" />
+                    <p>Nenhum pagamento pendente neste mês!</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {showPostponeDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -463,20 +586,20 @@ export default function PaymentsPage() {
             <CardContent className="space-y-4">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal h-11 bg-transparent">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {postponeDate ? format(postponeDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione uma data"}
+                    {postponeDate ? format(postponeDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={postponeDate} onSelect={setPostponeDate} initialFocus />
+                  <Calendar mode="single" selected={postponeDate} onSelect={setPostponeDate} locale={ptBR} />
                 </PopoverContent>
               </Popover>
-              <div className="flex gap-3 justify-end pt-2">
-                <Button variant="outline" onClick={() => setShowPostponeDialog(false)}>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setShowPostponeDialog(false)} className="flex-1">
                   Cancelar
                 </Button>
-                <Button onClick={confirmPostpone} disabled={!postponeDate}>
+                <Button onClick={confirmPostpone} className="flex-1" disabled={!postponeDate}>
                   Confirmar
                 </Button>
               </div>
@@ -489,44 +612,35 @@ export default function PaymentsPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md border-2">
             <CardHeader>
-              <CardTitle className="text-xl">Enviar Comprovante de Pagamento</CardTitle>
+              <CardTitle className="text-xl">Anexar Comprovante</CardTitle>
               <CardDescription className="text-base">
-                O comprovante será anexado permanentemente e o pagamento será marcado automaticamente como pago
+                Selecione o comprovante de pagamento (imagem ou PDF)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="border-2 border-dashed rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="receipt">Arquivo</Label>
+                <Input
+                  id="receipt"
                   type="file"
                   accept="image/*,.pdf"
                   onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                  id="receipt-upload"
                 />
-                <label htmlFor="receipt-upload" className="cursor-pointer">
-                  <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  {receiptFile ? (
-                    <p className="text-sm font-semibold text-foreground">{receiptFile.name}</p>
-                  ) : (
-                    <>
-                      <p className="text-sm font-semibold text-foreground mb-1">Clique para selecionar</p>
-                      <p className="text-xs text-muted-foreground">PDF, JPG, PNG (máx. 10MB)</p>
-                    </>
-                  )}
-                </label>
               </div>
-              <div className="flex gap-3 justify-end pt-2">
+              {receiptFile && <p className="text-sm text-muted-foreground">Arquivo selecionado: {receiptFile.name}</p>}
+              <div className="flex gap-3">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setShowReceiptDialog(false)
                     setReceiptFile(null)
                   }}
+                  className="flex-1"
                 >
                   Cancelar
                 </Button>
-                <Button onClick={confirmReceiptUpload} disabled={!receiptFile}>
-                  Confirmar e Marcar como Pago
+                <Button onClick={confirmReceiptUpload} className="flex-1" disabled={!receiptFile}>
+                  Confirmar Pagamento
                 </Button>
               </div>
             </CardContent>
@@ -539,15 +653,13 @@ export default function PaymentsPage() {
           <Card className="w-full max-w-md border-2">
             <CardHeader>
               <CardTitle className="text-xl">Editar Valor da Mensalidade</CardTitle>
-              <CardDescription className="text-base">
-                Altere o valor apenas para o mês de {selectedMonth}. Meses anteriores não serão afetados.
-              </CardDescription>
+              <CardDescription className="text-base">Altere o valor apenas para este mês</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new-value">Novo Valor (R$)</Label>
+                <Label htmlFor="newValue">Novo Valor (R$)</Label>
                 <Input
-                  id="new-value"
+                  id="newValue"
                   type="number"
                   step="0.01"
                   value={newMonthlyValue}
@@ -555,12 +667,19 @@ export default function PaymentsPage() {
                   placeholder="100.00"
                 />
               </div>
-              <div className="flex gap-3 justify-end pt-2">
-                <Button variant="outline" onClick={() => setShowEditValueDialog(false)}>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditValueDialog(false)
+                    setNewMonthlyValue("")
+                  }}
+                  className="flex-1"
+                >
                   Cancelar
                 </Button>
-                <Button onClick={confirmEditValue} disabled={!newMonthlyValue}>
-                  Salvar Valor
+                <Button onClick={confirmEditValue} className="flex-1" disabled={!newMonthlyValue}>
+                  Salvar
                 </Button>
               </div>
             </CardContent>
@@ -569,46 +688,40 @@ export default function PaymentsPage() {
       )}
 
       {showMonthlyReport && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <Card className="w-full max-w-2xl my-8 border-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg border-2">
             <CardHeader>
-              <CardTitle className="text-2xl">Relatório de {selectedMonth}</CardTitle>
-              <CardDescription>Resumo financeiro e status de pagamentos do mês</CardDescription>
+              <CardTitle className="text-xl">Relatório de {selectedMonth}</CardTitle>
+              <CardDescription>Resumo financeiro do mês</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg bg-accent/10 border border-accent/20">
-                  <p className="text-sm text-muted-foreground mb-1">Total Recebido</p>
-                  <p className="text-3xl font-bold text-accent">{formatCurrency(monthlyReport.totalReceived)}</p>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-accent/10">
+                  <p className="text-sm text-muted-foreground">Total Recebido</p>
+                  <p className="text-2xl font-bold text-accent">{formatCurrency(monthlyReport.totalReceived)}</p>
                 </div>
-                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <p className="text-sm text-muted-foreground mb-1">Total Pendente</p>
-                  <p className="text-3xl font-bold text-destructive">{formatCurrency(monthlyReport.pendingAmount)}</p>
+                <div className="p-4 rounded-lg bg-destructive/10">
+                  <p className="text-sm text-muted-foreground">Pendente</p>
+                  <p className="text-2xl font-bold text-destructive">{formatCurrency(monthlyReport.pendingAmount)}</p>
                 </div>
               </div>
-
               {monthlyReport.defaultedStudents.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-lg mb-3">
-                    Alunos Inadimplentes ({monthlyReport.defaultedStudents.length})
-                  </h3>
-                  <div className="space-y-2">
+                  <p className="font-semibold mb-2">Alunos Inadimplentes:</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
                     {monthlyReport.defaultedStudents.map((student) => (
-                      <div
-                        key={student.id}
-                        className="flex justify-between items-center p-3 rounded-lg bg-muted/50 text-sm"
-                      >
-                        <span className="font-medium">{student.name}</span>
-                        <span className="text-muted-foreground">{student.responsibleEmail}</span>
+                      <div key={student.id} className="flex justify-between items-center p-2 rounded bg-muted">
+                        <span className="text-sm">{student.name}</span>
+                        <span className="text-sm font-medium">{formatCurrency(student.monthlyValue)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+              <Button onClick={() => setShowMonthlyReport(false)} className="w-full">
+                Fechar
+              </Button>
             </CardContent>
-            <div className="flex gap-3 justify-end p-6 border-t">
-              <Button onClick={() => setShowMonthlyReport(false)}>Fechar</Button>
-            </div>
           </Card>
         </div>
       )}
