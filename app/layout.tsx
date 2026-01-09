@@ -48,6 +48,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        {/* 👉 Força leitura do manifest no Netlify */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1a1a8c" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+      </head>
+
       <body className="font-sans antialiased">
         <AuthProvider>
           <SplashStart duration={1500} />
