@@ -33,6 +33,7 @@ import {
 import { LoadingStudents } from "@/components/loading-students"
 import type { ClassSchedule, WeekDay } from "@/lib/types"
 import { BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment"
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 
 export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -429,46 +430,57 @@ export default function DashboardPage() {
               <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-destructive/10">
                 <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
               </div>
-              Alunos com Pendência
+              Alunos Pendentes - {selectedMonth}/{selectedYear}
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm lg:text-base">
-              {pendingStudents.length} alunos precisam de cobrança
+              Lista de alunos que ainda não efetuaram o pagamento
             </CardDescription>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-            <div className="space-y-2 sm:space-y-3">
-              {pendingStudents.slice(0, 5).map((student) => (
-                <div
-                  key={student.id}
-                  className="flex items-center justify-between p-3 sm:p-4 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground text-sm sm:text-base truncate">{student.name}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">{student.responsible}</p>
-                  </div>
-                  <Button asChild size="sm" className="gap-1 shrink-0 ml-2 h-8 sm:h-9 text-xs sm:text-sm">
-                    <Link href={`/students/${student.id}`}>
-                      Ver
-                      <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    </Link>
-                  </Button>
-                </div>
-              ))}
-              {pendingStudents.length > 5 && (
-                <Button asChild variant="outline" className="w-full mt-3 sm:mt-4 bg-transparent text-xs sm:text-sm">
-                  <Link href="/payments">Ver todos ({pendingStudents.length})</Link>
-                </Button>
-              )}
-              {pendingStudents.length === 0 && (
-                <div className="text-center py-6 sm:py-8 text-muted-foreground">
-                  <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-3 text-accent" />
-                  <p className="text-xs sm:text-sm">Nenhum pagamento pendente</p>
-                </div>
-              )}
-            </div>
+            {pendingStudents.length === 0 ? (
+              <div className="text-center py-8 sm:py-12 text-muted-foreground">
+                <CheckCircle2 className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 sm:mb-4 text-accent" />
+                <p className="text-base sm:text-lg font-medium">Todos os pagamentos em dia!</p>
+                <p className="text-xs sm:text-sm">Não há alunos com pagamentos pendentes.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 sm:space-y-3">
+                {pendingStudents.slice(0, 5).map((student) => (
+                  <Link key={student.id} href={`/students/${student.id}`} className="block">
+                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg border-2 hover:border-primary/50 transition-colors bg-card">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                          <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-destructive" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground text-sm sm:text-base truncate">{student.name}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">{student.responsible}</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <p className="font-bold text-destructive text-sm sm:text-base">
+                          {formatCurrency(student.monthlyValue)}
+                        </p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Pendente</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+                {pendingStudents.length > 5 && (
+                  <Link href="/payments">
+                    <Button variant="outline" className="w-full gap-2 bg-transparent h-9 sm:h-10 text-xs sm:text-sm">
+                      Ver todos os {pendingStudents.length} pendentes
+                      <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
+
+      <PWAInstallPrompt />
     </div>
   )
 }

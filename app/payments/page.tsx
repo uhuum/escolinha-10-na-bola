@@ -20,7 +20,6 @@ import {
   Flag,
   Users,
   X,
-  Search,
   ChevronLeft,
   ChevronRight,
   Banknote,
@@ -30,6 +29,7 @@ import {
   UserX,
   ShieldOff,
   FileText,
+  Search,
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
@@ -654,15 +654,15 @@ export default function PaymentsPage() {
         </div>
 
         <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 mb-4 sm:mb-6 lg:mb-10">
-          <Card className="border-2 col-span-2 sm:col-span-3 lg:col-span-1">
-            <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-4 lg:p-6">
+          <Card className="border-2 col-span-2 sm:col-span-1">
+            <CardHeader className="pb-2 p-3 sm:p-4">
               <CardTitle className="text-xs sm:text-sm font-semibold">Período</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 sm:space-y-3 p-3 sm:p-4 lg:p-6 pt-0">
+            <CardContent className="space-y-3 p-3 sm:p-4 pt-0">
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Ano</Label>
+                <Label className="text-[10px] sm:text-xs text-muted-foreground mb-1 block">Ano</Label>
                 <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number.parseInt(v, 10))}>
-                  <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -677,12 +677,12 @@ export default function PaymentsPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Mês</Label>
-                <div className="flex items-center gap-1">
+                <Label className="text-[10px] sm:text-xs text-muted-foreground mb-1 block">Mês</Label>
+                <div className="flex items-center gap-0.5 sm:gap-1">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 bg-transparent"
+                    className="h-7 w-7 sm:h-8 sm:w-8 shrink-0"
                     onClick={handlePreviousMonth}
                     title="Mês anterior"
                     disabled={selectedYear === BASE_YEAR && selectedMonthNumber <= BASE_MONTH}
@@ -690,7 +690,7 @@ export default function PaymentsPage() {
                     <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="h-8 sm:h-9 flex-1 text-xs sm:text-sm">
+                    <SelectTrigger className="h-8 flex-1 min-w-0 text-xs px-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -706,9 +706,9 @@ export default function PaymentsPage() {
                     </SelectContent>
                   </Select>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 bg-transparent"
+                    className="h-7 w-7 sm:h-8 sm:w-8 shrink-0"
                     onClick={handleNextMonth}
                     title="Próximo mês"
                   >
@@ -724,16 +724,13 @@ export default function PaymentsPage() {
               <CardTitle className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground">
                 Pagos
               </CardTitle>
-              <div className="flex h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 items-center justify-center rounded-lg bg-green-500/10">
-                <Check className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-green-600" />
+              <div className="flex h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 items-center justify-center rounded-lg bg-accent/10">
+                <Check className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-accent" />
               </div>
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-green-600 mb-1">{paidCount}</div>
-              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">
-                {((paidCount / (studentsWithPayments.length - scholarshipCount - archivedCount)) * 100 || 0).toFixed(0)}
-                % dos pagantes
-              </p>
+              <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-accent mb-1">{paidCount}</div>
+              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">100% dos pagantes</p>
             </CardContent>
           </Card>
 
@@ -928,7 +925,11 @@ export default function PaymentsPage() {
                         </p>
                         {payment?.dueDate && !isScholarship && !isArchived && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Venc: {new Date(payment.dueDate).toLocaleDateString("pt-BR")}
+                            Venc: {(() => {
+                              const date = new Date(payment.dueDate)
+                              // Força o dia para 10 na exibição
+                              return `10/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`
+                            })()}
                           </p>
                         )}
                         {isPaid && payment?.paymentType && (

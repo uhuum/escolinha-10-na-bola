@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/lib/contexts/auth-context"
-import { SplashStart } from "@/components/splash-start"
+import { PWARegister } from "@/components/pwa-register"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -14,19 +14,18 @@ export const metadata: Metadata = {
   title: "SIGA - Sistema Integrado de Gestão de Alunos",
   description: "Sistema de gerenciamento de alunos e controle financeiro - CEAP",
   generator: "v0.app",
-
-  // 👉 PWA
   manifest: "/manifest.json",
-
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "SIGA",
   },
-
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: [
+      { url: "/icon-192x192.jpg", sizes: "192x192", type: "image/jpeg" },
+      { url: "/icon-512x512.jpg", sizes: "512x512", type: "image/jpeg" },
+    ],
+    apple: [{ url: "/apple-icon-180x180.jpg", sizes: "180x180", type: "image/jpeg" }],
   },
 }
 
@@ -48,16 +47,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <head>
-        {/* 👉 Força leitura do manifest no Netlify */}
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#1a1a8c" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-      </head>
-
-      <body className="font-sans antialiased">
+      <body className={`font-sans antialiased`}>
         <AuthProvider>
-          <SplashStart duration={1500} />
+          <PWARegister />
           {children}
           <Toaster />
           <Analytics />

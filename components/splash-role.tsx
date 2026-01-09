@@ -10,104 +10,112 @@ interface SplashRoleProps {
   duration?: number
 }
 
+type SplashPhase = "welcome" | "loading" | "complete"
+
 const roleMessages = {
   admin: "Bem-vindo, Administrador",
   coach: "Bem-vindo, Treinador",
 }
 
-export function SplashRole({ role, userName, onComplete, duration = 1000 }: SplashRoleProps) {
-  const [isVisible, setIsVisible] = useState(true)
-  const [showText, setShowText] = useState(false)
+export function SplashRole({ role, userName, onComplete, duration = 2500 }: SplashRoleProps) {
+  const [phase, setPhase] = useState<SplashPhase>("welcome")
+  const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
-    // Show text after a slight delay
-    const textTimer = setTimeout(() => setShowText(true), 300)
+    // Phase 1: Welcome message (1.2s)
+    const welcomeTimer = setTimeout(() => {
+      setPhase("loading")
+    }, 1200)
 
-    // Hide splash after duration
-    const hideTimer = setTimeout(() => {
-      setIsVisible(false)
+    // Phase 2: Loading system data (1.3s more)
+    const loadingTimer = setTimeout(() => {
+      setFadeOut(true)
+    }, duration - 400)
+
+    // Complete and hide
+    const completeTimer = setTimeout(() => {
+      setPhase("complete")
       onComplete?.()
     }, duration)
 
     return () => {
-      clearTimeout(textTimer)
-      clearTimeout(hideTimer)
+      clearTimeout(welcomeTimer)
+      clearTimeout(loadingTimer)
+      clearTimeout(completeTimer)
     }
   }, [duration, onComplete])
 
-  if (!isVisible) return null
+  if (phase === "complete") return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-primary via-primary/95 to-accent/20">
-      {/* Animated accent shapes */}
-      <div className="absolute inset-0 overflow-hidden opacity-20">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-accent rounded-full" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/30 rounded-full" />
+    <div
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628] overflow-hidden transition-opacity duration-400 ${fadeOut ? "opacity-0" : "opacity-100"}`}
+    >
+      {/* Background effects */}
+      <div className="absolute inset-0">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-blue-600/40 to-transparent rounded-full blur-3xl animate-pulse" />
+        <div
+          className="absolute top-1/3 right-0 w-80 h-80 bg-gradient-to-bl from-red-500/35 to-transparent rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        />
+        <div
+          className="absolute -bottom-40 left-1/4 w-96 h-96 bg-gradient-to-t from-blue-600/30 to-transparent rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "2s" }}
+        />
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center space-y-6">
-        <div className="animate-bounce-slow">
-          <div className="relative w-28 h-28">
-            <Image src="/logo.png" alt="Logo CEAP" fill className="object-contain drop-shadow-lg" priority />
+      <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
+        {/* Logo */}
+        <div className="relative mb-6 sm:mb-8">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-red-500 blur-2xl opacity-50 -z-10" />
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center">
+            <Image
+              src="/logo-ceap.png"
+              alt="CEAP Logo"
+              width={144}
+              height={144}
+              className="object-contain drop-shadow-2xl"
+              priority
+            />
           </div>
         </div>
 
-        {showText && (
-          <div className="text-center animate-fade-in">
-            <h2 className="text-3xl font-bold text-white mb-2">{roleMessages[role]}</h2>
-            {userName && <p className="text-accent text-lg font-semibold">{userName}</p>}
-          </div>
-        )}
+        {/* Title */}
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tighter">SIGA</h1>
+        <div className="w-16 h-1 bg-gradient-to-r from-blue-500 via-white to-red-500 mx-auto mb-6 rounded-full" />
 
-        {/* Progress indicator */}
-        <div className="w-12 h-1 bg-white/20 rounded-full overflow-hidden mt-8">
-          <div className="h-full bg-gradient-to-r from-accent to-accent/50 rounded-full animate-progress" />
+        {/* Phase-based messages */}
+        <div className="min-h-[100px] flex flex-col items-center justify-center">
+          {phase === "welcome" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">{roleMessages[role]}</p>
+              {userName && <p className="text-lg sm:text-xl text-blue-300 font-semibold">{userName}</p>}
+              <p className="text-sm sm:text-base text-blue-200/70 mt-2">Sistema Integrado de Gestão de Alunos</p>
+            </div>
+          )}
+
+          {phase === "loading" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <p className="text-lg sm:text-xl text-blue-100 mb-4">Carregando dados do sistema...</p>
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden mt-8">
+          <div
+            className={`h-full bg-gradient-to-r from-blue-500 via-white to-red-500 rounded-full transition-all ease-out ${
+              phase === "welcome" ? "w-1/2 duration-1000" : "w-full duration-1300"
+            }`}
+          />
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes bounce-slow {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-20px);
-          }
-        }
-
-        @keyframes progress {
-          from {
-            width: 0;
-          }
-          to {
-            width: 100%;
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out;
-        }
-
-        .animate-bounce-slow {
-          animation: bounce-slow 2s ease-in-out;
-        }
-
-        .animate-progress {
-          animation: progress 1s ease-out forwards;
-        }
-      `}</style>
     </div>
   )
 }

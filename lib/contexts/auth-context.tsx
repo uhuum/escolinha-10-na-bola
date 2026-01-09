@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showSplashRole, setShowSplashRole] = useState(false)
+  const [pendingUser, setPendingUser] = useState<User | null>(null)
   const [showLogoutSplash, setShowLogoutSplash] = useState(false)
   const [logoutUserName, setLogoutUserName] = useState("")
   const router = useRouter()
@@ -107,14 +108,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.name,
       }
 
-      setUser(userData)
-      localStorage.setItem("user", JSON.stringify(userData))
+      setPendingUser(userData)
       setShowSplashRole(true)
       return true
     } catch (error) {
       console.error("[v0] Login error:", error)
       return false
     }
+  }
+
+  const handleSplashComplete = () => {
+    if (pendingUser) {
+      setUser(pendingUser)
+      localStorage.setItem("user", JSON.stringify(pendingUser))
+      setPendingUser(null)
+    }
+    setShowSplashRole(false)
   }
 
   const logout = () => {
@@ -146,8 +155,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, isLoading }}>
-      {showSplashRole && user && (
-        <SplashRole role={user.role} userName={user.name} duration={1000} onComplete={() => setShowSplashRole(false)} />
+      {showSplashRole && pendingUser && (
+        <SplashRole
+          role={pendingUser.role}
+          userName={pendingUser.name}
+          duration={2500}
+          onComplete={handleSplashComplete}
+        />
       )}
       {showLogoutSplash && (
         <LogoutSplash isOpen={showLogoutSplash} userName={logoutUserName} onComplete={performLogout} />
