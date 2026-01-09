@@ -14,6 +14,20 @@ export const metadata: Metadata = {
   title: "SIGA - Sistema Integrado de Gestão de Alunos",
   description: "Sistema de gerenciamento de alunos e controle financeiro - CEAP",
   generator: "v0.app",
+
+  // 👉 PWA
+  manifest: "/manifest.json",
+
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SIGA",
+  },
+
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 }
 
 export const viewport: Viewport = {
@@ -31,11 +45,10 @@ export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
-
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <AuthProvider>
           <SplashStart duration={1500} />
           {children}
