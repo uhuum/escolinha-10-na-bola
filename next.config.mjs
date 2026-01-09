@@ -7,6 +7,12 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+
+  // 👇 força webpack e desativa turbopack
+  turbopack: {},
+  webpack: (config) => {
+    return config
+  },
 }
 
 const pwaConfig = withPWA({
