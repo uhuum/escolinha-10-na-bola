@@ -1,6 +1,6 @@
 {
   "name": "SIGA - Sistema Integrado de Gestão de Alunos",
-  "short_name": "SIGA",
+  "short_name": "10 na Bola",
   "description": "Sistema de gerenciamento de alunos e controle financeiro - Escola de Futebol 10 Na Bola",
   "start_url": "/",
   "display": "standalone",
@@ -11,13 +11,13 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
