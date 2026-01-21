@@ -61,13 +61,13 @@ export function AppHeader() {
     <header className="sticky top-0 z-50 w-full border-b bg-[#0a1628] text-white shadow-lg">
       <div className="container mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex h-20 sm:h-24 items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-2 sm:gap-4 transition-opacity hover:opacity-80 flex-shrink-0">
-            <div className="relative h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 transition-opacity hover:opacity-80 flex-shrink-0">
+            <div className="relative h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0">
               <Image src="/logo-ceap.png" alt="Logo CEAP" fill className="object-contain" priority />
             </div>
             <div className="hidden min-[380px]:block">
-              <h1 className="text-xl sm:text-3xl font-bold leading-none text-white">SIGA</h1>
-              <p className="text-sm sm:text-base text-blue-200/80">Gestão de Alunos</p>
+              <h1 className="text-base sm:text-lg font-bold leading-none text-white">SIGA</h1>
+              <p className="text-xs sm:text-sm text-blue-200/80">Gestao de Alunos</p>
             </div>
           </Link>
 
