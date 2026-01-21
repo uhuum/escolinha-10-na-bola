@@ -11,6 +11,7 @@ import {
   createDueDate,
   matchesMonthYearByNumbers,
 } from "@/lib/utils/date"
+import { useRealtimeSync } from "./use-realtime-sync"
 
 interface StudentsStore {
   students: Student[]
@@ -107,47 +108,59 @@ export function useStudents(): StudentsStore {
   const [isLoading, setIsLoading] = useState(true)
   const supabase = getBrowserClient()
 
-  useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        setIsLoading(true)
-
-        const { data: studentsData, error: studentError } = await supabase
+  const fetchStudents = useCallback(async () => {
+    try {
+      // Fetch both in parallel for better performance
+      const [studentsResponse, paymentsResponse] = await Promise.all([
+        supabase
           .from("students")
           .select("*")
-          .order("name", { ascending: true })
-
-        if (studentError) throw studentError
-
-        const { data: paymentsData, error: paymentsError } = await supabase
+          .order("name", { ascending: true }),
+        supabase
           .from("payments")
           .select("*")
           .order("due_date", { ascending: true })
-        if (paymentsError) throw paymentsError
+      ])
 
-        const sortedStudents = (studentsData || []).sort((a, b) =>
-          a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
-        )
+      if (studentsResponse.error) throw studentsResponse.error
+      if (paymentsResponse.error) throw paymentsResponse.error
 
-        const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
-          const studentPayments = (paymentsData || [])
-            .filter((p: any) => p.student_id === dbStudent.id)
-            .map(mapPaymentFromDB)
+      const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
+      )
 
-          return mapStudentFromDB(dbStudent, studentPayments)
-        })
-
-        setStudents(studentsWithPayments)
-      } catch (error) {
-        console.error("[v0] Error fetching students:", error)
-        alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
-      } finally {
-        setIsLoading(false)
+      // Create a map for faster payment lookup
+      const paymentsMap = new Map<string, any[]>()
+      for (const payment of paymentsResponse.data || []) {
+        if (!paymentsMap.has(payment.student_id)) {
+          paymentsMap.set(payment.student_id, [])
+        }
+        paymentsMap.get(payment.student_id)!.push(payment)
       }
+
+      const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
+        const studentPayments = (paymentsMap.get(dbStudent.id) || []).map(mapPaymentFromDB)
+        return mapStudentFromDB(dbStudent, studentPayments)
+      })
+
+      setStudents(studentsWithPayments)
+    } catch (error) {
+      console.error("[v0] Error fetching students:", error)
+      alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
+    }
+  }, [supabase])
+
+  const { notifyOtherTabs } = useRealtimeSync(fetchStudents)
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      await fetchStudents()
+      setIsLoading(false)
     }
 
-    fetchStudents()
-  }, [supabase])
+    loadData()
+  }, [fetchStudents])
 
   const refreshStudents = useCallback(async () => {
     try {
@@ -339,8 +352,9 @@ export function useStudents(): StudentsStore {
       await generateStudentPayments(studentId, student.monthlyValue, student.isScholarship, registrationDate)
 
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents, generateStudentPayments],
+    [supabase, refreshStudents, generateStudentPayments, notifyOtherTabs],
   )
 
   const updateStudent = useCallback(
@@ -369,8 +383,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const deleteStudent = useCallback(
@@ -382,8 +397,9 @@ export function useStudents(): StudentsStore {
       if (error) throw error
 
       setStudents((prev) => prev.filter((s) => s.id !== studentId))
+      notifyOtherTabs()
     },
-    [supabase],
+    [supabase, notifyOtherTabs],
   )
 
   const archiveStudent = useCallback(
@@ -400,8 +416,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const restoreStudent = useCallback(
@@ -418,8 +435,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const updatePaymentStatus = useCallback(
@@ -439,8 +457,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const updatePaymentStatusByDate = useCallback(
@@ -461,8 +480,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const postponePayment = useCallback(
@@ -479,8 +499,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const attachReceipt = useCallback(
@@ -500,8 +521,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const attachReceiptByDate = useCallback(
@@ -522,8 +544,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const deleteReceipt = useCallback(
@@ -542,8 +565,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const updateMonthlyValue = useCallback(
@@ -559,8 +583,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const markAsPaidCash = useCallback(
@@ -578,8 +603,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const exemptPayment = useCallback(
@@ -596,8 +622,9 @@ export function useStudents(): StudentsStore {
 
       if (error) throw error
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents],
+    [supabase, refreshStudents, notifyOtherTabs],
   )
 
   const importStudents = useCallback(
@@ -634,8 +661,9 @@ export function useStudents(): StudentsStore {
       }
 
       await refreshStudents()
+      notifyOtherTabs()
     },
-    [supabase, refreshStudents, generateStudentPayments],
+    [supabase, refreshStudents, generateStudentPayments, notifyOtherTabs],
   )
 
   return {

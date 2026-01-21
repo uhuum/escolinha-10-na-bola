@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <SplashRole
           role={pendingUser.role}
           userName={pendingUser.name}
-          duration={2500}
+          duration={1500}
           onComplete={handleSplashComplete}
         />
       )}

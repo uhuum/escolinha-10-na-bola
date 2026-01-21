@@ -18,15 +18,15 @@ export function PaymentSplash({ isOpen, studentName, studentPhoto, paymentType, 
   useEffect(() => {
     if (isOpen) {
       setPhase("processing")
-      // After 1.5 seconds, show complete message
+      // After 1 second, show complete message
       const timer1 = setTimeout(() => {
         setPhase("complete")
-      }, 1500)
+      }, 1000)
 
-      // After 2.5 seconds total, close the splash
+      // After 2 seconds total, close the splash
       const timer2 = setTimeout(() => {
         onComplete()
-      }, 2500)
+      }, 2000)
 
       return () => {
         clearTimeout(timer1)

@@ -34,7 +34,7 @@ export function StudentDetailModal({ student, isOpen, onClose }: StudentDetailMo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md sm:max-w-lg border-2 max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="max-w-[95vw] sm:max-w-md md:max-w-lg border-2 max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="pb-3 sm:pb-4 border-b">
           <DialogTitle className="text-xl sm:text-2xl">Detalhes do Aluno</DialogTitle>
         </DialogHeader>
@@ -56,7 +56,7 @@ export function StudentDetailModal({ student, isOpen, onClose }: StudentDetailMo
             <p className="text-sm sm:text-base text-muted-foreground break-words">{student.responsible}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
             <Card className="border-2 bg-primary/5">
               <CardContent className="pt-3 sm:pt-4 p-3">
                 <div className="text-center">
@@ -111,36 +111,36 @@ export function StudentDetailModal({ student, isOpen, onClose }: StudentDetailMo
               <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
                 <div>
                   <p className="text-muted-foreground">RG</p>
-                  <p className="font-medium truncate">{student.rg || "N/A"}</p>
+                  <p className="font-medium break-words">{student.rg || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">CPF do Responsável</p>
-                  <p className="font-medium truncate">{student.responsibleCpf || "N/A"}</p>
+                  <p className="font-medium break-words">{student.responsibleCpf || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Email do Responsável</p>
-                  <p className="font-medium truncate">{student.responsibleEmail || "N/A"}</p>
+                  <p className="font-medium break-all">{student.responsibleEmail || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Telefone (Pai)</p>
-                  <p className="font-medium truncate">{student.fatherPhone || "N/A"}</p>
+                  <p className="font-medium break-words">{student.fatherPhone || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Telefone (Mãe)</p>
-                  <p className="font-medium truncate">{student.motherPhone || "N/A"}</p>
+                  <p className="font-medium break-words">{student.motherPhone || "N/A"}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="flex items-center justify-between gap-2 pb-2">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-semibold text-foreground text-sm sm:text-base">Status</span>
             <Badge className={student.isActive ? "bg-green-600 hover:bg-green-700 text-xs sm:text-sm" : "bg-gray-600 hover:bg-gray-700 text-xs sm:text-sm"}>
               {student.isActive ? "Ativo" : "Inativo"}
             </Badge>
           </div>
 
-          <Button onClick={onClose} className="w-full" size="sm" sm-size="lg">
+          <Button onClick={onClose} className="w-full mt-2" size="lg">
             Fechar
           </Button>
         </div>

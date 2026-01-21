@@ -30,6 +30,7 @@ export default function CarometroPage() {
   const [scheduleFilter, setScheduleFilter] = useState<ClassSchedule | "all">("all")
   const [dayFilter, setDayFilter] = useState<WeekDay | "all">("all")
   const [nameFilter, setNameFilter] = useState("")
+  const [birthYearFilter, setBirthYearFilter] = useState<string>("all")
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -38,6 +39,12 @@ export default function CarometroPage() {
   const filteredStudents = activeStudents.filter((student) => {
     const matchesName = nameFilter === "" || student.name.toLowerCase().includes(nameFilter.toLowerCase())
     if (!matchesName) return false
+
+    // Filter by birth year
+    if (birthYearFilter !== "all") {
+      const birthYear = student.birthDate ? new Date(student.birthDate).getFullYear().toString() : ""
+      if (birthYear !== birthYearFilter) return false
+    }
 
     if (scheduleFilter === "all" && dayFilter === "all") return true
 
@@ -53,6 +60,16 @@ export default function CarometroPage() {
     const matchesDay = dayFilter === "all" || (student.classDays && student.classDays.includes(dayFilter))
     return matchesSchedule && matchesDay
   })
+
+  // Get unique birth years
+  const birthYears = Array.from(
+    new Set(
+      activeStudents
+        .filter((s) => s.birthDate)
+        .map((s) => new Date(s.birthDate).getFullYear())
+        .filter((year) => !isNaN(year))
+    )
+  ).sort((a, b) => b - a)
 
   const handleStudentClick = (student: Student) => {
     setSelectedStudent(student)
@@ -75,7 +92,7 @@ export default function CarometroPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <div className="space-y-2">
             <label className="text-sm font-medium">Horário</label>
             <Select value={scheduleFilter} onValueChange={(value) => setScheduleFilter(value as ClassSchedule | "all")}>
@@ -102,6 +119,22 @@ export default function CarometroPage() {
                 <SelectItem value="Quarta">Quarta-feira</SelectItem>
                 <SelectItem value="Quinta">Quinta-feira</SelectItem>
                 <SelectItem value="Sexta">Sexta-feira</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Ano de Nascimento</label>
+            <Select value={birthYearFilter} onValueChange={setBirthYearFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Anos</SelectItem>
+                {birthYears.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -197,16 +197,23 @@ function EditScheduleModal({ student, onClose, onSave }: EditScheduleModalProps)
 
   const updateConfigDay = (index: number, day: WeekDay) => {
     const isDayUsed = scheduleConfigs.some((config, i) => i !== index && config.day === day)
-    if (isDayUsed) return
+    if (isDayUsed) {
+      toast({
+        title: "Dia já selecionado",
+        description: "Este dia da semana já está em uso. Escolha outro dia.",
+        variant: "destructive",
+      })
+      return
+    }
 
     const newConfigs = [...scheduleConfigs]
-    newConfigs[index].day = day
+    newConfigs[index] = { ...newConfigs[index], day }
     setScheduleConfigs(newConfigs)
   }
 
   const updateConfigSchedule = (index: number, schedule: ClassSchedule) => {
     const newConfigs = [...scheduleConfigs]
-    newConfigs[index].schedule = schedule
+    newConfigs[index] = { ...newConfigs[index], schedule }
     setScheduleConfigs(newConfigs)
   }
 
@@ -242,10 +249,10 @@ function EditScheduleModal({ student, onClose, onSave }: EditScheduleModalProps)
                 <div key={index} className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
                   <div className="flex-1 grid grid-cols-2 gap-2">
                     <Select value={config.day} onValueChange={(value) => updateConfigDay(index, value as WeekDay)}>
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-10 bg-background">
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[70]">
                         {weekDays.map((day) => (
                           <SelectItem key={day} value={day} disabled={usedDays.includes(day) && config.day !== day}>
                             {day}
@@ -258,10 +265,10 @@ function EditScheduleModal({ student, onClose, onSave }: EditScheduleModalProps)
                       value={config.schedule}
                       onValueChange={(value) => updateConfigSchedule(index, value as ClassSchedule)}
                     >
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-10 bg-background">
                         <SelectValue placeholder="Horário" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[70]">
                         <SelectItem value="18:00-19:30">18:00 - 19:30</SelectItem>
                         <SelectItem value="19:30-21:00">19:30 - 21:00</SelectItem>
                       </SelectContent>
@@ -321,6 +328,7 @@ export default function TrainerCarometroPage() {
   const [selectedSchedule, setSelectedSchedule] = useState<ClassSchedule | "all">("all")
   const [selectedDay, setSelectedDay] = useState<WeekDay | "all">("all")
   const [nameFilter, setNameFilter] = useState("")
+  const [birthYearFilter, setBirthYearFilter] = useState<string>("all")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [editingStudent, setEditingStudent] = useState<any>(null)
 
@@ -332,6 +340,12 @@ export default function TrainerCarometroPage() {
     const matchesName = nameFilter === "" || student.name.toLowerCase().includes(nameFilter.toLowerCase())
 
     if (!matchesName) return false
+
+    // Filter by birth year
+    if (birthYearFilter !== "all") {
+      const birthYear = student.birthDate ? new Date(student.birthDate).getFullYear().toString() : ""
+      if (birthYear !== birthYearFilter) return false
+    }
 
     if (selectedSchedule === "all" && selectedDay === "all") return true
 
@@ -353,6 +367,16 @@ export default function TrainerCarometroPage() {
   )
 
   const days: WeekDay[] = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
+
+  // Get unique birth years
+  const birthYears = Array.from(
+    new Set(
+      activeStudents
+        .filter((s) => s.birthDate)
+        .map((s) => new Date(s.birthDate).getFullYear())
+        .filter((year) => !isNaN(year))
+    )
+  ).sort((a, b) => b - a)
 
   const handleSaveSchedule = async (scheduleConfigs: DayScheduleConfig[]) => {
     if (!editingStudent) return
@@ -416,7 +440,7 @@ export default function TrainerCarometroPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Horário</label>
           <Select
@@ -448,6 +472,23 @@ export default function TrainerCarometroPage() {
               {days.map((day) => (
                 <SelectItem key={day} value={day}>
                   {day}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Ano de Nascimento</label>
+          <Select value={birthYearFilter} onValueChange={setBirthYearFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione o ano" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Anos</SelectItem>
+              {birthYears.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
                 </SelectItem>
               ))}
             </SelectContent>
