@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
+  NEXT_PUBLIC_SUPABASE_URL = "https://plqdyyrloyqgrtlwtrya.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBscWR5eXJsb3lxZ3J0bHd0cnlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5Njg4OTksImV4cCI6MjA3ODU0NDg5OX0.Nx7dEh8mMAP7Dz-rPwRvENZiistuNTMxhfOPGP6d_IY"

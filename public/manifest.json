@@ -1,0 +1,53 @@
+{
+  "name": "10 na Bola - Sistema de Gestão",
+  "short_name": "10 na Bola",
+  "description": "Sistema de gerenciamento de alunos e controle financeiro - Escola de Futebol 10 Na Bola CEAP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#1a1a8c",
+  "orientation": "portrait-primary",
+  "id": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["education", "business"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/",
+      "description": "Acessar dashboard financeiro",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Alunos",
+      "url": "/students",
+      "description": "Gerenciar alunos",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Pagamentos",
+      "url": "/payments",
+      "description": "Gerenciar pagamentos",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}
