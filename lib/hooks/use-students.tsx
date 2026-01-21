@@ -63,20 +63,6 @@ interface StudentsStore {
 }
 
 function mapPaymentFromDB(p: any): MonthlyPayment {
-  // Extract month/year from month string (e.g., "Janeiro/2025")
-  let monthNumber: number | undefined
-  let yearNumber: number | undefined
-  if (p.month && p.month.includes("/")) {
-    const [monthName, yearStr] = p.month.split("/")
-    yearNumber = Number.parseInt(yearStr, 10)
-    const monthNames = [
-      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-    ]
-    monthNumber = monthNames.indexOf(monthName) + 1
-    if (monthNumber === 0) monthNumber = undefined
-  }
-
   return {
     month: p.month,
     status: p.status,
@@ -86,8 +72,8 @@ function mapPaymentFromDB(p: any): MonthlyPayment {
     postponedTo: p.postponed_to || undefined,
     chargedAt: p.charged_at || undefined,
     dueDate: p.due_date || undefined,
-    monthNumber: p.month_number || monthNumber,
-    yearNumber: p.year_number || yearNumber,
+    monthNumber: p.month_number || undefined,
+    yearNumber: p.year_number || undefined,
     paymentType: p.payment_type || undefined,
   }
 }
@@ -130,10 +116,10 @@ export function useStudents(): StudentsStore {
           .from("students")
           .select("*")
           .order("name", { ascending: true }),
-      supabase
-        .from("payments")
-        .select("*")
-        .order("created_at", { ascending: true })
+        supabase
+          .from("payments")
+          .select("*")
+          .order("due_date", { ascending: true })
       ])
 
       if (studentsResponse.error) throw studentsResponse.error
@@ -178,27 +164,18 @@ export function useStudents(): StudentsStore {
 
   const refreshStudents = useCallback(async () => {
     try {
-      // Fetch both in parallel for better performance
-      const [studentsResponse, paymentsResponse] = await Promise.all([
-        supabase.from("students").select("*").order("name", { ascending: true }),
-        supabase.from("payments").select("*").order("created_at", { ascending: true }),
-      ])
+      const { data: studentsData } = await supabase.from("students").select("*").order("name", { ascending: true })
+      const { data: paymentsData } = await supabase.from("payments").select("*").order("due_date", { ascending: true })
 
-      const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
+      const sortedStudents = (studentsData || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
 
-      // Create a map for faster payment lookup (O(n) instead of O(n*m))
-      const paymentsMap = new Map<string, any[]>()
-      for (const payment of paymentsResponse.data || []) {
-        if (!paymentsMap.has(payment.student_id)) {
-          paymentsMap.set(payment.student_id, [])
-        }
-        paymentsMap.get(payment.student_id)!.push(payment)
-      }
-
       const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
-        const studentPayments = (paymentsMap.get(dbStudent.id) || []).map(mapPaymentFromDB)
+        const studentPayments = (paymentsData || [])
+          .filter((p: any) => p.student_id === dbStudent.id)
+          .map(mapPaymentFromDB)
+
         return mapStudentFromDB(dbStudent, studentPayments)
       })
 
@@ -232,7 +209,7 @@ export function useStudents(): StudentsStore {
         .from("payments")
         .select("*")
         .eq("student_id", id)
-        .order("created_at", { ascending: true })
+        .order("due_date", { ascending: true })
 
       if (paymentsError) {
         console.error("[v0] Erro ao buscar pagamentos:", paymentsError.message)
@@ -264,8 +241,9 @@ export function useStudents(): StudentsStore {
         const endMonth = 12
 
         for (let month = startMonth; month <= endMonth; month++) {
+          const dueDate = createDueDate(year, month, 10)
+          const dueDateObj = new Date(dueDate)
           const monthName = getMonthNameFromNumber(month)
-          const monthKey = `${monthName}/${year}`
 
           // Determine initial status
           let status: PaymentStatus
@@ -278,6 +256,7 @@ export function useStudents(): StudentsStore {
             if (isPastMonth) {
               status = "Não Pagou"
             } else if (isCurrentMonth) {
+              // Between day 1-10: "Em Aberto", after day 10: "Não Pagou"
               status = currentDay <= 10 ? "Em Aberto" : "Não Pagou"
             } else {
               status = "Em Aberto"
@@ -286,23 +265,26 @@ export function useStudents(): StudentsStore {
 
           paymentsToInsert.push({
             student_id: studentId,
-            month: monthKey,
+            month: `${monthName}/${year}`,
             status,
             value: isScholarship || monthlyValue === 0 ? 0 : monthlyValue,
+            due_date: dueDate,
+            month_number: month,
+            year_number: year,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
         }
       }
 
-      // Insert all payments in batch - use upsert to avoid duplicates
-      if (paymentsToInsert.length > 0) {
-        const { error } = await supabase.from("payments").upsert(paymentsToInsert, {
-          onConflict: "student_id,month",
+      // Insert with ON CONFLICT to avoid duplicates
+      for (const payment of paymentsToInsert) {
+        const { error } = await supabase.from("payments").upsert(payment, {
+          onConflict: "student_id,due_date",
           ignoreDuplicates: true,
         })
         if (error && !error.message.includes("duplicate")) {
-          console.error("[v0] Error inserting payments:", error)
+          console.error("[v0] Error inserting payment:", error)
         }
       }
     },
@@ -334,6 +316,7 @@ export function useStudents(): StudentsStore {
           class_days: student.classDays || [],
           schedule_configs: student.scheduleConfigs || null,
           photo: student.photo || null,
+          registration_date: registrationDate,
         })
 
         if (insertError) throw insertError
@@ -357,6 +340,7 @@ export function useStudents(): StudentsStore {
             class_days: student.classDays || [],
             schedule_configs: student.scheduleConfigs || null,
             photo: student.photo || null,
+            registration_date: registrationDate,
           })
           .select()
           .single()
@@ -480,12 +464,6 @@ export function useStudents(): StudentsStore {
 
   const updatePaymentStatusByDate = useCallback(
     async (studentId: string, monthNumber: number, yearNumber: number, status: PaymentStatus) => {
-      const monthNames = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-      ]
-      const monthKey = `${monthNames[monthNumber - 1]}/${yearNumber}`
-      
       const updateData: any = {
         status,
         updated_at: new Date().toISOString(),
@@ -497,7 +475,8 @@ export function useStudents(): StudentsStore {
         .from("payments")
         .update(updateData)
         .eq("student_id", studentId)
-        .eq("month", monthKey)
+        .eq("month_number", monthNumber)
+        .eq("year_number", yearNumber)
 
       if (error) throw error
       await refreshStudents()
@@ -549,12 +528,6 @@ export function useStudents(): StudentsStore {
 
   const attachReceiptByDate = useCallback(
     async (studentId: string, monthNumber: number, yearNumber: number, receipt: File | string) => {
-      const monthNames = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-      ]
-      const monthKey = `${monthNames[monthNumber - 1]}/${yearNumber}`
-      
       const receiptData = typeof receipt === "string" ? receipt : receipt.name
       const { error } = await supabase
         .from("payments")
@@ -566,7 +539,8 @@ export function useStudents(): StudentsStore {
           updated_at: new Date().toISOString(),
         })
         .eq("student_id", studentId)
-        .eq("month", monthKey)
+        .eq("month_number", monthNumber)
+        .eq("year_number", yearNumber)
 
       if (error) throw error
       await refreshStudents()
@@ -676,6 +650,7 @@ export function useStudents(): StudentsStore {
             class_days: student.classDays || [],
             schedule_configs: student.scheduleConfigs || null,
             photo: student.photo || null,
+            registration_date: registrationDate,
           })
           .select()
           .single()
