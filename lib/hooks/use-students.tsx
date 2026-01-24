@@ -54,8 +54,9 @@ interface StudentsStore {
   ) => Promise<void>
   generateStudentPayments: (
     studentId: string,
-  monthlyValue: number,
-  isScholarship?: boolean,
+    monthlyValue: number,
+    isScholarship?: boolean,
+    registrationDate?: string,
   ) => Promise<void>
   markAsPaidCash: (studentId: string, month: string) => Promise<void>
   exemptPayment: (studentId: string, month: string) => Promise<void>
@@ -109,8 +110,6 @@ export function useStudents(): StudentsStore {
 
   const fetchStudents = useCallback(async () => {
     try {
-      console.log("[v0] Fetching students...")
-      
       // Fetch both in parallel for better performance
       const [studentsResponse, paymentsResponse] = await Promise.all([
         supabase
@@ -120,22 +119,11 @@ export function useStudents(): StudentsStore {
         supabase
           .from("payments")
           .select("*")
-          .order("month", { ascending: true })
+          .order("due_date", { ascending: true })
       ])
 
-      if (studentsResponse.error) {
-        console.error("[v0] Students query error:", studentsResponse.error)
-        throw studentsResponse.error
-      }
-      if (paymentsResponse.error) {
-        console.error("[v0] Payments query error:", paymentsResponse.error)
-        throw paymentsResponse.error
-      }
-
-      console.log("[v0] Fetched data:", {
-        students: studentsResponse.data?.length || 0,
-        payments: paymentsResponse.data?.length || 0
-      })
+      if (studentsResponse.error) throw studentsResponse.error
+      if (paymentsResponse.error) throw paymentsResponse.error
 
       const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
@@ -156,16 +144,9 @@ export function useStudents(): StudentsStore {
       })
 
       setStudents(studentsWithPayments)
-      console.log("[v0] Students loaded successfully")
     } catch (error) {
       console.error("[v0] Error fetching students:", error)
-      
-      // More specific error messages
-      if (error instanceof TypeError && error.message === "Failed to fetch") {
-        alert("Erro de conexão: Não foi possível conectar ao servidor. Verifique:\n1. Se as variáveis de ambiente estão configuradas\n2. Se há conexão com a internet\n3. Se o Supabase está acessível")
-      } else {
-        alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
-      }
+      alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
     }
   }, [supabase])
 
@@ -184,7 +165,7 @@ export function useStudents(): StudentsStore {
   const refreshStudents = useCallback(async () => {
     try {
       const { data: studentsData } = await supabase.from("students").select("*").order("name", { ascending: true })
-      const { data: paymentsData } = await supabase.from("payments").select("*").order("month", { ascending: true })
+      const { data: paymentsData } = await supabase.from("payments").select("*").order("due_date", { ascending: true })
 
       const sortedStudents = (studentsData || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
@@ -241,15 +222,16 @@ export function useStudents(): StudentsStore {
   )
 
   const generateStudentPayments = useCallback(
-    async (studentId: string, monthlyValue: number, isScholarship = false) => {
+    async (studentId: string, monthlyValue: number, isScholarship = false, registrationDate?: string) => {
       const currentDate = new Date()
       const currentYear = currentDate.getFullYear()
       const currentMonth = currentDate.getMonth() + 1
       const currentDay = currentDate.getDate()
 
-      // Use current date for registration
-      const regYear = currentYear
-      const regMonth = currentMonth
+      // Determine registration month/year - if not provided, use current date
+      const regDate = registrationDate ? new Date(registrationDate) : currentDate
+      const regYear = regDate.getFullYear()
+      const regMonth = regDate.getMonth() + 1
 
       const paymentsToInsert: any[] = []
 
@@ -286,35 +268,25 @@ export function useStudents(): StudentsStore {
             month: `${monthName}/${year}`,
             status,
             value: isScholarship || monthlyValue === 0 ? 0 : monthlyValue,
+            due_date: dueDate,
+            month_number: month,
+            year_number: year,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           })
         }
       }
 
       // Insert with ON CONFLICT to avoid duplicates
-      console.log("[v0] Inserting", paymentsToInsert.length, "payments for student", studentId)
-      
       for (const payment of paymentsToInsert) {
-        // Check if payment already exists
-        const { data: existing } = await supabase
-          .from("payments")
-          .select("id")
-          .eq("student_id", payment.student_id)
-          .eq("month", payment.month)
-          .single()
-        
-        if (!existing) {
-          const { error } = await supabase.from("payments").insert(payment)
-          if (error) {
-            console.error("[v0] Error inserting payment:", error, payment)
-          } else {
-            console.log("[v0] Inserted payment:", payment.month)
-          }
-        } else {
-          console.log("[v0] Payment already exists:", payment.month)
+        const { error } = await supabase.from("payments").upsert(payment, {
+          onConflict: "student_id,due_date",
+          ignoreDuplicates: true,
+        })
+        if (error && !error.message.includes("duplicate")) {
+          console.error("[v0] Error inserting payment:", error)
         }
       }
-      
-      console.log("[v0] Finished generating payments for student", studentId)
     },
     [supabase],
   )
@@ -322,11 +294,11 @@ export function useStudents(): StudentsStore {
   const addStudent = useCallback(
     async (student: Omit<Student, "id"> | Student) => {
       const hasId = "id" in student && student.id
-  
-  let studentId: string
-  const registrationDate = new Date().toISOString()
+      const registrationDate = new Date().toISOString()
 
-  if (hasId) {
+      let studentId: string
+
+      if (hasId) {
         const { error: insertError } = await supabase.from("students").insert({
           id: student.id,
           name: student.name,
@@ -344,6 +316,7 @@ export function useStudents(): StudentsStore {
           class_days: student.classDays || [],
           schedule_configs: student.scheduleConfigs || null,
           photo: student.photo || null,
+          registration_date: registrationDate,
         })
 
         if (insertError) throw insertError
@@ -367,17 +340,18 @@ export function useStudents(): StudentsStore {
             class_days: student.classDays || [],
             schedule_configs: student.scheduleConfigs || null,
             photo: student.photo || null,
+            registration_date: registrationDate,
           })
           .select()
           .single()
 
         if (insertError) throw insertError
         studentId = newStudent.id
-  }
-  
-  await generateStudentPayments(studentId, student.monthlyValue, student.isScholarship)
-  
-  await refreshStudents()
+      }
+
+      await generateStudentPayments(studentId, student.monthlyValue, student.isScholarship, registrationDate)
+
+      await refreshStudents()
       notifyOtherTabs()
     },
     [supabase, refreshStudents, generateStudentPayments, notifyOtherTabs],
@@ -468,12 +442,12 @@ export function useStudents(): StudentsStore {
 
   const updatePaymentStatus = useCallback(
     async (studentId: string, month: string, status: PaymentStatus) => {
-      console.log("[v0] Updating payment status:", { studentId, month, status })
-      
-      const updateData: Record<string, any> = {
+      const updateData: any = {
         status,
+        updated_at: new Date().toISOString(),
       }
       if (status === "Pago") updateData.paid_at = new Date().toISOString()
+      if (status === "Cobrado") updateData.charged_at = new Date().toISOString()
 
       const { error } = await supabase
         .from("payments")
@@ -481,12 +455,7 @@ export function useStudents(): StudentsStore {
         .eq("student_id", studentId)
         .eq("month", month)
 
-      if (error) {
-        console.error("[v0] Error updating payment status:", error)
-        throw new Error(`Erro ao atualizar pagamento: ${error.message}`)
-      }
-      
-      console.log("[v0] Payment status updated successfully")
+      if (error) throw error
       await refreshStudents()
       notifyOtherTabs()
     },
@@ -495,29 +464,21 @@ export function useStudents(): StudentsStore {
 
   const updatePaymentStatusByDate = useCallback(
     async (studentId: string, monthNumber: number, yearNumber: number, status: PaymentStatus) => {
-      // Convert month number to month string format used in database
-      const monthName = getMonthNameFromNumber(monthNumber)
-      const monthString = `${monthName}/${yearNumber}`
-      
-      console.log("[v0] Updating payment by date:", { studentId, monthString, status })
-      
-      const updateData: Record<string, any> = {
+      const updateData: any = {
         status,
+        updated_at: new Date().toISOString(),
       }
       if (status === "Pago") updateData.paid_at = new Date().toISOString()
+      if (status === "Cobrado") updateData.charged_at = new Date().toISOString()
 
       const { error } = await supabase
         .from("payments")
         .update(updateData)
         .eq("student_id", studentId)
-        .eq("month", monthString)
+        .eq("month_number", monthNumber)
+        .eq("year_number", yearNumber)
 
-      if (error) {
-        console.error("[v0] Error updating payment by date:", error)
-        throw new Error(`Erro ao atualizar pagamento: ${error.message}`)
-      }
-      
-      console.log("[v0] Payment updated successfully")
+      if (error) throw error
       await refreshStudents()
       notifyOtherTabs()
     },
@@ -667,9 +628,10 @@ export function useStudents(): StudentsStore {
   )
 
   const importStudents = useCallback(
-  async (newStudents: Omit<Student, "id">[]) => {
-  
-  for (const student of newStudents) {
+    async (newStudents: Omit<Student, "id">[]) => {
+      const registrationDate = new Date().toISOString()
+
+      for (const student of newStudents) {
         const { data: created, error: insertError } = await supabase
           .from("students")
           .insert({
@@ -688,13 +650,14 @@ export function useStudents(): StudentsStore {
             class_days: student.classDays || [],
             schedule_configs: student.scheduleConfigs || null,
             photo: student.photo || null,
+            registration_date: registrationDate,
           })
           .select()
           .single()
 
         if (insertError) throw insertError
 
-        await generateStudentPayments(created.id, student.monthlyValue, student.isScholarship)
+        await generateStudentPayments(created.id, student.monthlyValue, student.isScholarship, registrationDate)
       }
 
       await refreshStudents()
