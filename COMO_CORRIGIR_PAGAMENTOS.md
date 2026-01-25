@@ -8,9 +8,9 @@
 
 ### 1. Primeiro: Adicionar colunas faltantes
 Execute este script no SQL Editor do Supabase:
-```
+\`\`\`
 EXECUTE_NO_SUPABASE_PAGAMENTOS.sql
-```
+\`\`\`
 
 Este script adiciona as colunas que estão faltando nas tabelas:
 - `due_date`, `month_number`, `year_number` na tabela `payments`
@@ -18,9 +18,9 @@ Este script adiciona as colunas que estão faltando nas tabelas:
 
 ### 2. Segundo: Gerar pagamentos para alunos existentes
 Execute este script no SQL Editor do Supabase:
-```
+\`\`\`
 GERAR_PAGAMENTOS_ALUNOS_EXISTENTES.sql
-```
+\`\`\`
 
 Este script cria os pagamentos de 2025 e 2026 para todos os alunos que ainda não têm pagamentos cadastrados.
 
