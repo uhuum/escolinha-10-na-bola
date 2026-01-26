@@ -123,19 +123,26 @@ export default function PaymentsPage() {
 
   const handlePreviousMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
+    // Allow going back to December 2025 (the earliest month)
     if (selectedYear === BASE_YEAR && selectedMonthNumber <= BASE_MONTH) return
 
     if (currentIndex > 0) {
       setSelectedMonth(months[currentIndex - 1])
     } else {
-      setSelectedMonth(months[11])
+      setSelectedMonth(months[months.length - 1])
       setSelectedYear(selectedYear - 1)
     }
   }
 
   const handleNextMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
-    if (currentIndex < 11) {
+    // Allow navigating until end of 2026
+    const maxYear = BASE_YEAR + 1 // 2026
+
+    if (selectedYear > maxYear) return
+    if (selectedYear === maxYear && currentIndex >= months.length - 1) return
+
+    if (currentIndex < months.length - 1) {
       setSelectedMonth(months[currentIndex + 1])
     } else {
       setSelectedMonth(months[0])
@@ -622,10 +629,6 @@ export default function PaymentsPage() {
 
   const monthlyReport = getMonthlyReport(selectedMonth, selectedYear)
 
-  if (isLoading) {
-    return <LoadingStudents message="Carregando pagamentos..." />
-  }
-
   const getBorderColor = (payment: any, isScholarship: boolean, isArchived: boolean) => {
     if (isArchived) return "border-gray-500/50 bg-gray-500/5"
     if (isScholarship) return "border-blue-500/30 bg-blue-500/5"
@@ -633,6 +636,10 @@ export default function PaymentsPage() {
     if (payment?.status === "Em Aberto") return "border-amber-500/30 bg-amber-500/5"
     if (payment?.status === "Não Pagou" || payment?.status === "Cobrado") return "border-red-500/30 bg-red-500/5"
     return "hover:border-primary/30"
+  }
+
+  if (isLoading) {
+    return <LoadingStudents message="Carregando pagamentos..." />
   }
 
   return (
@@ -692,7 +699,14 @@ export default function PaymentsPage() {
                     <SelectContent>
                       {months.map((month, index) => {
                         const monthNum = index + 1
+                        const maxYear = BASE_YEAR + 1 // 2026
+                        
+                        // Block months before December 2025
                         if (selectedYear === BASE_YEAR && monthNum < BASE_MONTH) return null
+                        // Block months after December of max year
+                        if (selectedYear > maxYear) return null
+                        if (selectedYear === maxYear && monthNum > 12) return null
+                        
                         return (
                           <SelectItem key={month} value={month}>
                             {month}
