@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
 import { ReceiptViewerModal } from "@/components/receipt-viewer-modal"
 import { PaymentSplash } from "@/components/payment-splash"
+import { LoadingStudents } from "@/components/loading-students"
 import { formatCurrency } from "@/lib/utils/currency"
 import {
   DollarSign,
@@ -54,14 +55,7 @@ import {
   getMonthNameFromNumber, // Added for getMonthNameFromNumber
 } from "@/lib/utils/date"
 import { matchesMonthYearByNumbers } from "@/lib/utils/date"
-import { LoadingStudents } from "@/components/loading-students"
-import {
-  determinePaymentStatus,
-  getPendingPaymentsInfo,
-  generateWhatsAppMessage,
-  BASE_YEAR,
-  BASE_MONTH,
-} from "@/lib/utils/payment" // Added BASE_YEAR and BASE_MONTH
+import { determinePaymentStatus, getPendingPaymentsInfo, generateWhatsAppMessage, BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment" // Added BASE_YEAR and BASE_MONTH
 import type { PaymentType, Student } from "@/lib/types"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -1272,7 +1266,9 @@ export default function PaymentsPage() {
                   return (
                     <div key={student.id} className="flex items-center justify-between p-4 border-b hover:bg-accent/50">
                       <div className="flex items-center gap-3">
-                        <div className="relative h-10 w-10 rounded-full overflow-hidden bg-primary/10">
+                        <div
+                          className={`relative h-10 w-10 rounded-full overflow-hidden bg-primary/10`}
+                        >
                           <Image
                             src={student.photo || "/placeholder.svg?height=40&width=40&query=student"}
                             alt={student.name}
