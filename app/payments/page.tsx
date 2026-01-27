@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
 import { ReceiptViewerModal } from "@/components/receipt-viewer-modal"
 import { PaymentSplash } from "@/components/payment-splash"
-import { LoadingStudents } from "@/components/loading-students"
 import { formatCurrency } from "@/lib/utils/currency"
 import {
   DollarSign,
@@ -55,7 +54,14 @@ import {
   getMonthNameFromNumber, // Added for getMonthNameFromNumber
 } from "@/lib/utils/date"
 import { matchesMonthYearByNumbers } from "@/lib/utils/date"
-import { determinePaymentStatus, getPendingPaymentsInfo, generateWhatsAppMessage, BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment" // Added BASE_YEAR and BASE_MONTH
+import { LoadingStudents } from "@/components/loading-students"
+import {
+  determinePaymentStatus,
+  getPendingPaymentsInfo,
+  generateWhatsAppMessage,
+  BASE_YEAR,
+  BASE_MONTH,
+} from "@/lib/utils/payment" // Added BASE_YEAR and BASE_MONTH
 import type { PaymentType, Student } from "@/lib/types"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -64,7 +70,7 @@ const PIX_KEY = "43.602.144/0001-20"
 
 export default function PaymentsPage() {
   const {
-    students: allStudentsForPayments,
+    students,
     isLoading,
     updatePaymentStatus,
     postponePayment,
@@ -76,13 +82,6 @@ export default function PaymentsPage() {
     exemptPayment,
   } = useStudents()
   const { toast } = useToast()
-
-  // Debug: Log sync status
-  useEffect(() => {
-    if (!isLoading && allStudentsForPayments.length > 0) {
-      console.log("[v0] ✅ Supabase sincronizado - Alunos carregados:", allStudentsForPayments.length)
-    }
-  }, [isLoading, allStudentsForPayments.length])
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const currentMonth = getCurrentMonthNumber()
     const currentYear = getCurrentYear()
@@ -130,26 +129,19 @@ export default function PaymentsPage() {
 
   const handlePreviousMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
-    // Allow going back to December 2025 (the earliest month)
     if (selectedYear === BASE_YEAR && selectedMonthNumber <= BASE_MONTH) return
 
     if (currentIndex > 0) {
       setSelectedMonth(months[currentIndex - 1])
     } else {
-      setSelectedMonth(months[months.length - 1])
+      setSelectedMonth(months[11])
       setSelectedYear(selectedYear - 1)
     }
   }
 
   const handleNextMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
-    // Allow navigating until end of 2026
-    const maxYear = BASE_YEAR + 1 // 2026
-
-    if (selectedYear > maxYear) return
-    if (selectedYear === maxYear && currentIndex >= months.length - 1) return
-
-    if (currentIndex < months.length - 1) {
+    if (currentIndex < 11) {
       setSelectedMonth(months[currentIndex + 1])
     } else {
       setSelectedMonth(months[0])
@@ -157,10 +149,12 @@ export default function PaymentsPage() {
     }
   }
 
+  const allStudentsForPayments = students
+
   const studentsWithPayments = useMemo(() => {
     return allStudentsForPayments
       .map((student) => {
-        let payment = student.payments.find((p) => matchesMonthYearByNumbers(p, selectedMonthNumber, selectedYear))
+        const payment = student.payments.find((p) => matchesMonthYearByNumbers(p, selectedMonthNumber, selectedYear))
         const isArchived = !student.isActive || student.archivedAt
 
         const regDate = student.registrationDate ? new Date(student.registrationDate) : null
@@ -179,23 +173,10 @@ export default function PaymentsPage() {
         const wasArchivedThisMonth =
           archiveYear && archiveMonth && archiveYear === selectedYear && archiveMonth === selectedMonthNumber
 
-        // If no payment exists, create a default one so students still show up
-        if (!payment && wasRegisteredBeforeThisMonth && !wasArchivedBeforeThisMonth) {
-          payment = {
-            month: `${selectedMonthNumber}-${selectedYear}`,
-            year: selectedYear,
-            month: selectedMonthNumber,
-            status: "Em Aberto",
-            value: student.monthlyValue,
-            receipt: undefined,
-            createdAt: new Date().toISOString(),
-          }
-        }
-
         return {
           student,
           payment,
-          shouldShow: wasRegisteredBeforeThisMonth && !wasArchivedBeforeThisMonth,
+          shouldShow: wasRegisteredBeforeThisMonth && payment !== undefined,
           isArchived,
           wasArchivedBeforeThisMonth,
           wasArchivedThisMonth,
@@ -647,6 +628,10 @@ export default function PaymentsPage() {
 
   const monthlyReport = getMonthlyReport(selectedMonth, selectedYear)
 
+  if (isLoading) {
+    return <LoadingStudents message="Carregando pagamentos..." />
+  }
+
   const getBorderColor = (payment: any, isScholarship: boolean, isArchived: boolean) => {
     if (isArchived) return "border-gray-500/50 bg-gray-500/5"
     if (isScholarship) return "border-blue-500/30 bg-blue-500/5"
@@ -654,10 +639,6 @@ export default function PaymentsPage() {
     if (payment?.status === "Em Aberto") return "border-amber-500/30 bg-amber-500/5"
     if (payment?.status === "Não Pagou" || payment?.status === "Cobrado") return "border-red-500/30 bg-red-500/5"
     return "hover:border-primary/30"
-  }
-
-  if (isLoading) {
-    return <LoadingStudents message="Carregando pagamentos..." />
   }
 
   return (
@@ -717,14 +698,7 @@ export default function PaymentsPage() {
                     <SelectContent>
                       {months.map((month, index) => {
                         const monthNum = index + 1
-                        const maxYear = BASE_YEAR + 1 // 2026
-                        
-                        // Block months before December 2025
                         if (selectedYear === BASE_YEAR && monthNum < BASE_MONTH) return null
-                        // Block months after December of max year
-                        if (selectedYear > maxYear) return null
-                        if (selectedYear === maxYear && monthNum > 12) return null
-                        
                         return (
                           <SelectItem key={month} value={month}>
                             {month}
@@ -1298,9 +1272,7 @@ export default function PaymentsPage() {
                   return (
                     <div key={student.id} className="flex items-center justify-between p-4 border-b hover:bg-accent/50">
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`relative h-10 w-10 rounded-full overflow-hidden bg-primary/10`}
-                        >
+                        <div className="relative h-10 w-10 rounded-full overflow-hidden bg-primary/10">
                           <Image
                             src={student.photo || "/placeholder.svg?height=40&width=40&query=student"}
                             alt={student.name}

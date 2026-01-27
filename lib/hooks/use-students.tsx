@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { getBrowserClient, isUsingFallback } from "@/lib/supabase/client"
+import { getBrowserClient } from "@/lib/supabase/client"
 import type { Student, PaymentStatus, PaymentSummary, MonthlyPayment, PaymentType } from "../types"
 import {
   matchesMonthYear,
@@ -119,23 +119,11 @@ export function useStudents(): StudentsStore {
         supabase
           .from("payments")
           .select("*")
-          .order("created_at", { ascending: true }) // Changed from due_date which might not exist in all schemas
+          .order("due_date", { ascending: true })
       ])
 
-      if (studentsResponse.error) {
-        console.error("[v0] ❌ Students fetch error:", studentsResponse.error)
-        console.error("[v0] Error code:", studentsResponse.error.code)
-        console.error("[v0] Error hint:", studentsResponse.error.hint)
-        throw new Error(`Erro ao carregar alunos: ${studentsResponse.error.message}`)
-      }
-      if (paymentsResponse.error) {
-        console.error("[v0] ❌ Payments fetch error:", paymentsResponse.error)
-        console.error("[v0] Error code:", paymentsResponse.error.code)
-        console.error("[v0] Error hint:", paymentsResponse.error.hint)
-        throw new Error(`Erro ao carregar pagamentos: ${paymentsResponse.error.message}`)
-      }
-      
-      console.log("[v0] ✅ Data fetched successfully - Students:", studentsResponse.data?.length, "Payments:", paymentsResponse.data?.length)
+      if (studentsResponse.error) throw studentsResponse.error
+      if (paymentsResponse.error) throw paymentsResponse.error
 
       const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
@@ -158,8 +146,7 @@ export function useStudents(): StudentsStore {
       setStudents(studentsWithPayments)
     } catch (error) {
       console.error("[v0] Error fetching students:", error)
-      const errorMsg = error instanceof Error ? error.message : "Erro desconhecido ao carregar alunos"
-      alert(errorMsg)
+      alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
     }
   }, [supabase])
 
@@ -177,17 +164,8 @@ export function useStudents(): StudentsStore {
 
   const refreshStudents = useCallback(async () => {
     try {
-      const { data: studentsData, error: studentsError } = await supabase
-        .from("students")
-        .select("*")
-        .order("name", { ascending: true })
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from("payments")
-        .select("*")
-        .order("created_at", { ascending: true })
-
-      if (studentsError) throw studentsError
-      if (paymentsError) throw paymentsError
+      const { data: studentsData } = await supabase.from("students").select("*").order("name", { ascending: true })
+      const { data: paymentsData } = await supabase.from("payments").select("*").order("due_date", { ascending: true })
 
       const sortedStudents = (studentsData || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
@@ -203,7 +181,7 @@ export function useStudents(): StudentsStore {
 
       setStudents(studentsWithPayments)
     } catch (error) {
-      console.error("[v0] Error refreshing students:", error instanceof Error ? error.message : error)
+      console.error("Error refreshing students:", error)
     }
   }, [supabase])
 
@@ -231,7 +209,7 @@ export function useStudents(): StudentsStore {
         .from("payments")
         .select("*")
         .eq("student_id", id)
-        .order("created_at", { ascending: true })
+        .order("due_date", { ascending: true })
 
       if (paymentsError) {
         console.error("[v0] Erro ao buscar pagamentos:", paymentsError.message)

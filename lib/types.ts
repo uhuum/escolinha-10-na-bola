@@ -2,11 +2,7 @@ export type PaymentStatus = "Pago" | "Não Pagou" | "Bolsista" | "AFASTADO" | "N
 
 export type ClassSchedule = "18:00-19:30" | "19:30-21:00"
 
-export type ClassScheduleType = ClassSchedule
-
 export type WeekDay = "Segunda" | "Terça" | "Quarta" | "Quinta" | "Sexta"
-
-export type WeekDayType = WeekDay
 
 export type PaymentType = "dinheiro" | "pix"
 
@@ -56,7 +52,7 @@ export interface Student {
   scheduleConfigs?: DayScheduleConfig[]
   archivedAt?: string
   archiveReason?: string
-  createdAt?: string
+  registrationDate?: string // Added registrationDate field
 }
 
 export interface PaymentSummary {
