@@ -123,13 +123,19 @@ export function useStudents(): StudentsStore {
       ])
 
       if (studentsResponse.error) {
-        console.error("[v0] Students fetch error:", studentsResponse.error)
+        console.error("[v0] ❌ Students fetch error:", studentsResponse.error)
+        console.error("[v0] Error code:", studentsResponse.error.code)
+        console.error("[v0] Error hint:", studentsResponse.error.hint)
         throw new Error(`Erro ao carregar alunos: ${studentsResponse.error.message}`)
       }
       if (paymentsResponse.error) {
-        console.error("[v0] Payments fetch error:", paymentsResponse.error)
+        console.error("[v0] ❌ Payments fetch error:", paymentsResponse.error)
+        console.error("[v0] Error code:", paymentsResponse.error.code)
+        console.error("[v0] Error hint:", paymentsResponse.error.hint)
         throw new Error(`Erro ao carregar pagamentos: ${paymentsResponse.error.message}`)
       }
+      
+      console.log("[v0] ✅ Data fetched successfully - Students:", studentsResponse.data?.length, "Payments:", paymentsResponse.data?.length)
 
       const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),

@@ -64,7 +64,7 @@ const PIX_KEY = "43.602.144/0001-20"
 
 export default function PaymentsPage() {
   const {
-    students,
+    students: allStudentsForPayments,
     isLoading,
     updatePaymentStatus,
     postponePayment,
@@ -76,6 +76,13 @@ export default function PaymentsPage() {
     exemptPayment,
   } = useStudents()
   const { toast } = useToast()
+
+  // Debug: Log sync status
+  useEffect(() => {
+    if (!isLoading && allStudentsForPayments.length > 0) {
+      console.log("[v0] ✅ Supabase sincronizado - Alunos carregados:", allStudentsForPayments.length)
+    }
+  }, [isLoading, allStudentsForPayments.length])
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const currentMonth = getCurrentMonthNumber()
     const currentYear = getCurrentYear()
@@ -149,8 +156,6 @@ export default function PaymentsPage() {
       setSelectedYear(selectedYear + 1)
     }
   }
-
-  const allStudentsForPayments = students
 
   const studentsWithPayments = useMemo(() => {
     return allStudentsForPayments
