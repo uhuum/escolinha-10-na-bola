@@ -46,14 +46,14 @@ O sistema em produção apresentava:
 
 ## Estado Final do Banco de Dados
 
-```
+\`\`\`
 ✅ 13 registros de pagamento
 ✅ Todos com month_number preenchido (1-12)
 ✅ Todos com year_number preenchido (2025-2026)
 ✅ Todos com due_date calculada corretamente
 ✅ Todos com status definido ("Em Aberto" ou "Não Pagou")
 ✅ Formato consistente: "Janeiro/2026", "Fevereiro/2026", etc.
-```
+\`\`\`
 
 ## Proximos Passos
 

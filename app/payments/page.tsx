@@ -52,10 +52,10 @@ import {
   getMonthNumberFromName,
   formatMonthYearFromNumbers,
   getCurrentMonthNumber,
-  getMonthNameFromNumber,
+  getMonthNameFromNumber, // Added for getMonthNameFromNumber
 } from "@/lib/utils/date"
 import { matchesMonthYearByNumbers } from "@/lib/utils/date"
-import { determinePaymentStatus, getPendingPaymentsInfo, generateWhatsAppMessage, BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment"
+import { determinePaymentStatus, getPendingPaymentsInfo, generateWhatsAppMessage, BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment" // Added BASE_YEAR and BASE_MONTH
 import type { PaymentType, Student } from "@/lib/types"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -79,6 +79,7 @@ export default function PaymentsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const currentMonth = getCurrentMonthNumber()
     const currentYear = getCurrentYear()
+    // If current date is before December 2025, show December 2025
     if (currentYear < BASE_YEAR || (currentYear === BASE_YEAR && currentMonth < BASE_MONTH)) {
       return getMonthNameFromNumber(BASE_MONTH)
     }
@@ -122,6 +123,7 @@ export default function PaymentsPage() {
 
   const handlePreviousMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
+    // Allow going back to December 2025 (the earliest month)
     if (selectedYear === BASE_YEAR && selectedMonthNumber <= BASE_MONTH) return
 
     if (currentIndex > 0) {
@@ -134,6 +136,7 @@ export default function PaymentsPage() {
 
   const handleNextMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
+    // Allow navigating until end of 2026
     const maxYear = BASE_YEAR + 1 // 2026
 
     if (selectedYear > maxYear) return
@@ -152,29 +155,14 @@ export default function PaymentsPage() {
   const studentsWithPayments = useMemo(() => {
     return allStudentsForPayments
       .map((student) => {
-        const payment = student.payments.find((p) =>
-          matchesMonthYearByNumbers(p, selectedMonthNumber, selectedYear)
-        )
-
+        let payment = student.payments.find((p) => matchesMonthYearByNumbers(p, selectedMonthNumber, selectedYear))
         const isArchived = !student.isActive || student.archivedAt
 
         const regDate = student.registrationDate ? new Date(student.registrationDate) : null
         const regYear = regDate ? regDate.getFullYear() : 2020
         const regMonth = regDate ? regDate.getMonth() + 1 : 1
-
-        // Aluno deve estar matriculado até o mês selecionado OU o mês selecionado é futuro
-        const wasRegisteredBeforeOrInThisMonth =
-          regYear < selectedYear ||
-          (regYear === selectedYear && regMonth <= selectedMonthNumber)
-
-        // Mostra o aluno se:
-        // - Não está arquivado
-        // - Estava matriculado até o mês selecionado OU o mês/ano selecionado é futuro (mesmo sem pagamento criado)
-        const shouldShow =
-          !isArchived &&
-          (wasRegisteredBeforeOrInThisMonth ||
-            selectedYear > regYear ||
-            (selectedYear === regYear && selectedMonthNumber >= regMonth))
+        const wasRegisteredBeforeThisMonth =
+          regYear < selectedYear || (regYear === selectedYear && regMonth <= selectedMonthNumber)
 
         const archiveDate = student.archivedAt ? new Date(student.archivedAt) : null
         const archiveYear = archiveDate ? archiveDate.getFullYear() : null
@@ -182,18 +170,27 @@ export default function PaymentsPage() {
         const wasArchivedBeforeThisMonth =
           archiveYear &&
           archiveMonth &&
-          (archiveYear < selectedYear ||
-            (archiveYear === selectedYear && archiveMonth < selectedMonthNumber))
+          (archiveYear < selectedYear || (archiveYear === selectedYear && archiveMonth < selectedMonthNumber))
         const wasArchivedThisMonth =
-          archiveYear &&
-          archiveMonth &&
-          archiveYear === selectedYear &&
-          archiveMonth === selectedMonthNumber
+          archiveYear && archiveMonth && archiveYear === selectedYear && archiveMonth === selectedMonthNumber
+
+        // If no payment exists, create a default one so students still show up
+        if (!payment && wasRegisteredBeforeThisMonth && !wasArchivedBeforeThisMonth) {
+          payment = {
+            month: `${selectedMonthNumber}-${selectedYear}`,
+            year: selectedYear,
+            month: selectedMonthNumber,
+            status: "Em Aberto",
+            value: student.monthlyValue,
+            receipt: undefined,
+            createdAt: new Date().toISOString(),
+          }
+        }
 
         return {
           student,
           payment,
-          shouldShow,
+          shouldShow: wasRegisteredBeforeThisMonth && !wasArchivedBeforeThisMonth,
           isArchived,
           wasArchivedBeforeThisMonth,
           wasArchivedThisMonth,
@@ -203,10 +200,7 @@ export default function PaymentsPage() {
         if (!item.shouldShow) return false
         if (!searchFilter) return true
         const query = searchFilter.toLowerCase()
-        return (
-          item.student.name.toLowerCase().includes(query) ||
-          item.student.responsible.toLowerCase().includes(query)
-        )
+        return item.student.name.toLowerCase().includes(query) || item.student.responsible.toLowerCase().includes(query)
       })
   }, [allStudentsForPayments, selectedMonthNumber, selectedYear, searchFilter])
 
@@ -320,6 +314,7 @@ export default function PaymentsPage() {
     if (!student) return
 
     if (selectedPaymentType === "dinheiro") {
+      // Show splash, confirm payment, then close splash
       setPaymentSplashData({
         studentName: student.name,
         studentPhoto: student.photo,
@@ -328,6 +323,7 @@ export default function PaymentsPage() {
       setShowPaymentTypeDialog(false)
       setShowPaymentSplash(true)
 
+      // Process payment in background
       await markAsPaidCash(selectedStudent, selectedPaymentMonth)
     } else {
       setShowPaymentTypeDialog(false)
@@ -358,6 +354,7 @@ export default function PaymentsPage() {
       reader.onload = async () => {
         const base64String = reader.result as string
 
+        // Show splash first
         setPaymentSplashData({
           studentName: student.name,
           studentPhoto: student.photo,
@@ -366,6 +363,7 @@ export default function PaymentsPage() {
         setShowReceiptDialog(false)
         setShowPaymentSplash(true)
 
+        // Attach receipt and wait for completion
         await attachReceipt(selectedStudent, selectedPaymentMonth, base64String, "pix")
       }
       reader.readAsDataURL(receiptFile)
@@ -467,6 +465,7 @@ export default function PaymentsPage() {
     const student = students.find((s) => s.id === studentId)
     if (!student) return
 
+    // Check if student has any phones
     if (!student.fatherPhone && !student.motherPhone) {
       toast({
         title: "Telefone não cadastrado",
@@ -476,6 +475,7 @@ export default function PaymentsPage() {
       return
     }
 
+    // If only one phone, use it directly
     if (student.fatherPhone && !student.motherPhone) {
       sendWhatsAppMessage(student, student.fatherPhone)
       return
@@ -485,6 +485,7 @@ export default function PaymentsPage() {
       return
     }
 
+    // Both phones available - show selection dialog
     setWhatsAppStudent(student)
     setShowWhatsAppDialog(true)
   }
@@ -503,7 +504,7 @@ export default function PaymentsPage() {
     const phoneWithCountry = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`
 
     const message = generateWhatsAppMessage(student.name, student.responsible, pendingPayments, PIX_KEY)
-    const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`
+    const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${message}`
 
     window.open(whatsappUrl, "_blank")
     setShowWhatsAppDialog(false)
@@ -573,21 +574,23 @@ export default function PaymentsPage() {
 
   const handleDownloadReport = () => {
     const reportData = studentsWithPayments
-      .filter(({ student, isArchived }) => !student.isScholarship || isArchived)
+      .filter(({ student, isArchived }) => !student.isScholarship || isArchived) // Keep scholarships and archived students for the report
       .map(({ student, payment, isArchived }) => ({
         nome: student.name,
         responsavel: student.responsible,
         telefone: student.fatherPhone || student.motherPhone || "-",
         mesAno: `${selectedMonth}/${selectedYear}`,
-        status: isArchived ? "AFASTADO" : payment?.status || "Em Aberto",
+        status: isArchived ? "AFASTADO" : payment?.status || "Sem registro",
         valor: payment?.value || student.monthlyValue,
         arquivado: isArchived ? "Sim" : "Não",
         isento: student.isScholarship || student.monthlyValue === 0 ? "Sim" : "Não",
       }))
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")) // Sort by name
 
+    // Create PDF
     const doc = new jsPDF()
 
+    // Header
     doc.setFontSize(18)
     doc.setFont("helvetica", "bold")
     doc.text("Relatório de Pagamentos", 14, 20)
@@ -597,6 +600,7 @@ export default function PaymentsPage() {
     doc.text(`Período: ${selectedMonth}/${selectedYear}`, 14, 30)
     doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, 14, 37)
 
+    // Table
     autoTable(doc, {
       startY: 45,
       head: [["Nome", "Responsável", "Telefone", "Mês/Ano", "Status", "Valor", "Arquivado", "Isento"]],
@@ -611,21 +615,23 @@ export default function PaymentsPage() {
         row.isento,
       ]),
       styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 }, // Blue header
+      alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray for alternate rows
     })
 
+    // Footer with summary
     const finalY = (doc as any).lastAutoTable.finalY + 10
     doc.setFontSize(10)
     doc.text(`Total de alunos: ${reportData.length}`, 14, finalY)
     doc.text(`Pagos: ${reportData.filter((r) => r.status === "Pago").length}`, 14, finalY + 6)
     doc.text(
-      `Pendentes: ${reportData.filter((r) => r.status === "Não Pagou" || r.status === "Cobrado" || r.status === "Em Aberto").length}`,
+      `Pendentes: ${reportData.filter((r) => r.status === "Não Pagou" || r.status === "Cobrado").length}`,
       14,
       finalY + 12,
     )
     doc.text(`Afastados: ${reportData.filter((r) => r.arquivado === "Sim").length}`, 14, finalY + 18)
 
+    // Save
     doc.save(`relatorio_${selectedMonth}_${selectedYear}.pdf`)
 
     toast({
@@ -708,7 +714,9 @@ export default function PaymentsPage() {
                         const monthNum = index + 1
                         const maxYear = BASE_YEAR + 1 // 2026
                         
+                        // Block months before December 2025
                         if (selectedYear === BASE_YEAR && monthNum < BASE_MONTH) return null
+                        // Block months after December of max year
                         if (selectedYear > maxYear) return null
                         if (selectedYear === maxYear && monthNum > 12) return null
                         
@@ -903,7 +911,7 @@ export default function PaymentsPage() {
                 const isPaid = payment?.status === "Pago"
                 const isNotPaid = payment?.status === "Não Pagou"
                 const isCharged = payment?.status === "Cobrado"
-                const isOpen = payment?.status === "Em Aberto" || !payment // Sem pagamento = Em Aberto
+                const isOpen = payment?.status === "Em Aberto"
                 const paymentMonth = payment?.month || formatMonthYearFromNumbers(selectedMonthNumber, selectedYear)
 
                 return (
@@ -942,6 +950,7 @@ export default function PaymentsPage() {
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Venc: {(() => {
                               const date = new Date(payment.dueDate)
+                              // Força o dia para 10 na exibição
                               return `10/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`
                             })()}
                           </p>
@@ -964,7 +973,7 @@ export default function PaymentsPage() {
                         {isArchived ? (
                           <PaymentStatusBadge status="AFASTADO" />
                         ) : (
-                          <PaymentStatusBadge status={isScholarship ? "Bolsista" : (payment?.status || "Em Aberto")} />
+                          <PaymentStatusBadge status={isScholarship ? "Bolsista" : payment?.status || "Em Aberto"} />
                         )}
                         {isPaid && payment?.paidAt && (
                           <p className="text-xs text-green-600">

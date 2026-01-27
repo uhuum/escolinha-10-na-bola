@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { getBrowserClient } from "@/lib/supabase/client"
+import { getBrowserClient, isUsingFallback } from "@/lib/supabase/client"
 import type { Student, PaymentStatus, PaymentSummary, MonthlyPayment, PaymentType } from "../types"
 import {
   matchesMonthYear,

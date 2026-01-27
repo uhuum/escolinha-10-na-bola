@@ -1,56 +1,76 @@
 "use client"
 
+import Link from "next/link"
+import { useEffect, useState, useMemo } from "react"
+import { isUsingFallback } from "@/lib/supabase/client"
 import { useStudents } from "@/lib/hooks/use-students"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils/currency"
+import { BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment"
+import {
+  getAllMonths,
+  getAvailableYears,
+  getMonthNumberFromName,
+} from "@/lib/utils/date"
+import type { ClassSchedule, WeekDay, PaymentStatus, PaymentSummary, MonthlyPayment, PaymentType } from "@/lib/types"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Progress } from "@/components/ui/progress"
 import {
   Users,
   DollarSign,
-  AlertCircle,
   TrendingUp,
   Calendar,
-  ArrowRight,
-  CheckCircle2,
   Clock,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  AlertCircle,
+  ArrowRight,
 } from "lucide-react"
-import Link from "next/link"
-import { Progress } from "@/components/ui/progress"
+
 import { AppHeader } from "@/components/app-header"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useState, useMemo } from "react"
-import {
-  getAllMonths,
-  getCurrentMonthName,
-  getCurrentYear,
-  getAvailableYears,
-  getMonthNumberFromName,
-  getCurrentMonthNumber,
-  getMonthNameFromNumber,
-} from "@/lib/utils/date"
 import { LoadingStudents } from "@/components/loading-students"
-import type { ClassSchedule, WeekDay } from "@/lib/types"
-import { BASE_YEAR, BASE_MONTH } from "@/lib/utils/payment"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 
 export default function DashboardPage() {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const currentMonth = getCurrentMonthNumber()
-    const currentYear = getCurrentYear()
-    if (currentYear < BASE_YEAR || (currentYear === BASE_YEAR && currentMonth < BASE_MONTH)) {
-      return getMonthNameFromNumber(BASE_MONTH)
-    }
-    return getCurrentMonthName()
-  })
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const currentYear = getCurrentYear()
-    if (currentYear < BASE_YEAR) return BASE_YEAR
-    return currentYear
-  })
-  const [scheduleFilter, setScheduleFilter] = useState<ClassSchedule | "all">("all")
-  const [dayFilter, setDayFilter] = useState<WeekDay | "all">("all")
+  const [isFallback, setIsFallback] = useState(false)
+
+  useEffect(() => {
+    setIsFallback(isUsingFallback())
+  }, [])
+
+  if (isFallback) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-md mx-auto mt-20">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Configuration Required</AlertTitle>
+            <AlertDescription className="mt-2 text-sm">
+              This application requires Supabase configuration to function. Please add the following environment variables:
+              <ul className="mt-3 space-y-2 font-mono text-xs">
+                <li>NEXT_PUBLIC_SUPABASE_URL</li>
+                <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+              </ul>
+              <p className="mt-4">Contact your administrator to set up these variables in your deployment platform.</p>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    )
+  }
+
+  return <DashboardContent />
+}
+
+function DashboardContent() {
+  const [selectedMonth, setSelectedMonth] = useState("Janeiro")
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [scheduleFilter, setScheduleFilter] = useState("all")
+  const [dayFilter, setDayFilter] = useState("all")
   const { students, getPaymentSummary, filterByPaymentStatus, isLoading } = useStudents()
   const summary = getPaymentSummary(selectedMonth, selectedYear)
 
@@ -88,7 +108,7 @@ export default function DashboardPage() {
   const classStats = useMemo(() => {
     const activeStudents = students.filter((s) => s.isActive)
 
-    const schedules: { schedule: ClassSchedule; day: WeekDay; count: number }[] = []
+    const schedules: { schedule: string; day: string; count: number }[] = []
 
     const scheduleMap = new Map<string, number>()
 
@@ -109,8 +129,8 @@ export default function DashboardPage() {
     scheduleMap.forEach((count, key) => {
       const [schedule, day] = key.split("|")
       schedules.push({
-        schedule: schedule as ClassSchedule,
-        day: day as WeekDay,
+        schedule,
+        day,
         count,
       })
     })
@@ -226,7 +246,7 @@ export default function DashboardPage() {
               <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-0.5 sm:mb-1">
                 {summary.totalStudents}
               </div>
-              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground flex items-center gap-1">
+              <p className="text-[10px] sm:text-sm lg:text-sm text-muted-foreground flex items-center gap-1">
                 <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-3.5 lg:w-3.5 text-accent" />
                 {summary.activeStudents} ativos
               </p>
@@ -246,7 +266,7 @@ export default function DashboardPage() {
               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground mb-0.5 sm:mb-1">
                 {formatCurrency(summary.totalExpected)}
               </div>
-              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground truncate">
+              <p className="text-[10px] sm:text-sm lg:text-sm text-muted-foreground truncate">
                 {selectedMonth}/{selectedYear}
               </p>
             </CardContent>
@@ -265,26 +285,29 @@ export default function DashboardPage() {
               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground mb-0.5 sm:mb-1">
                 {formatCurrency(summary.totalReceived)}
               </div>
-              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">
+              <p className="text-[10px] sm:text-sm lg:text-sm text-muted-foreground">
                 {collectionRate.toFixed(1)}% do esperado
               </p>
             </CardContent>
           </Card>
 
           <Card className="border-2 hover:border-destructive/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-2 sm:p-3 lg:p-6">
-              <CardTitle className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl">
+                <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-destructive/10">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
+                </div>
                 Pendentes
               </CardTitle>
-              <div className="flex h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 items-center justify-center rounded-lg bg-destructive/10">
-                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-destructive" />
-              </div>
+              <CardDescription className="text-xs sm:text-sm lg:text-base">
+                Alunos com pagamentos pendentes
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-2 sm:p-3 lg:p-6 pt-0">
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
               <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-destructive mb-0.5 sm:mb-1">
                 {summary.pendingPayments}
               </div>
-              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">Alunos com pendência</p>
+              <p className="text-[10px] sm:text-sm lg:text-sm text-muted-foreground">Alunos com pendência</p>
             </CardContent>
           </Card>
         </div>
@@ -307,7 +330,7 @@ export default function DashboardPage() {
                 <label className="text-xs sm:text-sm font-medium">Horário</label>
                 <Select
                   value={scheduleFilter}
-                  onValueChange={(value) => setScheduleFilter(value as ClassSchedule | "all")}
+                  onValueChange={(value) => setScheduleFilter(value as string | "all")}
                 >
                   <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm">
                     <SelectValue />
@@ -321,7 +344,7 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-1 sm:space-y-2">
                 <label className="text-xs sm:text-sm font-medium">Dia da Semana</label>
-                <Select value={dayFilter} onValueChange={(value) => setDayFilter(value as WeekDay | "all")}>
+                <Select value={dayFilter} onValueChange={(value) => setDayFilter(value as string | "all")}>
                   <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
@@ -336,8 +359,6 @@ export default function DashboardPage() {
                 </Select>
               </div>
             </div>
-
-
 
             <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {filteredClassStats.length > 0 ? (
