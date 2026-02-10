@@ -337,7 +337,15 @@ export default function DashboardPage() {
               </div>
             </div>
 
-
+            <div className="p-3 sm:p-4 rounded-lg bg-primary/5 border mb-3 sm:mb-4">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Total de matrículas:{" "}
+                <span className="font-bold text-foreground text-base sm:text-lg">{totalFilteredStudents}</span>
+                {(scheduleFilter !== "all" || dayFilter !== "all") && (
+                  <span className="ml-2 text-[10px] sm:text-xs">(filtrado)</span>
+                )}
+              </p>
+            </div>
 
             <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {filteredClassStats.length > 0 ? (

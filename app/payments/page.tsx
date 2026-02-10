@@ -293,14 +293,14 @@ export default function PaymentsPage() {
     setShowPaymentTypeDialog(true)
   }
 
-  const confirmPaymentType = async () => {
+  const confirmPaymentType = () => {
     if (!selectedStudent || !selectedPaymentMonth || !selectedPaymentType) return
 
     const student = students.find((s) => s.id === selectedStudent)
     if (!student) return
 
     if (selectedPaymentType === "dinheiro") {
-      // Show splash, confirm payment, then close splash
+      // Show splash first, then confirm payment
       setPaymentSplashData({
         studentName: student.name,
         studentPhoto: student.photo,
@@ -308,9 +308,6 @@ export default function PaymentsPage() {
       })
       setShowPaymentTypeDialog(false)
       setShowPaymentSplash(true)
-
-      // Process payment in background
-      await markAsPaidCash(selectedStudent, selectedPaymentMonth)
     } else {
       setShowPaymentTypeDialog(false)
       setShowReceiptDialog(true)
@@ -318,7 +315,8 @@ export default function PaymentsPage() {
   }
 
   const handlePaymentSplashComplete = () => {
-    if (selectedPaymentType === "dinheiro") {
+    if (selectedStudent && selectedPaymentMonth && selectedPaymentType === "dinheiro") {
+      markAsPaidCash(selectedStudent, selectedPaymentMonth)
       toast({
         title: "Pagamento confirmado",
         description: "Pagamento em dinheiro registrado com sucesso",
@@ -331,13 +329,13 @@ export default function PaymentsPage() {
     setSelectedPaymentType(null)
   }
 
-  const confirmReceiptUpload = async () => {
+  const confirmReceiptUpload = () => {
     if (selectedStudent && receiptFile && selectedPaymentMonth) {
       const student = students.find((s) => s.id === selectedStudent)
       if (!student) return
 
       const reader = new FileReader()
-      reader.onload = async () => {
+      reader.onload = () => {
         const base64String = reader.result as string
 
         // Show splash first
@@ -349,8 +347,8 @@ export default function PaymentsPage() {
         setShowReceiptDialog(false)
         setShowPaymentSplash(true)
 
-        // Attach receipt and wait for completion
-        await attachReceipt(selectedStudent, selectedPaymentMonth, base64String, "pix")
+        // Attach receipt
+        attachReceipt(selectedStudent, selectedPaymentMonth, base64String, "pix")
       }
       reader.readAsDataURL(receiptFile)
     } else {

@@ -1,7 +1,7 @@
 {
-  "name": "10 na Bola - Sistema de Gestão",
-  "short_name": "10 na Bola",
-  "description": "Sistema de gerenciamento de alunos e controle financeiro - Escola de Futebol 10 Na Bola CEAP",
+  "name": "SIGA - Sistema Integrado de Gestão de Alunos",
+  "short_name": "SIGA",
+  "description": "Sistema de gerenciamento de alunos e controle financeiro - Escola de Futebol 10 Na Bola",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a1628",
