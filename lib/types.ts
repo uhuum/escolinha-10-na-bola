@@ -45,13 +45,15 @@ export interface Student {
   monthlyValue: number
   payments: MonthlyPayment[]
   photo?: string
+  thumbnailUrl?: string // Small thumbnail for listings (WebP, ~200px)
   isActive: boolean
   isScholarship?: boolean
   classSchedule?: ClassSchedule
   classDays?: WeekDay[]
+  scheduleConfigs?: DayScheduleConfig[]
   archivedAt?: string
   archiveReason?: string
-  registrationDate?: string // Added registrationDate field
+  registrationDate?: string
 }
 
 export interface PaymentSummary {

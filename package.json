@@ -70,7 +70,8 @@
     "use-sync-external-store": "latest",
     "vaul": "latest",
     "zod": "3.25.76",
-    "zustand": "latest"
+    "zustand": "latest",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.14.5",

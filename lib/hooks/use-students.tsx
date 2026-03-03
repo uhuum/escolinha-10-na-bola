@@ -94,7 +94,9 @@ function mapStudentFromDB(dbStudent: any, payments: MonthlyPayment[]): Student {
     isScholarship: dbStudent.is_scholarship ?? false,
     classSchedule: dbStudent.class_schedule || undefined,
     classDays: dbStudent.class_days || [],
+    scheduleConfigs: dbStudent.schedule_configs || undefined,
     photo: dbStudent.photo || undefined,
+    thumbnailUrl: dbStudent.thumbnail_url || undefined,
     archivedAt: dbStudent.archived_at || undefined,
     archiveReason: dbStudent.archive_reason || undefined,
     registrationDate: dbStudent.registration_date || dbStudent.created_at || undefined,
@@ -109,31 +111,28 @@ export function useStudents(): StudentsStore {
 
   const fetchStudents = useCallback(async () => {
     try {
-      console.log("[v0] Fetching students and payments...")
-      
-      // Fetch both in parallel for better performance
+      // Select only columns needed for listing — avoids downloading heavy photo blobs on list page
+      const STUDENT_LIST_COLUMNS =
+        "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+
       const [studentsResponse, paymentsResponse] = await Promise.all([
         supabase
           .from("students")
-          .select("*")
+          .select(STUDENT_LIST_COLUMNS)
           .order("name", { ascending: true }),
         supabase
           .from("payments")
-          .select("*")
+          .select("id,student_id,month,status,value,due_date,month_number,year_number,postponed_to,receipt,paid_at,charged_at,payment_type")
           .order("due_date", { ascending: true })
-          .throwOnError()
+          .throwOnError(),
       ])
 
       if (studentsResponse.error) {
-        console.error("[v0] Students query error:", studentsResponse.error)
         throw studentsResponse.error
       }
       if (paymentsResponse.error) {
-        console.error("[v0] Payments query error:", paymentsResponse.error)
         throw paymentsResponse.error
       }
-      
-      console.log("[v0] Fetched", studentsResponse.data?.length, "students and", paymentsResponse.data?.length, "payments")
 
       const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
@@ -174,15 +173,22 @@ export function useStudents(): StudentsStore {
 
   const refreshStudents = useCallback(async () => {
     try {
-      const { data: studentsData, error: studentsError } = await supabase.from("students").select("*").order("name", { ascending: true })
-      const { data: paymentsData, error: paymentsError } = await supabase.from("payments").select("*").order("due_date", { ascending: true })
+      const STUDENT_LIST_COLUMNS =
+        "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+
+      const { data: studentsData, error: studentsError } = await supabase
+        .from("students")
+        .select(STUDENT_LIST_COLUMNS)
+        .order("name", { ascending: true })
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("payments")
+        .select("id,student_id,month,status,value,due_date,month_number,year_number,postponed_to,receipt,paid_at,charged_at,payment_type")
+        .order("due_date", { ascending: true })
       
       if (studentsError) {
-        console.error("[v0] Error fetching students in refresh:", studentsError)
         throw studentsError
       }
       if (paymentsError) {
-        console.error("[v0] Error fetching payments in refresh:", paymentsError)
         throw paymentsError
       }
 
@@ -333,7 +339,9 @@ export function useStudents(): StudentsStore {
           is_scholarship: student.isScholarship || false,
           class_schedule: student.classSchedule || null,
           class_days: student.classDays || [],
+          schedule_configs: student.scheduleConfigs || null,
           photo: student.photo || null,
+          thumbnail_url: student.thumbnailUrl || null,
           registration_date: registrationDate,
         })
 
@@ -356,7 +364,9 @@ export function useStudents(): StudentsStore {
             is_scholarship: student.isScholarship || false,
             class_schedule: student.classSchedule || null,
             class_days: student.classDays || [],
+            schedule_configs: student.scheduleConfigs || null,
             photo: student.photo || null,
+            thumbnail_url: student.thumbnailUrl || null,
             registration_date: registrationDate,
           })
           .select()
@@ -392,7 +402,9 @@ export function useStudents(): StudentsStore {
           is_scholarship: updates.isScholarship || false,
           class_schedule: updates.classSchedule || null,
           class_days: updates.classDays || [],
+          schedule_configs: updates.scheduleConfigs || null,
           photo: updates.photo || null,
+          thumbnail_url: updates.thumbnailUrl || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", studentId)
