@@ -38,6 +38,7 @@ export function StudentDetailClient({ id }: { id: string }) {
 
   const [showCropModal, setShowCropModal] = useState(false)
   const [tempPhotoForCrop, setTempPhotoForCrop] = useState<string>("")
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   const [editForm, setEditForm] = useState({
     name: "",
@@ -108,6 +109,7 @@ export function StudentDetailClient({ id }: { id: string }) {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setPhotoFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
         const result = reader.result as string
@@ -173,9 +175,26 @@ export function StudentDetailClient({ id }: { id: string }) {
     setScheduleConfigs(newConfigs)
   }
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     const allDays: WeekDay[] = [...new Set(scheduleConfigs.map((c) => c.day))]
     const primarySchedule = scheduleConfigs[0]?.schedule || "18:00-19:30"
+
+    let photoUrl: string | undefined = student?.photo
+    let thumbnailUrl: string | undefined = student?.thumbnailUrl
+
+    if (photoFile) {
+      const formData = new FormData()
+      formData.append("file", photoFile)
+      const uploadRes = await fetch("/api/upload-photo", {
+        method: "POST",
+        body: formData,
+      })
+      if (uploadRes.ok) {
+        const uploadData = await uploadRes.json()
+        photoUrl = uploadData.photoUrl
+        thumbnailUrl = uploadData.thumbnailUrl
+      }
+    }
 
     updateStudent(id, {
       name: editForm.name,
@@ -191,7 +210,8 @@ export function StudentDetailClient({ id }: { id: string }) {
       classSchedule: primarySchedule,
       classDays: allDays,
       scheduleConfigs: scheduleConfigs,
-      photo: photoPreview,
+      photo: photoUrl,
+      thumbnailUrl: thumbnailUrl,
     })
 
     toast({

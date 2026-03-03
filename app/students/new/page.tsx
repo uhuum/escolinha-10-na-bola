@@ -42,6 +42,7 @@ export default function NewStudentPage() {
   ])
 
   const [photoPreview, setPhotoPreview] = useState<string>("/diverse-students.png")
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [showCropModal, setShowCropModal] = useState(false)
   const [tempPhotoForCrop, setTempPhotoForCrop] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
@@ -51,6 +52,7 @@ export default function NewStudentPage() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setPhotoFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
         const result = reader.result as string
@@ -163,6 +165,23 @@ export default function NewStudentPage() {
 
     try {
       setIsSaving(true)
+
+      let photoUrl: string | undefined = undefined
+      let thumbnailUrl: string | undefined = undefined
+
+      if (photoFile) {
+        const formData = new FormData()
+        formData.append("file", photoFile)
+        const uploadRes = await fetch("/api/upload-photo", {
+          method: "POST",
+          body: formData,
+        })
+        if (!uploadRes.ok) throw new Error("Erro ao fazer upload da foto")
+        const uploadData = await uploadRes.json()
+        photoUrl = uploadData.photoUrl
+        thumbnailUrl = uploadData.thumbnailUrl
+      }
+
       const newStudent = {
         name: formData.name,
         rg: formData.rg,
@@ -178,7 +197,8 @@ export default function NewStudentPage() {
         classSchedule: primarySchedule,
         classDays: allDays,
         scheduleConfigs: scheduleConfigs,
-        photo: photoPreview,
+        photo: photoUrl,
+        thumbnailUrl: thumbnailUrl,
         payments: [],
       }
 

@@ -1,3 +1,5 @@
+export const runtime = "nodejs"
+
 import { NextRequest, NextResponse } from "next/server"
 import sharp from "sharp"
 
@@ -51,11 +53,11 @@ export async function POST(req: NextRequest) {
     const toBase64 = (buf: Buffer) =>
       `data:image/webp;base64,${buf.toString("base64")}`
 
+    const photoUrl = toBase64(fullBuffer)
+    const thumbnailUrl = toBase64(thumbBuffer)
+
     return NextResponse.json(
-      {
-        photo: toBase64(fullBuffer),
-        thumbnail: toBase64(thumbBuffer),
-      },
+      { photoUrl, thumbnailUrl },
       {
         headers: {
           "Cache-Control": "no-store",

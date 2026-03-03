@@ -215,7 +215,7 @@ export default function StudentsPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        setExpandedPhoto({ url: student.photo || "/diverse-students-studying.png", name: student.name })
+                        setExpandedPhoto({ url: student.thumbnailUrl || student.photo || "/diverse-students-studying.png", name: student.name })
                       }
                       className={`relative h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 rounded-full overflow-hidden border-2 flex-shrink-0 mb-1.5 sm:mb-2 cursor-pointer hover:scale-105 transition-transform ${
                         isArchived ? "bg-muted border-muted-foreground/20 grayscale" : "bg-primary/10 border-primary/20"
@@ -223,7 +223,7 @@ export default function StudentsPage() {
                       title="Clique para expandir foto"
                     >
                       <Image
-                        src={student.photo || "/placeholder.svg?height=200&width=200&query=student"}
+                        src={student.thumbnailUrl || student.photo || "/placeholder.svg?height=200&width=200&query=student"}
                         alt={student.name}
                         fill
                         className="object-cover"
