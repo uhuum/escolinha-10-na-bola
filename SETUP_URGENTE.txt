@@ -1,0 +1,43 @@
+════════════════════════════════════════════════════════════════
+  SETUP URGENTE - COMECE AQUI AGORA!
+════════════════════════════════════════════════════════════════
+
+PROBLEMA ATUAL:
+❌ Tabela 'users' não existe no Supabase
+
+SOLUÇÃO RÁPIDA (3 passos - 5 minutos):
+
+1. Abra .env.local na raiz do projeto e cole:
+
+   NEXT_PUBLIC_SUPABASE_URL=https://wvqqfytkjniywsqhcmjp.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   SUPABASE_URL=https://wvqqfytkjniywsqhcmjp.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+   (As chaves estão em: Supabase > Project Settings > API)
+
+2. No terminal, execute:
+
+   npm install
+   npm run db:init
+
+   Você verá:
+   ✅ Tabela 'users' criada com sucesso!
+   ✅ 'admin' criado
+   ✅ 'treinadores' criado
+
+3. Se tiver erro, copie SQL de scripts/03-create-users-table.sql
+   e cole no Supabase > SQL Editor > Execute
+
+CREDENCIAIS DE TESTE:
+   Admin: admin / jp974832
+   Treinador: treinadores / treinar10
+
+TESTAR:
+   npm run dev
+   → http://localhost:3000/login
+   → Use credenciais acima
+
+SE FUNCIONAR: Você está pronto para usar! 🎉
+
+════════════════════════════════════════════════════════════════
