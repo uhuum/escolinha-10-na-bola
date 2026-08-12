@@ -77,28 +77,38 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   const marginX = 20
 
   // Cores
-  const primary: [number, number, number] = [21, 128, 61] // verde
+  const primary: [number, number, number] = [185, 28, 28] // vermelho
+  const secondary: [number, number, number] = [23, 42, 84] // azul escuro
   const dark: [number, number, number] = [30, 30, 30]
   const gray: [number, number, number] = [110, 110, 110]
 
-  // ===== Logo =====
+  // ===== Logo (acima da linha, no topo) =====
   const logo = await loadImageAsDataUrl("/logo-ceap.png")
   if (logo) {
-    const logoW = 28
-    const logoH = (logo.height / logo.width) * logoW
-    doc.addImage(logo.dataUrl, "PNG", marginX, 14, logoW, logoH)
+    const logoMax = 22
+    const ratio = logo.width / logo.height
+    let logoW = logoMax
+    let logoH = logoMax
+    if (ratio >= 1) {
+      logoH = logoMax / ratio
+    } else {
+      logoW = logoMax * ratio
+    }
+    // centraliza verticalmente dentro do bloco do cabeçalho (topo em y=12)
+    const logoY = 12 + (logoMax - logoH) / 2
+    doc.addImage(logo.dataUrl, "PNG", marginX, logoY, logoW, logoH)
   }
 
   // ===== Cabeçalho =====
   doc.setFont("helvetica", "bold")
   doc.setFontSize(18)
-  doc.setTextColor(...primary)
-  doc.text("Escola de Futebol 10 na Bola", pageWidth - marginX, 22, { align: "right" })
+  doc.setTextColor(...secondary)
+  doc.text("Escola de Futebol 10 na Bola", pageWidth - marginX, 20, { align: "right" })
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(10)
   doc.setTextColor(...gray)
-  doc.text("Declaração de Matrícula", pageWidth - marginX, 29, { align: "right" })
+  doc.text("Declaração de Matrícula", pageWidth - marginX, 27, { align: "right" })
 
   // Linha separadora
   doc.setDrawColor(...primary)
@@ -108,7 +118,7 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   // ===== Título =====
   doc.setFont("helvetica", "bold")
   doc.setFontSize(16)
-  doc.setTextColor(...dark)
+  doc.setTextColor(...secondary)
   doc.text("DECLARAÇÃO DE MATRÍCULA", pageWidth / 2, 55, { align: "center" })
 
   // ===== Foto do aluno =====
@@ -117,15 +127,35 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   if (photoSrc) {
     const photo = await loadImageAsDataUrl(photoSrc)
     if (photo) {
-      const photoW = 38
-      const photoH = 48
-      const photoX = pageWidth / 2 - photoW / 2
+      // caixa fixa da foto (retrato)
+      const boxW = 38
+      const boxH = 48
+      const boxX = pageWidth / 2 - boxW / 2
+      const boxY = contentTop
+
+      // ajusta a imagem dentro da caixa mantendo a proporção (sem esticar)
+      const imgRatio = photo.width / photo.height
+      const boxRatio = boxW / boxH
+      let drawW = boxW
+      let drawH = boxH
+      if (imgRatio > boxRatio) {
+        // imagem mais larga: limita pela largura
+        drawW = boxW
+        drawH = boxW / imgRatio
+      } else {
+        // imagem mais alta: limita pela altura
+        drawH = boxH
+        drawW = boxH * imgRatio
+      }
+      const drawX = boxX + (boxW - drawW) / 2
+      const drawY = boxY + (boxH - drawH) / 2
+
       // moldura
       doc.setDrawColor(...primary)
       doc.setLineWidth(0.6)
-      doc.rect(photoX - 1, contentTop - 1, photoW + 2, photoH + 2)
-      doc.addImage(photo.dataUrl, "PNG", photoX, contentTop, photoW, photoH)
-      contentTop += photoH + 12
+      doc.rect(boxX - 1, boxY - 1, boxW + 2, boxH + 2)
+      doc.addImage(photo.dataUrl, "PNG", drawX, drawY, drawW, drawH)
+      contentTop += boxH + 12
     }
   }
 
@@ -157,13 +187,13 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   rows.forEach(([label, value], index) => {
     const bg = index % 2 === 0
     if (bg) {
-      doc.setFillColor(244, 247, 244)
+      doc.setFillColor(244, 246, 250)
       doc.rect(marginX, y, pageWidth - marginX * 2, rowHeight, "F")
     }
     // label
     doc.setFont("helvetica", "bold")
     doc.setFontSize(10)
-    doc.setTextColor(...primary)
+    doc.setTextColor(...secondary)
     doc.text(label, marginX + 3, y + 7)
     // value
     doc.setFont("helvetica", "normal")
@@ -174,11 +204,11 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   })
 
   // borda da tabela
-  doc.setDrawColor(...primary)
+  doc.setDrawColor(...secondary)
   doc.setLineWidth(0.3)
   doc.rect(marginX, contentTop, pageWidth - marginX * 2, y - contentTop)
 
-  // ===== Data e assinatura =====
+  // ===== Data de emissão =====
   const today = new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -189,16 +219,6 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   doc.setFontSize(11)
   doc.setTextColor(...dark)
   doc.text(`Emitido em ${today}.`, marginX, y)
-
-  y += 26
-  const signW = 80
-  const signX = pageWidth / 2 - signW / 2
-  doc.setDrawColor(...dark)
-  doc.setLineWidth(0.4)
-  doc.line(signX, y, signX + signW, y)
-  doc.setFontSize(10)
-  doc.setTextColor(...gray)
-  doc.text("Escola de Futebol 10 na Bola", pageWidth / 2, y + 6, { align: "center" })
 
   // ===== Rodapé =====
   doc.setFontSize(8)
