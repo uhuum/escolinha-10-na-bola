@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf"
 import type { Student, DayScheduleConfig } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils/currency"
-import { formatRG, formatCPF } from "@/lib/utils/input-masks"
+import { formatRG, formatCPF, detectDocumentType } from "@/lib/utils/input-masks"
 
 /**
  * Carrega uma imagem (por URL ou dataURL) e retorna um objeto com o dataURL
@@ -169,10 +169,18 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   contentTop += lines.length * 6 + 6
 
   // ===== Tabela de dados =====
+  const documentType = student.rg ? detectDocumentType(student.rg) : "RG"
+  const documentLabel = documentType === "CPF" ? "CPF do aluno" : "RG do aluno"
+  const documentValue = student.rg
+    ? documentType === "CPF"
+      ? formatCPF(student.rg)
+      : formatRG(student.rg)
+    : "Não informado"
+
   const rows: Array<[string, string]> = [
     ["Nome completo", student.name || "Não informado"],
     ["Data de nascimento", formatBirthDate(student.birthDate)],
-    ["RG do aluno", student.rg ? formatRG(student.rg) : "Não informado"],
+    [documentLabel, documentValue],
     ["Responsável", student.responsible || "Não informado"],
     ["CPF do responsável", student.responsibleCpf ? formatCPF(student.responsibleCpf) : "Não informado"],
     ["Dias e horários", formatSchedule(student)],

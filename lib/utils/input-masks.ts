@@ -38,6 +38,12 @@ export function formatRG(value: string): string {
   }
 }
 
+export function detectDocumentType(value: string): "CPF" | "RG" {
+  // CPF possui 11 dígitos numéricos; RG possui menos ou contém "X"
+  const numbers = (value || "").replace(/\D/g, "")
+  return numbers.length === 11 ? "CPF" : "RG"
+}
+
 export function formatPhone(value: string): string {
   // Remove all non-numeric characters
   const numbers = value.replace(/\D/g, "")

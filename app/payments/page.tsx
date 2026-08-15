@@ -80,6 +80,8 @@ export default function PaymentsPage() {
     getMonthlyReport,
     markAsPaidCash,
     exemptPayment,
+    revertPayment,
+    removeExemption,
   } = useStudents()
   const { toast } = useToast()
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -111,6 +113,16 @@ export default function PaymentsPage() {
   })
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false)
   const [whatsAppStudent, setWhatsAppStudent] = useState<Student | null>(null)
+
+  const [photoModal, setPhotoModal] = useState<{
+    isOpen: boolean
+    photo: string
+    studentName: string
+  }>({
+    isOpen: false,
+    photo: "",
+    studentName: "",
+  })
 
   const [showPaymentSplash, setShowPaymentSplash] = useState(false)
   const [paymentSplashData, setPaymentSplashData] = useState<{
@@ -370,6 +382,33 @@ export default function PaymentsPage() {
     toast({
       title: "Mensalidade isenta",
       description: `${student?.name} foi isentado da mensalidade de ${paymentMonth}`,
+    })
+  }
+
+  const handleRemoveExemption = (studentId: string, paymentMonth: string) => {
+    const student = students.find((s) => s.id === studentId)
+    if (!student) return
+    removeExemption(studentId, paymentMonth, student.monthlyValue)
+    toast({
+      title: "Isenção removida",
+      description: `A mensalidade de ${student.name} em ${paymentMonth} voltou a ser cobrada`,
+    })
+  }
+
+  const handleRevertPayment = (studentId: string, paymentMonth: string) => {
+    revertPayment(studentId, paymentMonth)
+    const student = students.find((s) => s.id === studentId)
+    toast({
+      title: "Pagamento desmarcado",
+      description: `O pagamento de ${student?.name} em ${paymentMonth} foi revertido para pendente`,
+    })
+  }
+
+  const openPhotoModal = (photo: string | undefined, studentName: string) => {
+    setPhotoModal({
+      isOpen: true,
+      photo: photo || "/placeholder.svg?height=400&width=400&query=student",
+      studentName,
     })
   }
 
@@ -841,6 +880,7 @@ export default function PaymentsPage() {
                 const isNotPaid = payment?.status === "Não Pagou"
                 const isCharged = payment?.status === "Cobrado"
                 const isOpen = payment?.status === "Em Aberto"
+                const isExemptThisMonth = payment?.status === "Bolsista" && !isScholarship
                 const paymentMonth = payment?.month || formatMonthYearFromNumbers(selectedMonthNumber, selectedYear)
 
                 return (
@@ -849,8 +889,11 @@ export default function PaymentsPage() {
                     className={`flex flex-col gap-3 sm:gap-4 p-4 sm:p-5 rounded-xl border-2 bg-card transition-colors ${getBorderColor(payment, isScholarship, isArchived)}`}
                   >
                     <div className="flex items-start gap-3 sm:gap-4">
-                      <div
-                        className={`relative h-14 w-14 sm:h-16 sm:w-16 lg:h-20 lg:w-20 rounded-full overflow-hidden border-2 flex-shrink-0 ${isArchived ? "bg-gray-500/10 border-gray-500/20 grayscale" : "bg-primary/10 border-primary/20"}`}
+                      <button
+                        type="button"
+                        onClick={() => openPhotoModal(student.photo, student.name)}
+                        aria-label={`Ver foto de ${student.name}`}
+                        className={`relative h-14 w-14 sm:h-16 sm:w-16 lg:h-20 lg:w-20 rounded-full overflow-hidden border-2 flex-shrink-0 cursor-pointer transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isArchived ? "bg-gray-500/10 border-gray-500/20 grayscale" : "bg-primary/10 border-primary/20"}`}
                       >
                         <Image
                           src={student.photo || "/placeholder.svg?height=80&width=80&query=student"}
@@ -858,7 +901,7 @@ export default function PaymentsPage() {
                           fill
                           className="object-cover"
                         />
-                      </div>
+                      </button>
                       <div className="flex-1 min-w-0">
                         <p
                           className={`font-semibold text-sm sm:text-base truncate ${isArchived ? "text-muted-foreground" : "text-foreground"}`}
@@ -936,75 +979,100 @@ export default function PaymentsPage() {
 
                     {!isScholarship && !isArchived && (
                       <div className="flex flex-wrap gap-2 pt-2 border-t">
-                        {!isPaid && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleConfirmPayment(student.id, paymentMonth)}
-                            className="gap-1 text-xs"
-                          >
-                            <Check className="h-3 w-3" />
-                            Confirmar Pagamento
-                          </Button>
-                        )}
-
-                        {isPaid && payment?.receipt && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => viewReceipt(payment.receipt, student.name, paymentMonth)}
-                              className="gap-1 text-xs bg-transparent"
-                            >
-                              <Eye className="h-3 w-3" />
-                              Ver Comprovante
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteReceipt(student.id, paymentMonth)}
-                              className="gap-1 text-xs text-destructive hover:text-destructive bg-transparent"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              Remover
-                            </Button>
-                          </>
-                        )}
-
-                        {!isPaid && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handlePostpone(student.id, paymentMonth)}
-                              className="gap-1 text-xs bg-transparent"
-                            >
-                              <CalendarIcon className="h-3 w-3" />
-                              Adiar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                handleEditValue(student.id, paymentMonth, payment?.value || student.monthlyValue)
-                              }
-                              className="gap-1 text-xs bg-transparent"
-                            >
-                              <Edit className="h-3 w-3" />
-                              Editar Valor
-                            </Button>
-                          </>
-                        )}
-
-                        {(isNotPaid || isOpen) && !isCharged && (
+                        {isExemptThisMonth ? (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleMarkAsCharged(student.id, paymentMonth)}
-                            className="gap-1 text-xs text-amber-600 hover:text-amber-700 bg-transparent"
+                            onClick={() => handleRemoveExemption(student.id, paymentMonth)}
+                            className="gap-1 text-xs bg-transparent"
                           >
-                            <Flag className="h-3 w-3" />
-                            Marcar Cobrado
+                            <X className="h-3 w-3" />
+                            Reverter Isenção
                           </Button>
+                        ) : (
+                          <>
+                            {!isPaid && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleConfirmPayment(student.id, paymentMonth)}
+                                className="gap-1 text-xs"
+                              >
+                                <Check className="h-3 w-3" />
+                                Confirmar Pagamento
+                              </Button>
+                            )}
+
+                            {isPaid && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRevertPayment(student.id, paymentMonth)}
+                                  className="gap-1 text-xs text-destructive hover:text-destructive bg-transparent"
+                                >
+                                  <X className="h-3 w-3" />
+                                  Desmarcar Pagamento
+                                </Button>
+                                {payment?.receipt && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => viewReceipt(payment.receipt, student.name, paymentMonth)}
+                                    className="gap-1 text-xs bg-transparent"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                    Ver Comprovante
+                                  </Button>
+                                )}
+                              </>
+                            )}
+
+                            {!isPaid && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleExemptPayment(student.id, paymentMonth)}
+                                  className="gap-1 text-xs text-blue-600 hover:text-blue-700 bg-transparent"
+                                >
+                                  <ShieldOff className="h-3 w-3" />
+                                  Isentar Mensalidade
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handlePostpone(student.id, paymentMonth)}
+                                  className="gap-1 text-xs bg-transparent"
+                                >
+                                  <CalendarIcon className="h-3 w-3" />
+                                  Adiar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleEditValue(student.id, paymentMonth, payment?.value || student.monthlyValue)
+                                  }
+                                  className="gap-1 text-xs bg-transparent"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                  Editar Valor
+                                </Button>
+                              </>
+                            )}
+
+                            {(isNotPaid || isOpen) && !isCharged && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleMarkAsCharged(student.id, paymentMonth)}
+                                className="gap-1 text-xs text-amber-600 hover:text-amber-700 bg-transparent"
+                              >
+                                <Flag className="h-3 w-3" />
+                                Marcar Cobrado
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -1017,6 +1085,39 @@ export default function PaymentsPage() {
       </main>
 
       {/* Modals */}
+      {photoModal.isOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setPhotoModal({ isOpen: false, photo: "", studentName: "" })}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Foto de ${photoModal.studentName}`}
+        >
+          <div
+            className="relative w-full max-w-md flex flex-col items-center gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPhotoModal({ isOpen: false, photo: "", studentName: "" })}
+              aria-label="Fechar"
+              className="absolute -top-2 -right-2 z-10 rounded-full bg-background border-2 p-2 text-foreground shadow-lg hover:bg-muted transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="relative w-full aspect-square rounded-2xl overflow-hidden border-2 bg-card">
+              <Image
+                src={photoModal.photo || "/placeholder.svg"}
+                alt={`Foto de ${photoModal.studentName}`}
+                fill
+                className="object-cover"
+              />
+            </div>
+            <p className="text-center text-lg font-semibold text-white text-balance">{photoModal.studentName}</p>
+          </div>
+        </div>
+      )}
+
       {showPostponeDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md border-2">

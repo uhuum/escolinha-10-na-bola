@@ -24,6 +24,8 @@ export default function NewStudentPage() {
   const { addStudent } = useStudents()
   const { toast } = useToast()
 
+  const [documentType, setDocumentType] = useState<"RG" | "CPF">("RG")
+
   const [formData, setFormData] = useState({
     name: "",
     rg: "",
@@ -312,17 +314,47 @@ export default function NewStudentPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="rg" className="text-sm">
-                      RG
+                    <Label htmlFor="documentType" className="text-sm">
+                      Documento do Aluno
                     </Label>
-                    <Input
-                      id="rg"
-                      value={formData.rg}
-                      onChange={(e) => setFormData({ ...formData, rg: formatRG(e.target.value) })}
-                      placeholder="12.345.678-9 ou 12.345.67-X"
-                      maxLength={14}
-                      className="h-10 sm:h-11 text-sm"
-                    />
+                    <div className="flex gap-2">
+                      <Select
+                        value={documentType}
+                        onValueChange={(value) => {
+                          setDocumentType(value as "RG" | "CPF")
+                          // Reaplica a máscara correta ao trocar o tipo de documento
+                          setFormData((prev) => ({
+                            ...prev,
+                            rg: value === "CPF" ? formatCPF(prev.rg) : formatRG(prev.rg),
+                          }))
+                        }}
+                      >
+                        <SelectTrigger className="h-10 sm:h-11 text-sm w-24 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="RG" className="text-sm">
+                            RG
+                          </SelectItem>
+                          <SelectItem value="CPF" className="text-sm">
+                            CPF
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        id="rg"
+                        value={formData.rg}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            rg: documentType === "CPF" ? formatCPF(e.target.value) : formatRG(e.target.value),
+                          })
+                        }
+                        placeholder={documentType === "CPF" ? "123.456.789-00" : "12.345.678-9"}
+                        maxLength={14}
+                        className="h-10 sm:h-11 text-sm flex-1"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">

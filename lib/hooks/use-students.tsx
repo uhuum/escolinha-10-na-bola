@@ -60,6 +60,8 @@ interface StudentsStore {
   ) => Promise<void>
   markAsPaidCash: (studentId: string, month: string) => Promise<void>
   exemptPayment: (studentId: string, month: string) => Promise<void>
+  revertPayment: (studentId: string, month: string) => Promise<void>
+  removeExemption: (studentId: string, month: string, value: number) => Promise<void>
 }
 
 function mapPaymentFromDB(p: any): MonthlyPayment {
@@ -655,6 +657,46 @@ export function useStudents(): StudentsStore {
     [supabase, refreshStudents, notifyOtherTabs],
   )
 
+  const revertPayment = useCallback(
+    async (studentId: string, month: string) => {
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          status: "Não Pagou",
+          receipt: null,
+          paid_at: null,
+          payment_type: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("student_id", studentId)
+        .eq("month", month)
+
+      if (error) throw error
+      await refreshStudents()
+      notifyOtherTabs()
+    },
+    [supabase, refreshStudents, notifyOtherTabs],
+  )
+
+  const removeExemption = useCallback(
+    async (studentId: string, month: string, value: number) => {
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          status: "Não Pagou",
+          value,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("student_id", studentId)
+        .eq("month", month)
+
+      if (error) throw error
+      await refreshStudents()
+      notifyOtherTabs()
+    },
+    [supabase, refreshStudents, notifyOtherTabs],
+  )
+
   const importStudents = useCallback(
     async (newStudents: Omit<Student, "id">[]) => {
       const registrationDate = new Date().toISOString()
@@ -713,6 +755,8 @@ export function useStudents(): StudentsStore {
     generateStudentPayments,
     markAsPaidCash,
     exemptPayment,
+    revertPayment,
+    removeExemption,
     getPaymentSummary: (month?: string, year?: number) => {
       const activeStudents = students.filter((s) => s.isActive && !s.archivedAt)
       const selectedMonth = month || "Janeiro"

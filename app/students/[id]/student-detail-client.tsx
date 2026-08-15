@@ -20,7 +20,7 @@ import type { ClassSchedule, WeekDay, Student, DayScheduleConfig } from "@/lib/t
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { AppHeader } from "@/components/app-header"
-import { formatRG, formatCPF, formatPhone } from "@/lib/formatters"
+import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/formatters"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
 import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth } from "@/lib/utils/payment"
 import { formatDueDate } from "@/lib/utils/date"
@@ -39,6 +39,8 @@ export function StudentDetailClient({ id }: { id: string }) {
   const [showCropModal, setShowCropModal] = useState(false)
   const [tempPhotoForCrop, setTempPhotoForCrop] = useState<string>("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+
+  const [editDocumentType, setEditDocumentType] = useState<"RG" | "CPF">("RG")
 
   const [editForm, setEditForm] = useState({
     name: "",
@@ -81,6 +83,7 @@ export function StudentDetailClient({ id }: { id: string }) {
           monthlyValue: fetchedStudent.monthlyValue.toString(),
           isScholarship: fetchedStudent.isScholarship || false,
         })
+        setEditDocumentType(detectDocumentType(fetchedStudent.rg || ""))
         setPhotoPreview(fetchedStudent.photo || "/placeholder.svg?height=200&width=200")
 
         if (fetchedStudent.scheduleConfigs && fetchedStudent.scheduleConfigs.length > 0) {
@@ -341,7 +344,7 @@ export function StudentDetailClient({ id }: { id: string }) {
 
                 {student.rg && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">RG</p>
+                    <p className="text-sm text-muted-foreground mb-1">{detectDocumentType(student.rg)}</p>
                     <p className="font-medium text-foreground">{student.rg}</p>
                   </div>
                 )}
@@ -619,14 +622,40 @@ export function StudentDetailClient({ id }: { id: string }) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-rg">RG</Label>
-                    <Input
-                      id="edit-rg"
-                      value={editForm.rg}
-                      onChange={(e) => setEditForm({ ...editForm, rg: formatRG(e.target.value) })}
-                      placeholder="12.345.678-9"
-                      maxLength={14}
-                    />
+                    <Label htmlFor="edit-rg">Documento do Aluno</Label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={editDocumentType}
+                        onValueChange={(value) => {
+                          setEditDocumentType(value as "RG" | "CPF")
+                          setEditForm((prev) => ({
+                            ...prev,
+                            rg: value === "CPF" ? formatCPF(prev.rg) : formatRG(prev.rg),
+                          }))
+                        }}
+                      >
+                        <SelectTrigger className="w-24 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="RG">RG</SelectItem>
+                          <SelectItem value="CPF">CPF</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        id="edit-rg"
+                        value={editForm.rg}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            rg: editDocumentType === "CPF" ? formatCPF(e.target.value) : formatRG(e.target.value),
+                          })
+                        }
+                        placeholder={editDocumentType === "CPF" ? "123.456.789-00" : "12.345.678-9"}
+                        maxLength={14}
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
