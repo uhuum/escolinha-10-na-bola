@@ -132,7 +132,11 @@ export default function PaymentsPage() {
   } | null>(null)
 
   const months = getAllMonths()
-  const years = getAvailableYears()
+  const paymentYears = useMemo(
+    () => students.flatMap((student) => student.payments.map((payment) => payment.yearNumber).filter((year): year is number => Number.isFinite(year))),
+    [students],
+  )
+  const years = getAvailableYears(paymentYears)
   const currentMonthIndex = getCurrentMonthIndex()
   const selectedMonthNumber = getMonthNumberFromName(selectedMonth)
   const currentMonthNum = getCurrentMonthNumber()

@@ -91,6 +91,10 @@ export function isPaymentOpen(status: PaymentStatus): boolean {
  * Formatar mês/ano para exibição
  */
 export function formatPaymentPeriod(payment: MonthlyPayment): string {
+  const parsed = parseMonthFromString(payment.month)
+  if (parsed.monthNumber > 0 && parsed.yearNumber > 0) {
+    return `${getMonthNameFromNumber(parsed.monthNumber)}/${parsed.yearNumber}`
+  }
   if (payment.monthNumber && payment.yearNumber) {
     return `${getMonthNameFromNumber(payment.monthNumber)}/${payment.yearNumber}`
   }

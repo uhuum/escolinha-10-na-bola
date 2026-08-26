@@ -93,10 +93,14 @@ export function getMonthNameFromNumber(monthNumber: number): string {
 }
 
 export function getMonthNumberFromName(monthName: string): number {
+  const normalized = monthName
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
   const months: Record<string, number> = {
     janeiro: 1,
     fevereiro: 2,
-    março: 3,
     marco: 3,
     abril: 4,
     maio: 5,
@@ -108,7 +112,7 @@ export function getMonthNumberFromName(monthName: string): number {
     novembro: 11,
     dezembro: 12,
   }
-  return months[monthName.toLowerCase()] || 0
+  return months[normalized] || 0
 }
 
 /**
@@ -152,13 +156,15 @@ export function getCurrentYear(): number {
 /**
  * Get array of available years (from 2024 to current year + 1)
  */
-export function getAvailableYears(): number[] {
+export function getAvailableYears(extraYears: number[] = []): number[] {
   const currentYear = getCurrentYear()
+  const maxDataYear = extraYears.reduce((max, year) => (Number.isFinite(year) ? Math.max(max, year) : max), currentYear + 1)
   const years: number[] = []
-  // Mostrar anos desde 2024 até o ano atual + 1
-  for (let year = 2024; year <= currentYear + 1; year++) {
+
+  for (let year = 2024; year <= maxDataYear; year++) {
     years.push(year)
   }
+
   return years
 }
 
@@ -209,18 +215,21 @@ export function matchesMonthYearByNumbers(
   selectedMonthNumber: number,
   selectedYearNumber: number,
 ): boolean {
-  // Preferir usar os novos campos
-  if (payment.monthNumber !== undefined && payment.yearNumber !== undefined) {
-    return payment.monthNumber === selectedMonthNumber && payment.yearNumber === selectedYearNumber
-  }
-
-  // Fallback para formato antigo
+  // A coluna month é a fonte de verdade quando contém Mês/Ano. Os campos
+  // numéricos podem ter sido gravados por uma versão antiga do sistema.
   if (payment.month) {
-    const monthName = getMonthNameFromNumber(selectedMonthNumber)
-    return matchesMonthYear(payment.month, monthName, selectedYearNumber)
+    const parsed = parseMonthYear(payment.month)
+    const parsedMonth = getMonthNumberFromName(parsed.month)
+    if (parsedMonth > 0 && parsed.year !== null) {
+      return parsedMonth === selectedMonthNumber && parsed.year === selectedYearNumber
+    }
+
+    if (parsedMonth > 0) {
+      return parsedMonth === selectedMonthNumber && selectedYearNumber === getCurrentYear()
+    }
   }
 
-  return false
+  return payment.monthNumber === selectedMonthNumber && payment.yearNumber === selectedYearNumber
 }
 
 export function createDueDate(yearNumber: number, monthNumber: number, day = 10): string {
