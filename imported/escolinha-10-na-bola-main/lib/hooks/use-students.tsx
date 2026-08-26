@@ -262,10 +262,8 @@ export function useStudents(): StudentsStore {
 
       const paymentsToInsert: any[] = []
 
-      // Generate payments from the registration month through the end of next year.
-      // This avoids the old fixed 2026 limit and keeps future months available.
-      const endYear = currentYear + 1
-      for (let year = regYear; year <= endYear; year++) {
+      // Generate payments only from registration month forward until December 2026
+      for (let year = regYear; year <= 2026; year++) {
         const startMonth = year === regYear ? regMonth : 1
         const endMonth = 12
 

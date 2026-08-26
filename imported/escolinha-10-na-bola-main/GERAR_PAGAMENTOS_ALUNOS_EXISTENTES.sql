@@ -18,36 +18,20 @@ DECLARE
     v_current_year INT := EXTRACT(YEAR FROM CURRENT_DATE)::INT;
     v_current_month INT := EXTRACT(MONTH FROM CURRENT_DATE)::INT;
     v_current_day INT := EXTRACT(DAY FROM CURRENT_DATE)::INT;
-    v_start_year INT := 2025;
-    v_end_year INT := v_current_year + 1;
     v_month_names TEXT[] := ARRAY['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     v_inserted INT := 0;
 BEGIN
-    -- Gera todos os meses desde dezembro de 2025 até o fim do próximo ano.
-    -- O limite acompanha o calendário e não fica preso a um ano fixo.
-    FOR v_year IN v_start_year..v_end_year LOOP
+    -- Gera pagamentos de 2025 ate 2026
+    FOR v_year IN 2025..2026 LOOP
         FOR v_month IN 1..12 LOOP
-            IF v_year = v_start_year AND v_month < 12 THEN
-                CONTINUE;
-            END IF;
-
             v_month_name := v_month_names[v_month];
             v_month_key := v_month_name || '/' || v_year::TEXT;
             
-            -- Mantém os metadados do período preenchidos mesmo quando o pagamento já existe.
-            -- A tela usa month_number/year_number para localizar cada mês.
-            IF EXISTS (
-                SELECT 1 FROM payments
+            -- Verifica se ja existe esse pagamento - se existir, NAO FAZ NADA
+            IF NOT EXISTS (
+                SELECT 1 FROM payments 
                 WHERE student_id = p_student_id AND month = v_month_key
             ) THEN
-                UPDATE payments
-                SET month_number = v_month,
-                    year_number = v_year,
-                    due_date = MAKE_DATE(v_year, v_month, 10)
-                WHERE student_id = p_student_id
-                  AND month = v_month_key
-                  AND (month_number IS NULL OR year_number IS NULL OR due_date IS NULL);
-            ELSE
                 -- Determina o status inicial
                 IF p_is_scholarship OR p_monthly_value = 0 THEN
                     v_status := 'Bolsista';
@@ -63,17 +47,11 @@ BEGIN
                     v_status := 'Em Aberto';
                 END IF;
                 
-                -- Insere o pagamento já com os campos usados pela interface.
-                INSERT INTO payments (
-                    student_id, month, month_number, year_number, due_date,
-                    status, value, created_at, updated_at
-                )
+                -- Insere APENAS se nao existir
+                INSERT INTO payments (student_id, month, status, value, created_at, updated_at)
                 VALUES (
                     p_student_id,
                     v_month_key,
-                    v_month,
-                    v_year,
-                    MAKE_DATE(v_year, v_month, 10),
                     v_status,
                     CASE WHEN p_is_scholarship OR p_monthly_value = 0 THEN 0 ELSE p_monthly_value END,
                     NOW(),
