@@ -52,6 +52,7 @@ import {
   formatMonthYearFromNumbers,
   getCurrentMonthNumber,
   getMonthNameFromNumber, // Added for getMonthNameFromNumber
+  getPaymentPeriod,
 } from "@/lib/utils/date"
 import { matchesMonthYearByNumbers } from "@/lib/utils/date"
 import { LoadingStudents } from "@/components/loading-students"
@@ -133,7 +134,12 @@ export default function PaymentsPage() {
 
   const months = getAllMonths()
   const paymentYears = useMemo(
-    () => students.flatMap((student) => student.payments.map((payment) => payment.yearNumber).filter((year): year is number => Number.isFinite(year))),
+    () =>
+      students.flatMap((student) =>
+        student.payments
+          .map((payment) => getPaymentPeriod(payment).yearNumber)
+          .filter((year): year is number => Number.isFinite(year) && year > 0),
+      ),
     [students],
   )
   const years = getAvailableYears(paymentYears)

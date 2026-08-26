@@ -210,26 +210,36 @@ export function matchesMonthYear(paymentMonth: string, selectedMonth: string, se
   return parsed.month === selectedMonth && selectedYear === currentYear
 }
 
+export function getPaymentPeriod(payment: { monthNumber?: number; yearNumber?: number; month?: string }): {
+  monthNumber: number
+  yearNumber: number
+} {
+  const rawMonth = String(payment.month ?? "").trim()
+  const parsed = rawMonth ? parseMonthYear(rawMonth) : { month: "", year: null }
+  const parsedMonth = getMonthNumberFromName(parsed.month)
+
+  // SQL scripts antigos podem ter deixado month_number/year_number incorretos.
+  // Quando `month` traz um período válido, ele é a fonte de verdade.
+  if (parsedMonth > 0) {
+    return {
+      monthNumber: parsedMonth,
+      yearNumber: parsed.year ?? payment.yearNumber ?? getCurrentYear(),
+    }
+  }
+
+  return {
+    monthNumber: Number(payment.monthNumber) || 0,
+    yearNumber: Number(payment.yearNumber) || 0,
+  }
+}
+
 export function matchesMonthYearByNumbers(
   payment: { monthNumber?: number; yearNumber?: number; month?: string },
   selectedMonthNumber: number,
   selectedYearNumber: number,
 ): boolean {
-  // A coluna month é a fonte de verdade quando contém Mês/Ano. Os campos
-  // numéricos podem ter sido gravados por uma versão antiga do sistema.
-  if (payment.month) {
-    const parsed = parseMonthYear(payment.month)
-    const parsedMonth = getMonthNumberFromName(parsed.month)
-    if (parsedMonth > 0 && parsed.year !== null) {
-      return parsedMonth === selectedMonthNumber && parsed.year === selectedYearNumber
-    }
-
-    if (parsedMonth > 0) {
-      return parsedMonth === selectedMonthNumber && selectedYearNumber === getCurrentYear()
-    }
-  }
-
-  return payment.monthNumber === selectedMonthNumber && payment.yearNumber === selectedYearNumber
+  const period = getPaymentPeriod(payment)
+  return period.monthNumber === selectedMonthNumber && period.yearNumber === selectedYearNumber
 }
 
 export function createDueDate(yearNumber: number, monthNumber: number, day = 10): string {

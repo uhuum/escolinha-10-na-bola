@@ -5,6 +5,7 @@ import {
   getCurrentMonthNumber,
   getCurrentDay,
   getMonthNumberFromName,
+  getPaymentPeriod,
 } from "./date"
 
 export const BASE_YEAR = 2025
@@ -105,13 +106,8 @@ export function formatPaymentPeriod(payment: MonthlyPayment): string {
  * Verificar se pagamento pertence a um período específico
  */
 export function isPaymentInPeriod(payment: MonthlyPayment, monthNumber: number, yearNumber: number): boolean {
-  if (payment.monthNumber !== undefined && payment.yearNumber !== undefined) {
-    return payment.monthNumber === monthNumber && payment.yearNumber === yearNumber
-  }
-
-  // Fallback para formato antigo
-  const parsed = parseMonthFromString(payment.month)
-  return parsed.monthNumber === monthNumber && parsed.yearNumber === yearNumber
+  const period = getPaymentPeriod(payment)
+  return period.monthNumber === monthNumber && period.yearNumber === yearNumber
 }
 
 /**

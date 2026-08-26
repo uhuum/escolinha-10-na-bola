@@ -74,8 +74,11 @@ function mapPaymentFromDB(p: any): MonthlyPayment {
     postponedTo: p.postponed_to || undefined,
     chargedAt: p.charged_at || undefined,
     dueDate: p.due_date || undefined,
-    monthNumber: p.month_number || undefined,
-    yearNumber: p.year_number || undefined,
+    // O Supabase normalmente retorna INTEGER como number, mas scripts/importações
+    // podem gravar ou serializar esses valores como texto. Normalize aqui para que
+    // o filtro de período não dependa do tipo retornado pela API.
+    monthNumber: Number.isFinite(Number(p.month_number)) ? Number(p.month_number) : undefined,
+    yearNumber: Number.isFinite(Number(p.year_number)) ? Number(p.year_number) : undefined,
     paymentType: p.payment_type || undefined,
   }
 }
