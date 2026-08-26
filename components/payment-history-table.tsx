@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Eye, FileText, Banknote, QrCode } from "lucide-react"
 import { formatCurrency } from "@/lib/utils/currency"
 import { formatPaymentPeriod, sortPaymentsByDueDate } from "@/lib/utils/payment"
-import { formatDueDate, getCurrentMonthNumber, getCurrentYear } from "@/lib/utils/date"
+import { formatDueDate } from "@/lib/utils/date"
 import type { MonthlyPayment } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 
@@ -23,20 +23,8 @@ export function PaymentHistoryTable({
   sortOrder = "asc",
   isArchived = false,
 }: PaymentHistoryTableProps) {
-  const currentMonth = getCurrentMonthNumber()
-  const currentYear = getCurrentYear()
-
-  const filteredPayments = payments.filter((p) => {
-    if (p.monthNumber && p.yearNumber) {
-      // Only show payments up to and including current month
-      if (p.yearNumber > currentYear) return false
-      if (p.yearNumber === currentYear && p.monthNumber > currentMonth) return false
-      return true
-    }
-    return true
-  })
-
-  const sortedPayments = sortPaymentsByDueDate(filteredPayments, sortOrder)
+  // Exibir todos os pagamentos gerados, inclusive meses futuros.
+  const sortedPayments = sortPaymentsByDueDate(payments, sortOrder)
 
   return (
     <div className="overflow-x-auto">

@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { AppHeader } from "@/components/app-header"
 import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/formatters"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
-import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth } from "@/lib/utils/payment"
+import { formatPaymentPeriod, sortPaymentsByDueDate } from "@/lib/utils/payment"
 import { formatDueDate } from "@/lib/utils/date"
 
 export function StudentDetailClient({ id }: { id: string }) {
@@ -264,8 +264,8 @@ export function StudentDetailClient({ id }: { id: string }) {
 
   const pendingPayments = student.payments.filter((p) => p.status === "Não Pagou" || p.status === "Cobrado").length
 
-  const filteredPayments = filterPaymentsUpToCurrentMonth(student.payments)
-  const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
+  // O histórico deve refletir todos os pagamentos gerados no banco, inclusive os futuros.
+  const sortedPayments = sortPaymentsByDueDate(student.payments, "asc")
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
