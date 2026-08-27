@@ -150,7 +150,7 @@ export function useStudents(): StudentsStore {
       if (studentsResponse.error) {
         throw studentsResponse.error
       }
-      const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
+      const sortedStudents = (studentsResponse.data || []).sort((a: any, b: any) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
 
@@ -201,7 +201,7 @@ export function useStudents(): StudentsStore {
       if (studentsError) {
         throw studentsError
       }
-      const sortedStudents = (studentsData || []).sort((a, b) =>
+      const sortedStudents = (studentsData || []).sort((a: any, b: any) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
 

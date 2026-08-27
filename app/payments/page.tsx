@@ -53,6 +53,7 @@ import {
   getCurrentMonthNumber,
   getMonthNameFromNumber, // Added for getMonthNameFromNumber
   getPaymentPeriod,
+  createDueDate,
 } from "@/lib/utils/date"
 import { matchesMonthYearByNumbers } from "@/lib/utils/date"
 import { LoadingStudents } from "@/components/loading-students"
@@ -63,7 +64,7 @@ import {
   BASE_YEAR,
   BASE_MONTH,
 } from "@/lib/utils/payment" // Added BASE_YEAR and BASE_MONTH
-import type { PaymentType, Student } from "@/lib/types"
+import type { MonthlyPayment, PaymentType, Student } from "@/lib/types"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -176,14 +177,33 @@ export default function PaymentsPage() {
   const studentsWithPayments = useMemo(() => {
     return allStudentsForPayments
       .map((student) => {
-        const payment = student.payments.find((p) => matchesMonthYearByNumbers(p, selectedMonthNumber, selectedYear))
-        const isArchived = !student.isActive || student.archivedAt
+        const storedPayment = student.payments.find((p) => matchesMonthYearByNumbers(p, selectedMonthNumber, selectedYear))
+        const isArchived = Boolean(!student.isActive || student.archivedAt)
 
         const regDate = student.registrationDate ? new Date(student.registrationDate) : null
-        const regYear = regDate ? regDate.getFullYear() : 2020
-        const regMonth = regDate ? regDate.getMonth() + 1 : 1
-        const wasRegisteredBeforeThisMonth =
-          regYear < selectedYear || (regYear === selectedYear && regMonth <= selectedMonthNumber)
+        const wasRegisteredBeforeThisMonth = (() => {
+          const regYear = regDate ? regDate.getFullYear() : 2020
+          const regMonth = regDate ? regDate.getMonth() + 1 : 1
+          return regYear < selectedYear || (regYear === selectedYear && regMonth <= selectedMonthNumber)
+        })()
+
+        // Exibe o aluno mesmo quando o script SQL deixou aquele mês sem linha.
+        // O registro virtual não é salvo no banco; serve para a grade não ficar picada.
+        const payment: (MonthlyPayment & { isVirtual?: boolean }) | undefined =
+          storedPayment ?? (wasRegisteredBeforeThisMonth ? {
+            month: formatMonthYearFromNumbers(selectedMonthNumber, selectedYear),
+            status: determinePaymentStatus(
+              selectedMonthNumber,
+              selectedYear,
+              student.isScholarship || student.monthlyValue === 0 ? "Bolsista" : "Em Aberto",
+              false,
+            ),
+            value: student.isScholarship ? 0 : student.monthlyValue,
+            dueDate: createDueDate(selectedYear, selectedMonthNumber, 10),
+            monthNumber: selectedMonthNumber,
+            yearNumber: selectedYear,
+            isVirtual: true,
+          } : undefined)
 
         const archiveDate = student.archivedAt ? new Date(student.archivedAt) : null
         const archiveYear = archiveDate ? archiveDate.getFullYear() : null
@@ -222,7 +242,13 @@ export default function PaymentsPage() {
     studentsWithPayments.forEach(({ student, payment, isArchived }) => {
       if (student.monthlyValue === 0 || student.isScholarship || isArchived) return
 
-      if (payment && payment.status !== "Pago" && payment.status !== "Adiado" && payment.status !== "Bolsista") {
+      if (
+        payment &&
+        !(payment as { isVirtual?: boolean }).isVirtual &&
+        payment.status !== "Pago" &&
+        payment.status !== "Adiado" &&
+        payment.status !== "Bolsista"
+      ) {
         const newStatus = determinePaymentStatus(selectedMonthNumber, selectedYear, payment.status, !!payment.receipt)
 
         if (newStatus !== payment.status) {
