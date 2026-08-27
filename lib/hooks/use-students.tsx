@@ -156,7 +156,7 @@ export function useStudents(): StudentsStore {
 
       // Create a map for faster payment lookup
       const paymentsMap = new Map<string, any[]>()
-      for (const payment of paymentsResponse.data || []) {
+      for (const payment of paymentsResponse || []) {
         if (!paymentsMap.has(payment.student_id)) {
           paymentsMap.set(payment.student_id, [])
         }
@@ -201,10 +201,6 @@ export function useStudents(): StudentsStore {
       if (studentsError) {
         throw studentsError
       }
-      if (paymentsError) {
-        throw paymentsError
-      }
-
       const sortedStudents = (studentsData || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
