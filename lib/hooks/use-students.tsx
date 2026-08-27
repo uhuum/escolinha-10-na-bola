@@ -64,6 +64,25 @@ interface StudentsStore {
   removeExemption: (studentId: string, month: string, value: number) => Promise<void>
 }
 
+async function fetchAllPayments(supabase: ReturnType<typeof getBrowserClient>) {
+  const pageSize = 1000
+  const allPayments: any[] = []
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id,student_id,month,status,value,due_date,month_number,year_number,postponed_to,receipt,paid_at,charged_at,payment_type")
+      .order("due_date", { ascending: true })
+      .range(from, from + pageSize - 1)
+      .throwOnError()
+
+    allPayments.push(...(data || []))
+    if (!data || data.length < pageSize) break
+  }
+
+  return allPayments
+}
+
 function mapPaymentFromDB(p: any): MonthlyPayment {
   return {
     month: p.month,
@@ -125,20 +144,12 @@ export function useStudents(): StudentsStore {
           .from("students")
           .select(STUDENT_LIST_COLUMNS)
           .order("name", { ascending: true }),
-        supabase
-          .from("payments")
-          .select("id,student_id,month,status,value,due_date,month_number,year_number,postponed_to,receipt,paid_at,charged_at,payment_type")
-          .order("due_date", { ascending: true })
-          .throwOnError(),
+        fetchAllPayments(supabase),
       ])
 
       if (studentsResponse.error) {
         throw studentsResponse.error
       }
-      if (paymentsResponse.error) {
-        throw paymentsResponse.error
-      }
-
       const sortedStudents = (studentsResponse.data || []).sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
@@ -185,11 +196,8 @@ export function useStudents(): StudentsStore {
         .from("students")
         .select(STUDENT_LIST_COLUMNS)
         .order("name", { ascending: true })
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from("payments")
-        .select("id,student_id,month,status,value,due_date,month_number,year_number,postponed_to,receipt,paid_at,charged_at,payment_type")
-        .order("due_date", { ascending: true })
-      
+      const paymentsData = await fetchAllPayments(supabase)
+
       if (studentsError) {
         throw studentsError
       }
@@ -265,8 +273,10 @@ export function useStudents(): StudentsStore {
 
       const paymentsToInsert: any[] = []
 
-      // Generate payments only from registration month forward until December 2026
-      for (let year = regYear; year <= 2026; year++) {
+      // Generate payments from registration month through the end of next year.
+      // This keeps the UI and new-student flow aligned with the SQL generator.
+      const endYear = Math.max(currentYear + 1, 2027)
+      for (let year = regYear; year <= endYear; year++) {
         const startMonth = year === regYear ? regMonth : 1
         const endMonth = 12
 
