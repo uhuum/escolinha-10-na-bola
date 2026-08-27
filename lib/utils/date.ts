@@ -97,7 +97,12 @@ export function getMonthNumberFromName(monthName: string): number {
     .trim()
     .toLocaleLowerCase("pt-BR")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
+  const numericMonth = Number.parseInt(normalized, 10)
+  if (/^\\d{1,2}$/.test(normalized) && numericMonth >= 1 && numericMonth <= 12) {
+    return numericMonth
+  }
+
   const months: Record<string, number> = {
     janeiro: 1,
     fevereiro: 2,
@@ -173,12 +178,24 @@ export function getAvailableYears(extraYears: number[] = []): number[] {
  * Supports both old format "Janeiro" and new format "Janeiro/2025"
  */
 export function parseMonthYear(monthString: string): { month: string; year: number | null } {
-  if (monthString.includes("/")) {
-    const [month, yearStr] = monthString.split("/")
-    return { month, year: Number.parseInt(yearStr, 10) }
+  const value = monthString.trim()
+  const slashParts = value.split("/")
+  if (slashParts.length === 2) {
+    const [first, second] = slashParts
+    // Aceita Mês/Ano, MM/Ano e Ano/MM.
+    if (/^\\d{4}$/.test(first) && /^\\d{1,2}$/.test(second)) {
+      return { month: second, year: Number.parseInt(first, 10) }
+    }
+    return { month: first, year: Number.parseInt(second, 10) }
   }
-  // Old format - month only, no year
-  return { month: monthString, year: null }
+
+  const isoParts = value.match(/^(\\d{4})-(\\d{1,2})(?:-\\d{1,2})?$/)
+  if (isoParts) {
+    return { month: isoParts[2], year: Number.parseInt(isoParts[1], 10) }
+  }
+
+  // Formato antigo: somente o nome ou número do mês.
+  return { month: value, year: null }
 }
 
 /**
@@ -210,27 +227,40 @@ export function matchesMonthYear(paymentMonth: string, selectedMonth: string, se
   return parsed.month === selectedMonth && selectedYear === currentYear
 }
 
-export function getPaymentPeriod(payment: { monthNumber?: number; yearNumber?: number; month?: string }): {
-  monthNumber: number
-  yearNumber: number
-} {
+export function getPaymentPeriod(payment: {
+  monthNumber?: number | string
+  yearNumber?: number | string
+  month?: string
+  dueDate?: string | Date
+}): { monthNumber: number; yearNumber: number } {
   const rawMonth = String(payment.month ?? "").trim()
   const parsed = rawMonth ? parseMonthYear(rawMonth) : { month: "", year: null }
   const parsedMonth = getMonthNumberFromName(parsed.month)
+  const numericMonth = Number(payment.monthNumber)
+  const numericYear = Number(payment.yearNumber)
 
-  // SQL scripts antigos podem ter deixado month_number/year_number incorretos.
-  // Quando `month` traz um período válido, ele é a fonte de verdade.
-  if (parsedMonth > 0) {
+  // O script SQL pode gravar o período em formatos diferentes. A string
+  // `month` válida tem prioridade; depois usamos as colunas numéricas.
+  if (parsedMonth >= 1 && parsedMonth <= 12) {
     return {
       monthNumber: parsedMonth,
-      yearNumber: parsed.year ?? payment.yearNumber ?? getCurrentYear(),
+      yearNumber: parsed.year && Number.isFinite(parsed.year) ? parsed.year : numericYear || getCurrentYear(),
     }
   }
 
-  return {
-    monthNumber: Number(payment.monthNumber) || 0,
-    yearNumber: Number(payment.yearNumber) || 0,
+  if (Number.isInteger(numericMonth) && numericMonth >= 1 && numericMonth <= 12 && Number.isFinite(numericYear)) {
+    return { monthNumber: numericMonth, yearNumber: numericYear }
   }
+
+  // Último fallback para linhas antigas que só possuem a data de vencimento.
+  if (payment.dueDate) {
+    const date = typeof payment.dueDate === "string" ? new Date(payment.dueDate) : payment.dueDate
+    if (!Number.isNaN(date.getTime())) {
+      return { monthNumber: date.getUTCMonth() + 1, yearNumber: date.getUTCFullYear() }
+    }
+  }
+
+  return { monthNumber: 0, yearNumber: 0 }
 }
 
 export function matchesMonthYearByNumbers(
