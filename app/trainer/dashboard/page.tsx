@@ -1,129 +1,147 @@
 "use client"
 
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useCoaches } from "@/lib/hooks/use-coaches"
 import { useStudents } from "@/lib/hooks/use-students"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Users, BookOpen, Calendar, Clock } from "lucide-react"
 import { LoadingStudents } from "@/components/loading-students"
 
 export default function TrainerDashboardPage() {
   const { user } = useAuth()
-  const { getCoachByUsername } = useCoaches()
   const { students, isLoading } = useStudents()
-
-  const coach = user?.username
-    ? getCoachByUsername(user.username)
-    : undefined
-
-  const coachClasses = coach?.classes || []
 
   const activeStudents = students.filter((student) => student.isActive)
 
-  /**
-   * Retorna os alunos de UMA turma específica.
+  /*
+   * Cada combinação DIA + HORÁRIO é uma turma diferente.
    *
-   * Uma turma é definida por:
-   * DIA + HORÁRIO
-   *
-   * Exemplo:
+   * Ex:
    * Segunda + 18:00-19:30
-   * é diferente de
    * Segunda + 19:30-21:00
+   *
+   * São DUAS turmas.
    */
-  const getStudentsForClass = (schedule: string, day: string) => {
-    return activeStudents.filter((student) => {
-      // Formato mais novo:
-      // cada configuração possui dia + horário
-      if (
-        student.scheduleConfigs &&
-        student.scheduleConfigs.length > 0
-      ) {
-        return student.scheduleConfigs.some(
-          (config) =>
-            config.schedule === schedule &&
-            config.day === day
-        )
-      }
+  const classesMap = new Map<
+    string,
+    {
+      day: string
+      schedule: string
+      students: typeof activeStudents
+    }
+  >()
 
-      // Compatibilidade com alunos antigos
-      return (
-        student.classSchedule === schedule &&
-        student.classDays?.includes(day as any)
-      )
-    })
-  }
+  activeStudents.forEach((student) => {
+    /*
+     * Formato atual dos alunos:
+     * scheduleConfigs possui dia + horário.
+     */
+    if (
+      student.scheduleConfigs &&
+      student.scheduleConfigs.length > 0
+    ) {
+      student.scheduleConfigs.forEach((config) => {
+        const key = `${config.day}|${config.schedule}`
 
-  /**
-   * Primeiro transforma:
-   *
-   * 18:00-19:30
-   * Segunda, Quarta, Sexta
-   *
-   * em:
-   *
-   * Segunda 18:00-19:30
-   * Quarta 18:00-19:30
-   * Sexta 18:00-19:30
-   *
-   * Cada uma será uma turma independente.
+        if (!classesMap.has(key)) {
+          classesMap.set(key, {
+            day: config.day,
+            schedule: config.schedule,
+            students: [],
+          })
+        }
+
+        const classInfo = classesMap.get(key)!
+
+        /*
+         * Evita colocar o mesmo aluno duas vezes
+         * dentro da mesma turma.
+         */
+        if (!classInfo.students.some((s) => s.id === student.id)) {
+          classInfo.students.push(student)
+        }
+      })
+
+      return
+    }
+
+    /*
+     * Compatibilidade com alunos antigos.
+     */
+    if (
+      student.classSchedule &&
+      student.classDays &&
+      student.classDays.length > 0
+    ) {
+      student.classDays.forEach((day) => {
+        const key = `${day}|${student.classSchedule}`
+
+        if (!classesMap.has(key)) {
+          classesMap.set(key, {
+            day,
+            schedule: student.classSchedule!,
+            students: [],
+          })
+        }
+
+        const classInfo = classesMap.get(key)!
+
+        if (!classInfo.students.some((s) => s.id === student.id)) {
+          classInfo.students.push(student)
+        }
+      })
+    }
+  })
+
+  /*
+   * Como as turmas vêm dos próprios alunos,
+   * nenhuma turma vazia entra aqui.
    */
-  const individualClasses = coachClasses.flatMap((classInfo) =>
-    classInfo.days.map((day) => ({
-      schedule: classInfo.schedule,
-      day,
-    }))
+  const classesWithStudents = Array.from(classesMap.values()).filter(
+    (classInfo) => classInfo.students.length > 0
   )
 
-  /**
-   * Remove possíveis combinações duplicadas
-   * de dia + horário.
-   */
-  const uniqueClasses = individualClasses.filter(
-    (classInfo, index, array) =>
-      array.findIndex(
-        (other) =>
-          other.schedule === classInfo.schedule &&
-          other.day === classInfo.day
-      ) === index
-  )
-
-  /**
-   * Adiciona os alunos de cada turma
-   * e remove turmas vazias.
-   */
-  const classesWithStudents = uniqueClasses
-    .map((classInfo) => ({
-      ...classInfo,
-      students: getStudentsForClass(
-        classInfo.schedule,
-        classInfo.day
-      ),
-    }))
-    .filter((classInfo) => classInfo.students.length > 0)
-
-  /**
-   * Ordem dos dias da semana para deixar
-   * a exibição organizada.
+  /*
+   * Ordem dos dias.
    */
   const dayOrder: Record<string, number> = {
     Segunda: 1,
     "Segunda-feira": 1,
+
     Terça: 2,
     "Terça-feira": 2,
+
     Quarta: 3,
     "Quarta-feira": 3,
+
     Quinta: 4,
     "Quinta-feira": 4,
+
     Sexta: 5,
     "Sexta-feira": 5,
+
     Sábado: 6,
+
     Domingo: 7,
   }
 
-  /**
-   * Organiza primeiro pelo dia
-   * e depois pelo horário.
+  /*
+   * Organiza:
+   *
+   * Segunda
+   *   18:00-19:30
+   *   19:30-21:00
+   *
+   * Terça
+   *   18:00-19:30
+   *   19:30-21:00
+   *
+   * etc.
    */
   const sortedClasses = [...classesWithStudents].sort((a, b) => {
     const dayA = dayOrder[a.day] ?? 99
@@ -136,34 +154,29 @@ export default function TrainerDashboardPage() {
     return a.schedule.localeCompare(b.schedule)
   })
 
-  /**
-   * Quantidade REAL de turmas.
+  /*
+   * Número real de turmas.
    *
-   * Só entram turmas que possuem
-   * pelo menos 1 aluno.
+   * Cada dia + horário = 1 turma.
    */
   const classCount = sortedClasses.length
 
-  /**
+  /*
    * Total de alunos únicos.
    *
-   * Se Arthur treina:
-   * segunda,
-   * quarta,
-   * sexta,
-   *
-   * ele continua contando apenas 1 vez
-   * no cartão "Total de Alunos".
+   * Se o mesmo aluno treina segunda,
+   * quarta e sexta, continua contando
+   * somente uma vez aqui.
    */
-  const coachStudentIds = new Set<string>()
+  const uniqueStudentIds = new Set<string>()
 
   sortedClasses.forEach((classInfo) => {
     classInfo.students.forEach((student) => {
-      coachStudentIds.add(student.id)
+      uniqueStudentIds.add(student.id)
     })
   })
 
-  const totalStudents = coachStudentIds.size
+  const totalStudents = uniqueStudentIds.size
 
   if (isLoading) {
     return <LoadingStudents message="Carregando dashboard..." />
@@ -221,7 +234,7 @@ export default function TrainerDashboardPage() {
             </div>
 
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Alunos únicos ativos nas suas turmas
+              Alunos únicos ativos
             </p>
           </CardContent>
         </Card>
@@ -248,11 +261,7 @@ export default function TrainerDashboardPage() {
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
 
               <p className="text-sm text-muted-foreground">
-                Nenhuma turma com alunos
-              </p>
-
-              <p className="text-xs text-muted-foreground mt-1">
-                Nenhum aluno ativo foi encontrado nas turmas atribuídas
+                Nenhuma turma encontrada
               </p>
             </div>
           ) : (
