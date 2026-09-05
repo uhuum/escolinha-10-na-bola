@@ -185,19 +185,30 @@ export function StudentDetailClient({ id }: { id: string }) {
     let photoUrl: string | undefined = student?.photo
     let thumbnailUrl: string | undefined = student?.thumbnailUrl
 
-    if (photoFile) {
-      const formData = new FormData()
-      formData.append("file", photoFile)
-      const uploadRes = await fetch("/api/upload-photo", {
-        method: "POST",
-        body: formData,
-      })
-      if (uploadRes.ok) {
-        const uploadData = await uploadRes.json()
-        photoUrl = uploadData.photoUrl
-        thumbnailUrl = uploadData.thumbnailUrl
-      }
-    }
+if (photoFile && photoPreview) {
+  const response = await fetch(photoPreview)
+  const blob = await response.blob()
+
+  const croppedFile = new File(
+    [blob],
+    photoFile.name || "foto-aluno.jpg",
+    { type: blob.type || "image/jpeg" }
+  )
+
+  const formData = new FormData()
+  formData.append("file", croppedFile)
+
+  const uploadRes = await fetch("/api/upload-photo", {
+    method: "POST",
+    body: formData,
+  })
+
+  if (uploadRes.ok) {
+    const uploadData = await uploadRes.json()
+    photoUrl = uploadData.photoUrl
+    thumbnailUrl = uploadData.thumbnailUrl
+  }
+}
 
     updateStudent(id, {
       name: editForm.name,
@@ -250,22 +261,61 @@ export function StudentDetailClient({ id }: { id: string }) {
     notFound()
   }
 
-  const totalPaid = student.payments.reduce((sum, payment) => {
-    if (payment.status === "Pago") return sum + payment.value
-    return sum
-  }, 0)
+// Primeiro filtra somente até o mês atual
+const paymentsUpToCurrentMonth = filterPaymentsUpToCurrentMonth(student.payments)
 
-  const totalExpected = student.payments.reduce((sum, payment) => {
-    if (payment.status !== "Bolsista" && payment.status !== "AFASTADO") {
-      return sum + student.monthlyValue
-    }
-    return sum
-  }, 0)
+// Depois remove mensalidades anteriores à matrícula do aluno
+const registrationDate = student.registrationDate
+  ? new Date(student.registrationDate)
+  : null
 
-  const pendingPayments = student.payments.filter((p) => p.status === "Não Pagou" || p.status === "Cobrado").length
+const registrationMonth = registrationDate
+  ? registrationDate.getUTCMonth() + 1
+  : null
 
-  const filteredPayments = filterPaymentsUpToCurrentMonth(student.payments)
-  const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
+const registrationYear = registrationDate
+  ? registrationDate.getUTCFullYear()
+  : null
+
+const filteredPayments = paymentsUpToCurrentMonth.filter((payment) => {
+  if (
+    registrationMonth === null ||
+    registrationYear === null ||
+    payment.monthNumber === undefined ||
+    payment.yearNumber === undefined
+  ) {
+    return true
+  }
+
+  if (payment.yearNumber > registrationYear) return true
+
+  if (
+    payment.yearNumber === registrationYear &&
+    payment.monthNumber >= registrationMonth
+  ) {
+    return true
+  }
+
+  return false
+})
+
+const totalPaid = filteredPayments.reduce((sum, payment) => {
+  if (payment.status === "Pago") return sum + payment.value
+  return sum
+}, 0)
+
+const totalExpected = filteredPayments.reduce((sum, payment) => {
+  if (payment.status !== "Bolsista" && payment.status !== "AFASTADO") {
+    return sum + student.monthlyValue
+  }
+  return sum
+}, 0)
+
+const pendingPayments = filteredPayments.filter(
+  (p) => p.status === "Não Pagou" || p.status === "Cobrado"
+).length
+
+const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
