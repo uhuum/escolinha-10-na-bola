@@ -15,6 +15,7 @@ interface AttendanceStore {
     classSchedule: ClassSchedule,
     classDays: WeekDay[],
     trainerName: string,
+    trainerId: string,
     records: AttendanceRecord[],
     dayOfWeek: string,
   ) => Promise<void>
@@ -54,6 +55,7 @@ export function useAttendanceSupabase(): AttendanceStore {
           classSchedule: att.class_schedule,
           classDays: att.class_days,
           trainerName: att.trainer_name,
+          trainerId: att.trainer_id || "",
           createdAt: att.created_at,
           records: (recordsData || [])
             .filter((r: any) => r.attendance_id === att.id)

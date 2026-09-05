@@ -397,28 +397,31 @@ export function useStudents(): StudentsStore {
 
   const updateStudent = useCallback(
     async (studentId: string, updates: Partial<Student>) => {
-      const { error } = await supabase
-        .from("students")
-        .update({
-          name: updates.name,
-          rg: updates.rg || null,
-          birth_date: updates.birthDate || null,
-          responsible: updates.responsible,
-          responsible_cpf: updates.responsibleCpf || null,
-          responsible_email: updates.responsibleEmail || null,
-          father_phone: updates.fatherPhone || null,
-          mother_phone: updates.motherPhone || null,
-          monthly_value: updates.monthlyValue,
-          is_active: updates.isActive,
-          is_scholarship: updates.isScholarship || false,
-          class_schedule: updates.classSchedule || null,
-          class_days: updates.classDays || [],
-          schedule_configs: updates.scheduleConfigs || null,
-          photo: updates.photo || null,
-          thumbnail_url: updates.thumbnailUrl || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", studentId)
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      }
+
+      // Atualizações parciais não podem enviar undefined/null para os demais
+      // campos: a edição de turma deve alterar somente a turma e preservar
+      // cadastro, foto e pagamentos do aluno.
+      if (updates.name !== undefined) updateData.name = updates.name
+      if (updates.rg !== undefined) updateData.rg = updates.rg || null
+      if (updates.birthDate !== undefined) updateData.birth_date = updates.birthDate || null
+      if (updates.responsible !== undefined) updateData.responsible = updates.responsible
+      if (updates.responsibleCpf !== undefined) updateData.responsible_cpf = updates.responsibleCpf || null
+      if (updates.responsibleEmail !== undefined) updateData.responsible_email = updates.responsibleEmail || null
+      if (updates.fatherPhone !== undefined) updateData.father_phone = updates.fatherPhone || null
+      if (updates.motherPhone !== undefined) updateData.mother_phone = updates.motherPhone || null
+      if (updates.monthlyValue !== undefined) updateData.monthly_value = updates.monthlyValue
+      if (updates.isActive !== undefined) updateData.is_active = updates.isActive
+      if (updates.isScholarship !== undefined) updateData.is_scholarship = updates.isScholarship
+      if (updates.classSchedule !== undefined) updateData.class_schedule = updates.classSchedule || null
+      if (updates.classDays !== undefined) updateData.class_days = updates.classDays
+      if (updates.scheduleConfigs !== undefined) updateData.schedule_configs = updates.scheduleConfigs
+      if (updates.photo !== undefined) updateData.photo = updates.photo || null
+      if (updates.thumbnailUrl !== undefined) updateData.thumbnail_url = updates.thumbnailUrl || null
+
+      const { error } = await supabase.from("students").update(updateData).eq("id", studentId)
 
       if (error) throw error
       await refreshStudents()

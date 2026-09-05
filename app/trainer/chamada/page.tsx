@@ -345,9 +345,9 @@ export default function TrainerChamadaPage() {
       </Card>
 
       {showAttendanceModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <Card className="w-full max-w-2xl my-4 sm:my-8 border-2 max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
-            <CardHeader className="sticky top-0 bg-card z-10 border-b p-3 sm:p-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
+          <Card className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl border-2 max-h-[92dvh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+            <CardHeader className="sticky top-0 bg-card z-10 border-b p-3 sm:p-6 shrink-0">
               <CardTitle className="text-base sm:text-lg">
                 {selectedDay} - {selectedSchedule}
               </CardTitle>
@@ -355,8 +355,8 @@ export default function TrainerChamadaPage() {
                 Treinador: <span className="font-medium">{trainerName}</span> | Marque a presença clicando nos nomes
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 sm:space-y-4 py-4 sm:py-6 px-3 sm:px-6 flex-1 overflow-y-auto">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 sticky top-0 bg-card z-10 pb-3 sm:pb-4 border-b">
+            <CardContent className="space-y-3 sm:space-y-4 py-3 sm:py-6 px-2.5 sm:px-6 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-3 sticky top-0 bg-card z-10 pb-3 sm:pb-4 border-b">
                 <div className="text-center p-2 sm:p-3 rounded-lg bg-primary/10">
                   <p className="text-lg sm:text-2xl font-bold text-primary">{filteredStudents.length}</p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>

@@ -171,12 +171,16 @@ export default function NewStudentPage() {
       let photoUrl: string | undefined = undefined
       let thumbnailUrl: string | undefined = undefined
 
-      if (photoFile) {
-        const formData = new FormData()
-        formData.append("file", photoFile)
+      if (photoFile && photoPreview.startsWith("data:image/")) {
+        const adjustedPhotoBlob = await fetch(photoPreview).then((response) => response.blob())
+        const adjustedPhotoFile = new File([adjustedPhotoBlob], "student-photo.jpg", {
+          type: "image/jpeg",
+        })
+        const photoUploadData = new FormData()
+        photoUploadData.append("file", adjustedPhotoFile)
         const uploadRes = await fetch("/api/upload-photo", {
           method: "POST",
-          body: formData,
+          body: photoUploadData,
         })
         if (!uploadRes.ok) throw new Error("Erro ao fazer upload da foto")
         const uploadData = await uploadRes.json()

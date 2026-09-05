@@ -111,7 +111,6 @@ export function useAttendance(): AttendanceStore {
         if (recordsError) throw recordsError
 
         console.log("[v0] Attendance records created:", records.length)
-        alert("Presença registrada com sucesso!")
         await fetchAttendances()
       } catch (error) {
         console.error("[v0] Error adding attendance:", error)
