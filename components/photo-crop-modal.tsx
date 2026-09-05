@@ -55,12 +55,6 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
 
       ctx.restore()
 
-      // Draw circular border
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2 - 2, 0, Math.PI * 2)
-      ctx.stroke()
     }
   }, [isOpen, imageSrc, zoom, rotation, offsetX, offsetY])
 
