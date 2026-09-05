@@ -9,10 +9,11 @@ import { LoadingStudents } from "@/components/loading-students"
 
 export default function TrainerDashboardPage() {
   const { user } = useAuth()
-  const { getCoachClasses } = useCoaches()
+  const { getCoachClasses, getCoachByUsername } = useCoaches()
   const { students, isLoading } = useStudents()
 
-  const coachClasses = user?.id ? getCoachClasses(user.id) : []
+const coach = user?.username ? getCoachByUsername(user.username) : undefined
+const coachClasses = coach?.classes || []
   const activeStudents = students.filter((s) => s.isActive)
 
   const getStudentsForClass = (schedule: string, days: string[]) => {

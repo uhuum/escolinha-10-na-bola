@@ -18,7 +18,7 @@ export const coachesData: Coach[] = [
   {
     id: "coach-1",
     name: "João da Silva",
-    username: "treinador",
+    username: "treinadores",
     password: "treinador123",
     classes: [
       { schedule: "18:00-19:30", days: ["Segunda", "Quarta", "Sexta"] },
