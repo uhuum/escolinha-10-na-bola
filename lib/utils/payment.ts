@@ -236,22 +236,52 @@ export function hasOverduePayments(payments: MonthlyPayment[]): boolean {
  * Obter todos os pagamentos pendentes de um aluno com mês/ano
  * Only count "Não Pagou" and "Cobrado" statuses
  */
-export function getPendingPaymentsInfo(payments: MonthlyPayment[]): { month: string; value: number }[] {
+export function getPendingPaymentsInfo(
+  payments: MonthlyPayment[],
+  registrationDate?: string,
+): { month: string; value: number }[] {
   const currentMonthNum = getCurrentMonthNumber()
   const currentYearNum = getCurrentYear()
 
+  const regDate = registrationDate ? new Date(registrationDate) : null
+  const registrationMonth = regDate ? regDate.getMonth() + 1 : null
+  const registrationYear = regDate ? regDate.getFullYear() : null
+
   return payments
     .filter((p) => {
-      // Only "Não Pagou" or "Cobrado"
+      // Só considera "Não Pagou" ou "Cobrado"
       if (p.status !== "Não Pagou" && p.status !== "Cobrado") return false
 
-      // Must be from base date onwards
+      // Ignora pagamentos anteriores à data de matrícula do aluno
+      if (
+        registrationMonth !== null &&
+        registrationYear !== null &&
+        p.monthNumber !== undefined &&
+        p.yearNumber !== undefined
+      ) {
+        if (p.yearNumber < registrationYear) return false
+
+        if (
+          p.yearNumber === registrationYear &&
+          p.monthNumber < registrationMonth
+        ) {
+          return false
+        }
+      }
+
+      // Mantém a data-base do sistema
       if (!isPaymentFromBaseDate(p)) return false
 
-      // Must be up to current month
+      // Não considera meses futuros
       if (p.monthNumber !== undefined && p.yearNumber !== undefined) {
         if (p.yearNumber > currentYearNum) return false
-        if (p.yearNumber === currentYearNum && p.monthNumber > currentMonthNum) return false
+
+        if (
+          p.yearNumber === currentYearNum &&
+          p.monthNumber > currentMonthNum
+        ) {
+          return false
+        }
       }
 
       return true

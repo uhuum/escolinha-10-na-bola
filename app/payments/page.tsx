@@ -502,7 +502,7 @@ export default function PaymentsPage() {
   }
 
   const sendWhatsAppMessage = (student: Student, phone: string) => {
-    const pendingPayments = getPendingPaymentsInfo(student.payments)
+    const pendingPayments = getPendingPaymentsInfo(student.payments, student.registrationDate)
     if (pendingPayments.length === 0) {
       toast({
         title: "Sem pendências",
@@ -1310,7 +1310,7 @@ export default function PaymentsPage() {
               ) : (
                 pendingStudents.map(({ student, payment }) => {
                   const paymentMonth = payment?.month || formatMonthYearFromNumbers(selectedMonthNumber, selectedYear)
-                  const allPendingPayments = getPendingPaymentsInfo(student.payments)
+                  const allPendingPayments = getPendingPaymentsInfo(student.payments, student.registrationDate)
 
                   return (
                     <div key={student.id} className="flex items-center justify-between p-4 border-b hover:bg-accent/50">
