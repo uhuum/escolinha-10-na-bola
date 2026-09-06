@@ -15,6 +15,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  UserPlus,
 } from "lucide-react"
 import Link from "next/link"
 import { Progress } from "@/components/ui/progress"
@@ -145,6 +146,38 @@ export default function DashboardPage() {
   }, [classStats, scheduleFilter, dayFilter])
 
   const totalFilteredStudents = filteredClassStats.reduce((sum, stat) => sum + stat.count, 0)
+
+  const newStudentsForMonth = useMemo(() => {
+    return students
+      .filter((student) => {
+        if (!student.registrationDate) return false
+        const registrationDate = new Date(student.registrationDate)
+        if (Number.isNaN(registrationDate.getTime())) return false
+
+        return (
+          registrationDate.getUTCFullYear() === selectedYear &&
+          registrationDate.getUTCMonth() + 1 === selectedMonthNumber
+        )
+      })
+      .sort((a, b) => {
+        const aTime = a.registrationDate ? new Date(a.registrationDate).getTime() : 0
+        const bTime = b.registrationDate ? new Date(b.registrationDate).getTime() : 0
+        if (aTime !== bTime) return bTime - aTime
+        return a.name.localeCompare(b.name, "pt-BR")
+      })
+  }, [students, selectedMonthNumber, selectedYear])
+
+  const formatRegistrationDate = (date?: string) => {
+    if (!date) return "Data não informada"
+    const parsed = new Date(date)
+    if (Number.isNaN(parsed.getTime())) return "Data não informada"
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed)
+  }
 
   if (isLoading) {
     return <LoadingStudents message="Carregando dashboard..." />
@@ -298,6 +331,55 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-4 sm:mb-6 lg:mb-8 border-2">
+          <CardHeader className="p-3 sm:p-4 lg:p-6 pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl">
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                    <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                  </div>
+                  Novos alunos do mês
+                </CardTitle>
+                <CardDescription className="mt-1 text-xs sm:text-sm lg:text-base">
+                  Alunos que entraram em {selectedMonth.toLowerCase()} de {selectedYear}
+                </CardDescription>
+              </div>
+              <div className="flex min-w-12 items-center justify-center rounded-xl bg-emerald-500/10 px-3 py-2">
+                <span className="text-xl sm:text-2xl font-bold text-emerald-700">{newStudentsForMonth.length}</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+            {newStudentsForMonth.length === 0 ? (
+              <div className="rounded-lg border border-dashed px-4 py-6 text-center">
+                <UserPlus className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                <p className="text-sm font-medium">Nenhum aluno novo neste mês</p>
+                <p className="mt-1 text-xs text-muted-foreground">Quando um aluno for cadastrado, ele aparecerá aqui automaticamente.</p>
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {newStudentsForMonth.map((student) => (
+                  <Link
+                    key={student.id}
+                    href={`/students/${student.id}`}
+                    className="group flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-3 transition-colors hover:border-primary/40 hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{student.name}</p>
+                      <p className="mt-0.5 flex items-center gap-1 text-[11px] sm:text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        Entrada: {formatRegistrationDate(student.registrationDate)}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="mb-4 sm:mb-6 lg:mb-8 border-2">
           <CardHeader className="p-3 sm:p-4 lg:p-6">

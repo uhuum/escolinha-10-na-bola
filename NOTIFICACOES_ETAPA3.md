@@ -45,3 +45,7 @@ A etapa foi ampliada com Web Push real:
 - o servidor mantém Admin e Treinador separados pelo papel autenticado;
 - os disparos automáticos usam Netlify Scheduled Functions e chaves VAPID;
 - detalhes de instalação e configuração estão em `PUSH_NOTIFICACOES_CELULAR.md`.
+
+## Novos alunos no Dashboard Administrativo
+
+O Dashboard Financeiro agora mostra um bloco **Novos alunos do mês**, integrado ao seletor de mês/ano já existente. O card calcula automaticamente os cadastros a partir de `registration_date` (com o fallback já existente para `created_at`), exibe a quantidade, o nome de cada aluno e a data de entrada. Cada item abre o perfil do aluno. O mesmo critério de mês/ano continua sendo usado no resumo da notificação administrativa do último dia do mês.
