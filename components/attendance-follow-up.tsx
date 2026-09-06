@@ -23,6 +23,7 @@ type FollowUpStudent = {
   absent: number
   rate: number
   consecutiveAbsences: number
+  consecutiveAbsentWeeks: number
   lastStatus?: "Presente" | "Ausente"
   lastDate?: string
   level: "urgent" | "attention" | "ok"
@@ -63,6 +64,14 @@ export function AttendanceFollowUp({
       }
     }
 
+    const getWeekStart = (dateString: string) => {
+      const date = new Date(`${dateString}T12:00:00`)
+      const day = date.getDay()
+      const daysFromMonday = day === 0 ? 6 : day - 1
+      date.setDate(date.getDate() - daysFromMonday)
+      return date.toISOString().slice(0, 10)
+    }
+
     const result: FollowUpStudent[] = []
     for (const [studentId, records] of recordsByStudent) {
       const student = studentMap.get(studentId)
@@ -72,17 +81,49 @@ export function AttendanceFollowUp({
       const present = recent.filter((r) => r.status === "Presente").length
       const absent = recent.filter((r) => r.status === "Ausente").length
       const rate = recent.length ? Math.round((present / recent.length) * 100) : 100
+
       let consecutiveAbsences = 0
       for (const record of records) {
         if (record.status !== "Ausente") break
         consecutiveAbsences++
       }
 
-      let level: FollowUpStudent["level"] = "ok"
-      if (consecutiveAbsences >= 3 || (recent.length >= 4 && rate <= 50)) level = "urgent"
-      else if (consecutiveAbsences >= 2 || (recent.length >= 4 && rate <= 65)) level = "attention"
+      // "Risco de afastamento" só deve aparecer quando o aluno faltar
+      // três semanas seguidas. Se o aluno tiver mais de uma chamada na
+      // mesma semana, a semana só conta como falta quando não houve
+      // nenhuma presença nela. Também exigimos semanas de calendário
+      // realmente consecutivas, evitando marcar risco por faltas antigas.
+      const weeks = new Map<string, Array<"Presente" | "Ausente">>()
+      for (const record of records) {
+        const weekStart = getWeekStart(record.date)
+        const statuses = weeks.get(weekStart) || []
+        statuses.push(record.status)
+        weeks.set(weekStart, statuses)
+      }
 
-      if (level !== "ok") {
+      const orderedWeeks = [...weeks.entries()]
+        .map(([weekStart, statuses]) => ({
+          weekStart,
+          missed: statuses.every((status) => status === "Ausente"),
+        }))
+        .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+
+      let consecutiveAbsentWeeks = 0
+      let previousWeekStart: Date | null = null
+      for (const week of orderedWeeks) {
+        if (!week.missed) break
+
+        const currentWeekStart = new Date(`${week.weekStart}T12:00:00`)
+        if (previousWeekStart) {
+          const diffDays = Math.round((previousWeekStart.getTime() - currentWeekStart.getTime()) / 86400000)
+          if (diffDays !== 7) break
+        }
+
+        consecutiveAbsentWeeks++
+        previousWeekStart = currentWeekStart
+      }
+
+      if (consecutiveAbsentWeeks >= 3) {
         result.push({
           student,
           total: recent.length,
@@ -90,22 +131,22 @@ export function AttendanceFollowUp({
           absent,
           rate,
           consecutiveAbsences,
+          consecutiveAbsentWeeks,
           lastStatus: records[0]?.status,
           lastDate: records[0]?.date,
-          level,
+          level: "urgent",
         })
       }
     }
 
     return result.sort((a, b) => {
-      if (a.level !== b.level) return a.level === "urgent" ? -1 : 1
-      if (a.consecutiveAbsences !== b.consecutiveAbsences) return b.consecutiveAbsences - a.consecutiveAbsences
+      if (a.consecutiveAbsentWeeks !== b.consecutiveAbsentWeeks) return b.consecutiveAbsentWeeks - a.consecutiveAbsentWeeks
       return a.rate - b.rate
     })
   }, [attendances, studentMap])
 
   const filtered = followUp.filter((item) => item.student.name.toLowerCase().includes(search.toLowerCase())).slice(0, maxItems)
-  const urgentCount = followUp.filter((item) => item.level === "urgent").length
+  const urgentCount = followUp.length
 
   return (
     <Card className="border-2 overflow-hidden">
@@ -119,8 +160,8 @@ export function AttendanceFollowUp({
             <CardDescription className="mt-1">{description}</CardDescription>
           </div>
           <div className="flex gap-2">
-            <Badge variant="outline">{followUp.length} em atenção</Badge>
-            {urgentCount > 0 && <Badge className="bg-red-600 hover:bg-red-600">{urgentCount} urgentes</Badge>}
+            <Badge variant="outline">{followUp.length} em risco</Badge>
+            {urgentCount > 0 && <Badge className="bg-red-600 hover:bg-red-600">3+ semanas</Badge>}
           </div>
         </div>
       </CardHeader>
@@ -135,11 +176,11 @@ export function AttendanceFollowUp({
         {followUp.length === 0 ? (
           <div className="rounded-xl border bg-emerald-50/60 p-4 text-sm text-emerald-800 flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 shrink-0" />
-            Nenhum aluno apresenta sequência preocupante de faltas neste momento.
+            Nenhum aluno faltou por 3 semanas consecutivas neste momento.
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
-            {filtered.map(({ student, rate, consecutiveAbsences, total, absent, level, lastDate }) => {
+            {filtered.map(({ student, rate, consecutiveAbsentWeeks, total, absent, level, lastDate }) => {
               const fatherWhats = whatsappUrl(student.fatherPhone, student.name)
               const motherWhats = whatsappUrl(student.motherPhone, student.name)
               const primaryWhats = motherWhats || fatherWhats
@@ -159,7 +200,7 @@ export function AttendanceFollowUp({
 
                   <div className="mt-3 flex items-center gap-2 text-sm">
                     <AlertTriangle className={`h-4 w-4 ${level === "urgent" ? "text-red-600" : "text-amber-600"}`} />
-                    <span className="font-medium">{consecutiveAbsences} falta(s) consecutiva(s)</span>
+                    <span className="font-medium">{consecutiveAbsentWeeks} semanas seguidas sem presença</span>
                     {lastDate && <span className="text-xs text-muted-foreground">• última chamada {new Date(lastDate + "T00:00:00").toLocaleDateString("pt-BR")}</span>}
                   </div>
 

@@ -15,8 +15,8 @@ Foi criado o componente `AttendanceFollowUp` para administrador e treinador.
 Ele usa os registros existentes de chamada, sem alterar os dados históricos.
 
 Critérios atuais:
-- Atenção: 2 faltas consecutivas ou frequência <= 65% nas últimas chamadas.
-- Urgente: 3+ faltas consecutivas ou frequência <= 50% nas últimas chamadas.
+- Risco de afastamento: aparece somente quando o aluno fica 3 semanas consecutivas sem nenhuma presença.
+- Se houver mais de uma chamada na mesma semana, a semana só conta como falta quando o aluno não esteve presente em nenhuma delas.
 - Mostra quantidade de faltas, taxa recente e data da última chamada.
 - Atalho para WhatsApp e telefone do responsável quando disponíveis.
 

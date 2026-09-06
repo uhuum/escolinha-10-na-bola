@@ -205,7 +205,7 @@ export default function PresencasPage() {
             students={students}
             attendances={attendances}
             title="Alunos com risco de afastamento"
-            description="Priorize o contato com responsáveis de alunos com faltas consecutivas ou baixa frequência recente."
+            description="Aparecem aqui somente alunos que faltaram por 3 semanas consecutivas."
             maxItems={12}
           />
 

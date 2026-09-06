@@ -190,7 +190,7 @@ export default function TrainerChamadaPage() {
         students={students}
         attendances={attendances.filter((attendance) => !user?.id || attendance.trainerId === user.id)}
         title="Alunos para acompanhar"
-        description="Faltas recorrentes nas suas chamadas. Use os contatos para entender o motivo e evitar o afastamento do aluno."
+        description="Aparecem aqui somente alunos que faltaram por 3 semanas consecutivas. Use os contatos para falar com a família."
         maxItems={8}
       />
 
@@ -355,7 +355,7 @@ export default function TrainerChamadaPage() {
 
       {showAttendanceModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <Card className="flex h-[86dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border sm:h-auto sm:max-h-[86vh] sm:rounded-2xl">
+          <Card className="flex h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border shadow-2xl sm:h-[min(86dvh,760px)] sm:rounded-2xl">
             <CardHeader className="z-10 shrink-0 border-b bg-card px-4 py-3 sm:p-5">
               <CardTitle className="text-base sm:text-lg">
                 {selectedDay} - {selectedSchedule}
@@ -364,23 +364,22 @@ export default function TrainerChamadaPage() {
                 Treinador: <span className="font-medium">{trainerName}</span> | Marque a presença clicando nos nomes
               </CardDescription>
             </CardHeader>
-            <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5">
-              <div className="sticky top-0 z-10 grid grid-cols-3 gap-2 border-b bg-card pb-3">
-                <div className="text-center p-2 sm:p-3 rounded-lg bg-primary/10">
-                  <p className="text-lg sm:text-2xl font-bold text-primary">{filteredStudents.length}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
-                </div>
-                <div className="text-center p-2 sm:p-3 rounded-lg bg-green-100 dark:bg-green-950">
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">{presentCount}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Presentes</p>
-                </div>
-                <div className="text-center p-2 sm:p-3 rounded-lg bg-red-100 dark:bg-red-950">
-                  <p className="text-lg sm:text-2xl font-bold text-red-600">{absentCount}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Ausentes</p>
-                </div>
+            <div className="grid shrink-0 grid-cols-3 gap-2 border-b bg-card px-3 py-3 sm:px-5">
+              <div className="rounded-xl bg-primary/10 p-2 text-center sm:p-3">
+                <p className="text-lg font-bold text-primary sm:text-2xl">{filteredStudents.length}</p>
+                <p className="text-[10px] text-muted-foreground sm:text-xs">Total</p>
               </div>
-
-              <div className="space-y-2 pt-2">
+              <div className="rounded-xl bg-green-100 p-2 text-center dark:bg-green-950 sm:p-3">
+                <p className="text-lg font-bold text-green-600 sm:text-2xl">{presentCount}</p>
+                <p className="text-[10px] text-muted-foreground sm:text-xs">Presentes</p>
+              </div>
+              <div className="rounded-xl bg-red-100 p-2 text-center dark:bg-red-950 sm:p-3">
+                <p className="text-lg font-bold text-red-600 sm:text-2xl">{absentCount}</p>
+                <p className="text-[10px] text-muted-foreground sm:text-xs">Ausentes</p>
+              </div>
+            </div>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5">
+              <div className="space-y-2">
                 {filteredStudents.map((student) => {
                   const status = attendanceRecords[student.id]
                   const isPresent = status === "Presente"
@@ -434,7 +433,7 @@ export default function TrainerChamadaPage() {
                 })}
               </div>
             </CardContent>
-            <div className="grid shrink-0 grid-cols-2 gap-2 border-t bg-card p-3 sm:p-4">
+            <div className="grid shrink-0 grid-cols-2 gap-2 border-t bg-card p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:p-4">
               <Button onClick={handleSubmitAttendance} size="lg" className="flex-1 text-sm sm:text-base h-10 sm:h-11">
                 Registrar Chamada
               </Button>

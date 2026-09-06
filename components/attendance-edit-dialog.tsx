@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, XCircle, Trash2, Users } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CheckCircle2, XCircle, Trash2, Users, X } from "lucide-react"
 import type { Attendance, Student } from "@/lib/types"
 import Image from "next/image"
 
@@ -26,9 +25,10 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
   const studentById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students])
   const presentCount = Object.values(records).filter((status) => status === "Presente").length
   const absentCount = Object.values(records).filter((status) => status === "Ausente").length
+  const busy = saving || deleting
 
   const handleToggle = (studentId: string) => {
-    if (saving || deleting) return
+    if (busy) return
     setRecords((prev) => ({ ...prev, [studentId]: prev[studentId] === "Presente" ? "Ausente" : "Presente" }))
   }
 
@@ -52,29 +52,47 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && !saving && !deleting && onClose()}>
-      <DialogContent className="flex h-[min(88dvh,760px)] w-[calc(100vw-1rem)] max-w-xl grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:h-[min(86vh,760px)] sm:w-full">
-        <DialogHeader className="border-b px-4 pb-3 pt-4 pr-12 text-left sm:px-5 sm:pt-5">
-          <DialogTitle className="text-lg sm:text-xl">Editar chamada</DialogTitle>
-          <DialogDescription className="mt-1 text-xs sm:text-sm">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-[1px] sm:items-center sm:p-4">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Editar chamada"
+        className="flex h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border bg-background shadow-2xl sm:h-[min(86dvh,760px)] sm:rounded-2xl"
+      >
+        <header className="relative shrink-0 border-b bg-background px-4 py-4 pr-12 sm:px-5">
+          <h2 className="text-xl font-bold leading-tight">Editar chamada</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             {attendance.dayOfWeek} • {attendance.classSchedule} • {attendance.trainerName}
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50"
+            aria-label="Fechar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
 
-        <div className="grid grid-cols-3 gap-2 border-b bg-muted/20 px-3 py-2.5 sm:px-5">
-          <div className="rounded-lg bg-background p-2 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-1 text-base font-bold text-primary"><Users className="h-4 w-4" />{attendance.records.length}</div>
-            <p className="text-[10px] text-muted-foreground">Total</p>
+        <div className="grid shrink-0 grid-cols-3 gap-2 border-b bg-background px-3 py-3 sm:px-5">
+          <div className="rounded-xl bg-muted p-2.5 text-center">
+            <div className="flex items-center justify-center gap-1 text-lg font-bold text-primary">
+              <Users className="h-4 w-4" /> {attendance.records.length}
+            </div>
+            <p className="text-[11px] text-muted-foreground">Total</p>
           </div>
-          <div className="rounded-lg bg-green-50 p-2 text-center dark:bg-green-950/40">
-            <p className="text-base font-bold text-green-600">{presentCount}</p><p className="text-[10px] text-muted-foreground">Presentes</p>
+          <div className="rounded-xl bg-green-50 p-2.5 text-center dark:bg-green-950/40">
+            <p className="text-lg font-bold text-green-600">{presentCount}</p>
+            <p className="text-[11px] text-muted-foreground">Presentes</p>
           </div>
-          <div className="rounded-lg bg-red-50 p-2 text-center dark:bg-red-950/40">
-            <p className="text-base font-bold text-red-600">{absentCount}</p><p className="text-[10px] text-muted-foreground">Ausentes</p>
+          <div className="rounded-xl bg-red-50 p-2.5 text-center dark:bg-red-950/40">
+            <p className="text-lg font-bold text-red-600">{absentCount}</p>
+            <p className="text-[11px] text-muted-foreground">Ausentes</p>
           </div>
         </div>
 
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5">
           <div className="space-y-2">
             {attendance.records.map((record) => {
               const student = studentById.get(record.studentId)
@@ -84,15 +102,31 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
                   type="button"
                   key={record.studentId}
                   onClick={() => handleToggle(record.studentId)}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition active:scale-[.995] sm:p-3 ${isPresent ? "border-green-300 bg-green-50/70 dark:bg-green-950/30" : "border-red-300 bg-red-50/70 dark:bg-red-950/30"}`}
+                  disabled={busy}
+                  className={`flex w-full items-center gap-3 rounded-2xl border p-2.5 text-left transition active:scale-[.995] disabled:opacity-70 ${
+                    isPresent
+                      ? "border-green-400 bg-green-50/80 dark:bg-green-950/30"
+                      : "border-red-400 bg-red-50/80 dark:bg-red-950/30"
+                  }`}
                 >
-                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted sm:h-12 sm:w-12">
-                    <Image src={student?.photo || "/placeholder.svg?height=48&width=48&query=student"} alt={student?.name || "Aluno"} fill className="object-cover" />
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted">
+                    <Image
+                      src={student?.photo || "/placeholder.svg?height=48&width=48&query=student"}
+                      alt={student?.name || "Aluno"}
+                      fill
+                      className="object-cover"
+                    />
                   </div>
-                  <p className="min-w-0 flex-1 truncate text-sm font-semibold sm:text-base">{student?.name || "Aluno não encontrado"}</p>
-                  <Badge className={`shrink-0 px-2 py-1 text-[11px] ${isPresent ? "bg-green-600 hover:bg-green-600" : "bg-red-600 hover:bg-red-600"}`}>
-                    {isPresent ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <XCircle className="mr-1 h-3.5 w-3.5" />}
-                    <span className="hidden min-[390px]:inline">{isPresent ? "Presente" : "Ausente"}</span>
+                  <p className="min-w-0 flex-1 text-sm font-semibold leading-snug sm:text-base">
+                    {student?.name || "Aluno não encontrado"}
+                  </p>
+                  <Badge
+                    className={`shrink-0 border-0 px-2 py-1 text-[11px] ${
+                      isPresent ? "bg-green-600 hover:bg-green-600" : "bg-red-600 hover:bg-red-600"
+                    }`}
+                  >
+                    {isPresent ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                    <span className="ml-1 hidden min-[390px]:inline">{isPresent ? "Presente" : "Ausente"}</span>
                   </Badge>
                 </button>
               )
@@ -100,18 +134,24 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
           </div>
         </div>
 
-        <div className="border-t bg-background p-3 sm:p-4">
+        <footer className="shrink-0 border-t bg-background p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:p-4">
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={onClose} disabled={saving || deleting}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || deleting}>{saving ? "Salvando..." : "Salvar"}</Button>
+            <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={busy}>{saving ? "Salvando..." : "Salvar"}</Button>
           </div>
           {onDelete && (
-            <Button variant="ghost" onClick={handleDelete} disabled={saving || deleting} className="mt-2 w-full text-destructive hover:bg-destructive/10 hover:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />{deleting ? "Apagando..." : "Apagar registro"}
+            <Button
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={busy}
+              className="mt-2 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {deleting ? "Apagando..." : "Apagar registro"}
             </Button>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </footer>
+      </section>
+    </div>
   )
 }
