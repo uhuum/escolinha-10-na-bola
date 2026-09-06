@@ -8,7 +8,7 @@ interface LoadingStudentsProps {
 
 export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStudentsProps) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628]">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628]">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-80 h-80 bg-gradient-to-br from-blue-600/30 to-transparent rounded-full blur-3xl animate-pulse" />
