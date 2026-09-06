@@ -80,8 +80,8 @@ INSERT INTO users (username, password_hash, role, name) VALUES
 \`\`\`
 
 **Credenciais:**
-- Admin: `admin` / `jp974832`
-- Treinador: `treinadores` / `treinar10`
+- Admin: `admin` / `<senha-removida>`
+- Treinador: `treinadores` / `<senha-removida>`
 
 ### Opção B: Via Script TypeScript
 
@@ -118,7 +118,7 @@ INSERT INTO users (username, password_hash, role, name) VALUES
 
 4. Clique em **Administrativo** e teste:
    - Usuário: `admin`
-   - Senha: `jp974832`
+   - Senha: `<senha-removida>`
 
 ---
 

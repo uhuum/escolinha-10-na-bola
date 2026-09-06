@@ -13,8 +13,8 @@ Para sincronizar a página de pagamentos com seu banco de dados, você precisa c
 
 ## Passo 2: Adicionar as Variáveis de Ambiente
 
-### No Vercel (Produção):
-1. Vá para seu projeto no Vercel
+### No Netlify (Produção):
+1. Vá para seu projeto no Netlify
 2. **Settings → Environment Variables**
 3. Adicione:
    - Nome: `NEXT_PUBLIC_SUPABASE_URL`

@@ -78,8 +78,8 @@ async function initDatabase() {
     console.log("2️⃣  Inserindo usuários de teste...")
 
     const usersToInsert = [
-      { username: "admin", password: "jp974832", role: "admin", name: "Administrador" },
-      { username: "treinadores", password: "treinar10", role: "coach", name: "Treinador Principal" },
+      { username: "admin", password: "<senha-removida>", role: "admin", name: "Administrador" },
+      { username: "treinadores", password: "<senha-removida>", role: "coach", name: "Treinador Principal" },
     ]
 
     for (const user of usersToInsert) {
@@ -119,8 +119,8 @@ async function initDatabase() {
 
     console.log("\n✅ Setup concluído!\n")
     console.log("Credenciais de teste:")
-    console.log("  Admin: admin / jp974832")
-    console.log("  Treinador: treinadores / treinar10")
+    console.log("  Admin: admin / <senha-removida>")
+    console.log("  Treinador: treinadores / <senha-removida>")
     console.log("\nVocê pode fazer login agora! 🎉\n")
 
     process.exit(0)

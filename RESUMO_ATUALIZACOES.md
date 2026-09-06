@@ -36,7 +36,7 @@ npm run dev
 
 **Como usar**:
 \`\`\`bash
-1. Faça login como admin (admin / jp974832)
+1. Faça login como admin (admin / <senha-removida>)
 2. Vá para "Alunos"
 3. Clique "Novo Aluno"
 4. Preencha formulário e salve
@@ -105,15 +105,15 @@ npx ts-node scripts/04-seed-users.ts
 # 5. Testar
 npm run dev
 # Abrir: http://localhost:3000
-# Login: admin / jp974832
+# Login: admin / <senha-removida>
 \`\`\`
 
 ### Credenciais de Teste
 
 | Papel | Usuário | Senha | Acesso |
 |-------|---------|-------|--------|
-| Admin | `admin` | `jp974832` | Gerenciar alunos, pagamentos, etc |
-| Treinador | `treinadores` | `treinar10` | Ver alunos, carômetro, chamadas |
+| Admin | `admin` | `<senha-removida>` | Gerenciar alunos, pagamentos, etc |
+| Treinador | `treinadores` | `<senha-removida>` | Ver alunos, carômetro, chamadas |
 
 ---
 

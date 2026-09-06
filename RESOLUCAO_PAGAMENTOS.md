@@ -73,4 +73,4 @@ O sistema em produção apresentava:
 
 1. Verifique se o usuário tem permissões RLS corretas no Supabase
 2. Verifique os logs da navegação (F12 → Console) para erros específicos
-3. Verifique se as variáveis de ambiente estão corretas no Vercel
+3. Verifique se as variáveis de ambiente estão corretas no Netlify

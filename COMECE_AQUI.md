@@ -44,8 +44,8 @@ npx ts-node scripts/04-seed-users.ts
 \`\`\`
 
 Usuários criados:
-- **Admin**: `admin` / `jp974832`
-- **Treinador**: `treinadores` / `treinar10`
+- **Admin**: `admin` / `<senha-removida>`
+- **Treinador**: `treinadores` / `<senha-removida>`
 
 ### 5️⃣ Teste localmente
 
@@ -138,11 +138,11 @@ Usuário → Login Page → Netlify Function → Supabase
 \`\`\`
 Admin:
   Usuário: admin
-  Senha: jp974832
+  Senha: <senha-removida>
 
 Treinador:
   Usuário: treinadores
-  Senha: treinar10
+  Senha: <senha-removida>
 \`\`\`
 
 ⚠️ **IMPORTANTE**: Alterar essas senhas em produção!

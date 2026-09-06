@@ -71,7 +71,7 @@
    \`\`\`bash
    npm run dev
    # Abra http://localhost:5173
-   # Login: admin / jp974832
+   # Login: admin / <senha-removida>
    \`\`\`
 
 ### Netlify (Deploy)
@@ -84,8 +84,8 @@
 
 ## Credenciais Teste
 
-- **Admin**: `admin` / `jp974832`
-- **Treinador**: `treinadores` / `treinar10`
+- **Admin**: `admin` / `<senha-removida>`
+- **Treinador**: `treinadores` / `<senha-removida>`
 
 Altere após deploy para produção.
 

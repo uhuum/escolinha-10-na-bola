@@ -1,11 +1,10 @@
 {
-  "name": "my-v0-project",
+  "name": "siga-10-na-bola",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "next build",
     "db:init": "ts-node scripts/00-init-db.ts",
-    "db:seed": "ts-node scripts/04-seed-users.ts",
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start"
@@ -42,7 +41,6 @@
     "@radix-ui/react-tooltip": "latest",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "latest",
     "class-variance-authority": "^0.7.1",

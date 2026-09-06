@@ -1,14 +1,16 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { SplashRole } from "@/components/splash-role"
 import { LogoutSplash } from "@/components/logout-splash"
+import { getBrowserClient } from "@/lib/supabase/client"
 
 type UserRole = "admin" | "coach"
 
 interface User {
   id: string
+  authId?: string
   username: string
   role: UserRole
   name: string
@@ -24,6 +26,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function mapSupabaseUser(authUser: any): User | null {
+  if (!authUser) return null
+
+  const username = String(authUser.user_metadata?.username || authUser.app_metadata?.username || "")
+  const role = authUser.app_metadata?.role as UserRole | undefined
+  if (!username || (role !== "admin" && role !== "coach")) return null
+
+  return {
+    id: String(authUser.user_metadata?.legacy_user_id || authUser.app_metadata?.legacy_user_id || authUser.id),
+    authId: authUser.id,
+    username,
+    role,
+    name: String(authUser.user_metadata?.name || username),
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -33,22 +51,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [logoutUserName, setLogoutUserName] = useState("")
   const router = useRouter()
   const pathname = usePathname()
+  const supabase = useMemo(() => getBrowserClient(), [])
 
-  // Load user from localStorage on mount
+  // Supabase Auth is now the only source of truth for the session.
   useEffect(() => {
-    const storedUser = localStorage.getItem("user")
-    if (storedUser) {
+    let active = true
+
+    const loadAuthenticatedUser = async () => {
       try {
-        setUser(JSON.parse(storedUser))
+        const { data, error } = await supabase.auth.getUser()
+        if (!active) return
+        setUser(error ? null : mapSupabaseUser(data.user))
       } catch (error) {
-        console.error("[v0] Error parsing stored user:", error)
-        localStorage.removeItem("user")
+        console.error("[SIGA] Erro ao validar sessão:", error)
+        if (active) setUser(null)
+      } finally {
+        if (active) setIsLoading(false)
       }
     }
-    setIsLoading(false)
-  }, [])
 
-  // Redirect logic
+    loadAuthenticatedUser()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return
+      setUser(mapSupabaseUser(session?.user))
+      setIsLoading(false)
+    })
+
+    return () => {
+      active = false
+      listener.subscription.unsubscribe()
+    }
+  }, [supabase])
+
   useEffect(() => {
     if (isLoading) return
 
@@ -60,11 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (user && isLoginPage) {
-      if (user.role === "coach") {
-        router.replace("/trainer/dashboard")
-      } else {
-        router.replace("/")
-      }
+      router.replace(user.role === "coach" ? "/trainer/dashboard" : "/")
       return
     }
 
@@ -80,10 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "/chamada",
       ]
       const isAllowed = allowedPaths.some((path) => pathname === path || pathname.startsWith("/students/"))
-
-      if (!isAllowed) {
-        router.replace("/trainer/dashboard")
-      }
+      if (!isAllowed) router.replace("/trainer/dashboard")
     }
   }, [user, pathname, router, isLoading])
 
@@ -92,35 +120,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({ username, password }),
       })
 
-      if (!response.ok) {
-        console.error("[v0] Login failed:", response.status)
-        return false
-      }
+      if (!response.ok) return false
 
-      const data = await response.json()
-      const userData: User = {
-        id: data.id,
-        username: data.username,
-        role: data.role,
-        name: data.name,
-      }
-
-      // Establish the session immediately so the login screen can never flash back
-      // while Next.js is navigating to the destination.
-      localStorage.setItem("user", JSON.stringify(userData))
+      const userData = (await response.json()) as User
       setUser(userData)
       setPendingUser(userData)
       setShowSplashRole(true)
 
       const destination = userData.role === "coach" ? "/trainer/dashboard" : "/"
-      router.prefetch(destination)
       router.replace(destination)
       return true
     } catch (error) {
-      console.error("[v0] Login error:", error)
+      console.error("[SIGA] Erro no login:", error)
       return false
     }
   }
@@ -130,20 +145,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setShowSplashRole(false)
   }
 
+  const performLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
+      await supabase.auth.signOut({ scope: "local" })
+    } catch (error) {
+      console.error("[SIGA] Erro ao encerrar sessão:", error)
+    } finally {
+      setUser(null)
+      setShowLogoutSplash(false)
+      router.replace("/login")
+    }
+  }
+
   const logout = () => {
     if (user) {
       setLogoutUserName(user.name || user.username)
       setShowLogoutSplash(true)
     } else {
-      performLogout()
+      void performLogout()
     }
-  }
-
-  const performLogout = () => {
-    setUser(null)
-    localStorage.removeItem("user")
-    setShowLogoutSplash(false)
-    router.replace("/login")
   }
 
   if (isLoading) {
@@ -151,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Carregando...</p>
+          <p className="text-muted-foreground">Validando acesso...</p>
         </div>
       </div>
     )
@@ -160,15 +181,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, isLoading }}>
       {showSplashRole && pendingUser && (
-        <SplashRole
-          role={pendingUser.role}
-          userName={pendingUser.name}
-          duration={900}
-          onComplete={handleSplashComplete}
-        />
+        <SplashRole role={pendingUser.role} userName={pendingUser.name} duration={900} onComplete={handleSplashComplete} />
       )}
       {showLogoutSplash && (
-        <LogoutSplash isOpen={showLogoutSplash} userName={logoutUserName} onComplete={performLogout} />
+        <LogoutSplash
+          isOpen={showLogoutSplash}
+          userName={logoutUserName}
+          onComplete={() => void performLogout()}
+        />
       )}
       {children}
     </AuthContext.Provider>
@@ -177,8 +197,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
+  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider")
   return context
 }

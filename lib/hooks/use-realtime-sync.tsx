@@ -22,7 +22,7 @@ export function useRealtimeSync(onDataUpdate: () => void) {
       channel.postMessage(message)
       channel.close()
     } catch (error) {
-      console.log("[v0] BroadcastChannel not supported or error:", error)
+      console.log("[SIGA] BroadcastChannel not supported or error:", error)
     }
   }, [])
 
@@ -37,12 +37,12 @@ export function useRealtimeSync(onDataUpdate: () => void) {
       channel.onmessage = (event) => {
         const message = event.data as DataUpdateMessage
         if (message.type === "data-update") {
-          console.log("[v0] Received data update notification from another tab")
+          console.log("[SIGA] Received data update notification from another tab")
           onDataUpdate()
         }
       }
     } catch (error) {
-      console.log("[v0] BroadcastChannel not supported")
+      console.log("[SIGA] BroadcastChannel not supported")
     }
 
     return () => {

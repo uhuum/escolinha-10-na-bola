@@ -30,7 +30,7 @@ CREATE POLICY "Enable read access to users" ON public.users
   USING (true);
 
 -- Step 7: Insert users with correct bcrypt hashes
--- Password 'jp974832' hashed with bcrypt
+-- Password '<senha-removida>' hashed with bcrypt
 INSERT INTO public.users (username, password_hash, role, name, created_at, updated_at)
 VALUES (
   'admin',
@@ -41,7 +41,7 @@ VALUES (
   NOW()
 );
 
--- Password 'treinar10' hashed with bcrypt
+-- Password '<senha-removida>' hashed with bcrypt
 INSERT INTO public.users (username, password_hash, role, name, created_at, updated_at)
 VALUES (
   'treinadores',

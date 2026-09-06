@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
 
 async function seedDatabase() {
   try {
-    console.log("[v0] Starting data migration to Supabase...")
+    console.log("[SIGA] Starting data migration to Supabase...")
 
     for (const student of studentsData) {
       const { data: insertedStudent, error: studentError } = await supabase
@@ -38,11 +38,11 @@ async function seedDatabase() {
         .select()
 
       if (studentError) {
-        console.error(`[v0] Error inserting student ${student.id}:`, studentError.message)
+        console.error(`[SIGA] Error inserting student ${student.id}:`, studentError.message)
         continue
       }
 
-      console.log(`[v0] Inserted student: ${student.name}`)
+      console.log(`[SIGA] Inserted student: ${student.name}`)
 
       for (const payment of student.payments) {
         const { error: paymentError } = await supabase.from("payments").insert({
@@ -55,14 +55,14 @@ async function seedDatabase() {
         })
 
         if (paymentError && !paymentError.message.includes("duplicate")) {
-          console.error(`[v0] Error inserting payment for ${student.id} - ${payment.month}:`, paymentError.message)
+          console.error(`[SIGA] Error inserting payment for ${student.id} - ${payment.month}:`, paymentError.message)
         }
       }
     }
 
-    console.log("[v0] ✅ Data migration completed successfully!")
+    console.log("[SIGA] ✅ Data migration completed successfully!")
   } catch (error) {
-    console.error("[v0] ❌ Migration failed:", error)
+    console.error("[SIGA] ❌ Migration failed:", error)
     process.exit(1)
   }
 }

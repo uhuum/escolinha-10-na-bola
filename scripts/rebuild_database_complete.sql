@@ -134,7 +134,7 @@ CREATE POLICY "Enable insert receipts" ON receipts FOR INSERT WITH CHECK (true);
 -- INSERT INITIAL DATA
 -- ============================================
 
--- Insert admin user (password: jp974832)
+-- Insert admin user (password: <senha-removida>)
 INSERT INTO users (username, password_hash, role, name)
 VALUES (
   'admin',
@@ -143,7 +143,7 @@ VALUES (
   'Administrador'
 );
 
--- Insert coach user (password: treinar10)
+-- Insert coach user (password: <senha-removida>)
 INSERT INTO users (username, password_hash, role, name)
 VALUES (
   'treinadores',

@@ -59,7 +59,7 @@ Se o script falhar:
 2. Vá para: http://localhost:3000/login
 3. Teste com:
    - **Usuário:** admin
-   - **Senha:** jp974832
+   - **Senha:** <senha-removida>
 
 Se funcionar, parabéns! Você está pronto! 🎉
 

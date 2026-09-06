@@ -23,7 +23,7 @@ Este script:
 
 ### 2. Verificar Variáveis de Ambiente
 
-No Vercel (ou sua plataforma de deploy), certifique-se que:
+No Netlify, certifique-se que:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
@@ -35,8 +35,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
 Se ainda houver problema, abra o DevTools (F12) e procure por mensagens como:
 
 ```
-[v0] ❌ Students fetch error:
-[v0] ❌ Payments fetch error:
+[SIGA] ❌ Students fetch error:
+[SIGA] ❌ Payments fetch error:
 ```
 
 Isso indicará qual é o erro exato do Supabase.

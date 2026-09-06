@@ -30,8 +30,8 @@ SOLUÇÃO RÁPIDA (3 passos - 5 minutos):
    e cole no Supabase > SQL Editor > Execute
 
 CREDENCIAIS DE TESTE:
-   Admin: admin / jp974832
-   Treinador: treinadores / treinar10
+   Admin: admin / <senha-removida>
+   Treinador: treinadores / <senha-removida>
 
 TESTAR:
    npm run dev

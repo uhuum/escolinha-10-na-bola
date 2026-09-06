@@ -113,7 +113,7 @@ npm run dev
 1. Clicar em **Administrativo**
 2. Preencher:
    - Usuário: `admin`
-   - Senha: `jp974832`
+   - Senha: `<senha-removida>`
 3. Clicar em **Entrar**
 
 **Esperado:**
@@ -198,7 +198,7 @@ Solução: Dependências não instaladas
 Depois que tudo funcionar:
 
 1. **Explorar o sistema**
-   - Testar com treinador (`treinadores` / `treinar10`)
+   - Testar com treinador (`treinadores` / `<senha-removida>`)
    - Cadastrar mais alunos
    - Ver relatórios
 

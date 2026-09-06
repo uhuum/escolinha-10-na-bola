@@ -7,7 +7,7 @@ Use este checklist antes de fazer deploy em produção.
 - [ ] `.env.local` configurado com credenciais Supabase
 - [ ] Tabelas criadas no Supabase (`scripts/03-create-users-table.sql`)
 - [ ] Usuários de teste inseridos (`scripts/04-seed-users.ts`)
-- [ ] Login funcionando localmente (`admin` / `jp974832`)
+- [ ] Login funcionando localmente (`admin` / `<senha-removida>`)
 - [ ] Cadastro de aluno funcionando
 - [ ] Alunos aparecem no Supabase
 
@@ -40,10 +40,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY = sua-anon-key
 ## Fase 5: Verificações Finais
 
 - [ ] Acesse a URL de produção
-- [ ] Teste login com `admin` / `jp974832`
+- [ ] Teste login com `admin` / `<senha-removida>`
 - [ ] Teste cadastro de aluno
 - [ ] Verifique que alunos aparecem no banco
-- [ ] Teste com `treinadores` / `treinar10`
+- [ ] Teste com `treinadores` / `<senha-removida>`
 
 ## Troubleshooting
 

@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import sharp from "sharp"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 const BUCKET = "student-photos"
 const MAX_WIDTH = 800
@@ -38,6 +39,12 @@ async function compressToWebP(buffer: Buffer, width: number, quality: number): P
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await createServerSupabaseClient()
+    const { data: authData, error: authError } = await auth.auth.getUser()
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
+
     const formData = await req.formData()
     const file = formData.get("file") as File | null
     if (!file) return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 })

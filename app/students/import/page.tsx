@@ -183,7 +183,7 @@ export default function ImportStudentsPage() {
           description: `${validCount} aluno(s) válido(s), ${invalidCount} com erro(s)`,
         })
       } catch (error) {
-        console.error("[v0] Error parsing CSV:", error)
+        console.error("[SIGA] Error parsing CSV:", error)
         toast({
           title: "Erro ao processar arquivo",
           description: "Verifique se o arquivo está no formato CSV correto",
@@ -293,7 +293,7 @@ export default function ImportStudentsPage() {
 
         successCount++
       } catch (error) {
-        console.error("[v0] Error importing student:", student.name, error)
+        console.error("[SIGA] Error importing student:", student.name, error)
         failCount++
       }
 

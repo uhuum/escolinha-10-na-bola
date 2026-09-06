@@ -4,7 +4,7 @@
 
 ### 1. Verificar no Console do Navegador
 Abra o DevTools (F12) e veja o console:
-- **✅ Sincronizado**: Você verá a mensagem `[v0] ✅ Supabase sincronizado - Alunos carregados: XX`
+- **✅ Sincronizado**: Você verá a mensagem `[SIGA] ✅ Supabase sincronizado - Alunos carregados: XX`
 - **❌ Não sincronizado**: Verá erro sobre variáveis de ambiente faltando
 
 ### 2. Verificar os Dados
@@ -48,7 +48,7 @@ Na página `/payments`:
 
 2. **Reinicie o servidor**:
    - Se local: `Ctrl+C` e execute novamente
-   - Se Vercel: Espere o redeploy ou force um novo
+   - Se Netlify: Espere o redeploy ou force um novo
 
 3. **Limpe o cache do navegador**:
    - F12 → Application → Clear Storage → Clear Site Data

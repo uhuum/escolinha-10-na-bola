@@ -399,7 +399,7 @@ export default function TrainerCarometroPage() {
       setEditingStudent(null)
       setSelectedStudent(null)
     } catch (error) {
-      console.error("[v0] Failed to update student schedule:", error)
+      console.error("[SIGA] Failed to update student schedule:", error)
       toast({
         title: "Erro ao atualizar",
         description: "Não foi possível atualizar os horários. Tente novamente.",

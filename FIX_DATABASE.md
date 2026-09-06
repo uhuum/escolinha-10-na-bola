@@ -78,8 +78,8 @@ npm run dev
 Acesse **http://localhost:3000/login**
 
 **Credenciais:**
-- Admin: \`admin\` / \`jp974832\`
-- Treinador: \`treinadores\` / \`treinar10\`
+- Admin: \`admin\` / \`<senha-removida>\`
+- Treinador: \`treinadores\` / \`<senha-removida>\`
 
 Se funcionar, a splash screen profissional aparecerá! 🎉
 `

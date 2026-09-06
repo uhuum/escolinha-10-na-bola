@@ -44,8 +44,8 @@ npx ts-node scripts/04-seed-users.ts
 \`\`\`
 
 Usuários criados:
-- **Admin**: `admin` / `jp974832`
-- **Treinador**: `treinadores` / `treinar10`
+- **Admin**: `admin` / `<senha-removida>`
+- **Treinador**: `treinadores` / `<senha-removida>`
 
 ## 2. Configuração do Netlify
 
@@ -121,7 +121,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 1. Acesse sua URL do Netlify
 2. Escolha "Administrativo"
-3. Use: `admin` / `jp974832`
+3. Use: `admin` / `<senha-removida>`
 4. Verifique se aparece a splash screen
 
 ### 5.2 Cadastrar Aluno

@@ -57,7 +57,7 @@
 
 5️⃣  TESTAR LOGIN (1 min)
     Usuário: admin
-    Senha: jp974832
+    Senha: <senha-removida>
     → Você deve entrar no dashboard
 
 📊 CREDENCIAIS DE TESTE
@@ -65,12 +65,12 @@
 
 ADMIN:
   Usuário: admin
-  Senha: jp974832
+  Senha: <senha-removida>
   Acesso: Gerenciar alunos, pagamentos, relatórios, tudo
 
 TREINADOR:
   Usuário: treinadores
-  Senha: treinar10
+  Senha: <senha-removida>
   Acesso: Ver alunos, carômetro, chamadas, presença
 
 ✨ STATUS GERAL
@@ -144,7 +144,7 @@ Autenticação:
   • Role-based access control (admin, coach)
 
 Deploy:
-  • Suporta Netlify, Vercel, qualquer hosting Next.js
+  • Suporta Netlify, Netlify ou outro hosting Next.js
   • Environment variables: VITE_ prefix para frontend
   • Sem Netlify Functions necessárias
 

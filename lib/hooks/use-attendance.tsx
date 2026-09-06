@@ -74,7 +74,7 @@ export function useAttendance(): AttendanceStore {
 
       setAttendances(combined)
     } catch (error) {
-      console.error("[v0] Error fetching attendances:", error)
+      console.error("[SIGA] Error fetching attendances:", error)
     } finally {
       setIsLoading(false)
     }
@@ -94,7 +94,7 @@ export function useAttendance(): AttendanceStore {
       dayOfWeek: string,
     ) => {
       try {
-        console.log("[v0] Adding attendance for class:", classSchedule, "by trainer:", trainerId)
+        console.log("[SIGA] Adding attendance for class:", classSchedule, "by trainer:", trainerId)
 
         const today = getTodayDateString()
 
@@ -115,7 +115,7 @@ export function useAttendance(): AttendanceStore {
         const attendanceId = attendanceData?.id
         if (!attendanceId) throw new Error("Erro ao criar registro de presença")
 
-        console.log("[v0] Attendance record created with ID:", attendanceId)
+        console.log("[SIGA] Attendance record created with ID:", attendanceId)
 
         const { error: recordsError } = await supabase.from("attendance_records").insert(
           records.map((record) => ({
@@ -127,7 +127,7 @@ export function useAttendance(): AttendanceStore {
 
         if (recordsError) throw recordsError
 
-        console.log("[v0] Attendance records created:", records.length)
+        console.log("[SIGA] Attendance records created:", records.length)
 
         // Update only the new call locally. Avoid re-downloading the entire
         // attendance history after a successful registration.
@@ -144,7 +144,7 @@ export function useAttendance(): AttendanceStore {
         }
         setAttendances((prev) => [newAttendance, ...prev])
       } catch (error) {
-        console.error("[v0] Error adding attendance:", error)
+        console.error("[SIGA] Error adding attendance:", error)
         alert("Erro ao registrar presença: " + (error instanceof Error ? error.message : String(error)))
         throw error
       }
@@ -192,7 +192,7 @@ export function useAttendance(): AttendanceStore {
 
         if (upsertError) throw upsertError
 
-        console.log("[v0] Attendance updated:", id)
+        console.log("[SIGA] Attendance updated:", id)
         setAttendances((prev) =>
           prev.map((attendance) =>
             attendance.id === id
@@ -204,7 +204,7 @@ export function useAttendance(): AttendanceStore {
           ),
         )
       } catch (error) {
-        console.error("[v0] Error updating attendance:", error)
+        console.error("[SIGA] Error updating attendance:", error)
         throw error
       }
     },
@@ -219,10 +219,10 @@ export function useAttendance(): AttendanceStore {
         const { error } = await supabase.from("attendance").delete().eq("id", id).throwOnError()
 
         if (error) throw error
-        console.log("[v0] Attendance deleted:", id)
+        console.log("[SIGA] Attendance deleted:", id)
         setAttendances((prev) => prev.filter((a) => a.id !== id))
       } catch (error) {
-        console.error("[v0] Error deleting attendance:", error)
+        console.error("[SIGA] Error deleting attendance:", error)
         throw error
       }
     },

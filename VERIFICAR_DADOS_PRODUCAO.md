@@ -61,11 +61,11 @@ SELECT COUNT(*) FROM public.attendance;
 ```
 
 ### 2. Testar Acesso na Aplicação
-1. Redeploy a aplicação no Vercel
+1. Redeploy a aplicação no Netlify
 2. Abra F12 (Developer Tools)
 3. Vá em **Console**
 4. Procure por:
-   - ✅ `[v0] ✅ Data fetched successfully`
+   - ✅ `[SIGA] ✅ Data fetched successfully`
    - ❌ Se houver erros, verifique as mensagens
 
 ### 3. Verificar Dados na UI
@@ -96,7 +96,7 @@ Se vir erro como `new row violates row level security policy`:
 3. Se persisti, abra suporte no Supabase
 
 Se vir erro de autenticação:
-1. Verifique as variáveis de ambiente em Vercel
+1. Verifique as variáveis de ambiente no Netlify
 2. Confirme que `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` estão corretas
 3. Redeploy a aplicação
 

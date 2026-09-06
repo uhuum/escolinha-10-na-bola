@@ -75,7 +75,7 @@ export function useStudentSupabase(): StudentsStore {
         setStudents(studentsWithPayments)
         setError(null)
       } catch (err) {
-        console.error("[v0] Error fetching students:", err)
+        console.error("[SIGA] Error fetching students:", err)
         setError(err instanceof Error ? err.message : "Failed to fetch students")
       } finally {
         setLoading(false)
@@ -112,7 +112,7 @@ export function useStudentSupabase(): StudentsStore {
           ),
         )
       } catch (err) {
-        console.error("[v0] Error updating payment status:", err)
+        console.error("[SIGA] Error updating payment status:", err)
         throw err
       }
     },
@@ -140,7 +140,7 @@ export function useStudentSupabase(): StudentsStore {
           ),
         )
       } catch (err) {
-        console.error("[v0] Error postponing payment:", err)
+        console.error("[SIGA] Error postponing payment:", err)
         throw err
       }
     },
@@ -179,7 +179,7 @@ export function useStudentSupabase(): StudentsStore {
           ),
         )
       } catch (err) {
-        console.error("[v0] Error attaching receipt:", err)
+        console.error("[SIGA] Error attaching receipt:", err)
         throw err
       }
     },
@@ -218,7 +218,7 @@ export function useStudentSupabase(): StudentsStore {
           ),
         )
       } catch (err) {
-        console.error("[v0] Error deleting receipt:", err)
+        console.error("[SIGA] Error deleting receipt:", err)
         throw err
       }
     },
@@ -244,7 +244,7 @@ export function useStudentSupabase(): StudentsStore {
           ),
         )
       } catch (err) {
-        console.error("[v0] Error updating monthly value:", err)
+        console.error("[SIGA] Error updating monthly value:", err)
         throw err
       }
     },
@@ -290,7 +290,7 @@ export function useStudentSupabase(): StudentsStore {
 
         setStudents((prev) => [...prev, student])
       } catch (err) {
-        console.error("[v0] Error adding student:", err)
+        console.error("[SIGA] Error adding student:", err)
         throw err
       }
     },
@@ -319,7 +319,7 @@ export function useStudentSupabase(): StudentsStore {
 
         setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, ...updates } : s)))
       } catch (err) {
-        console.error("[v0] Error updating student:", err)
+        console.error("[SIGA] Error updating student:", err)
         throw err
       }
     },
@@ -332,7 +332,7 @@ export function useStudentSupabase(): StudentsStore {
 
         setStudents((prev) => prev.filter((s) => s.id !== studentId))
       } catch (err) {
-        console.error("[v0] Error deleting student:", err)
+        console.error("[SIGA] Error deleting student:", err)
         throw err
       }
     },

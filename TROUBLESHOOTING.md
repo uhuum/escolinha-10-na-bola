@@ -36,8 +36,8 @@ Se falhar, execute manualmente:
 
 \`\`\`
 username | password_hash (bcrypt) | role | name
-admin    | $2a$10$... (jp974832)   | admin | Administrador
-treinadores | $2a$10$... (treinar10) | coach | Treinador Principal
+admin    | $2a$10$... (<senha-removida>)   | admin | Administrador
+treinadores | $2a$10$... (<senha-removida>) | coach | Treinador Principal
 \`\`\`
 
 ---

@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/lib/contexts/auth-context"
@@ -13,7 +12,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "SIGA - Sistema Integrado de Gestão de Alunos",
   description: "Sistema de gerenciamento de alunos e controle financeiro - CEAP",
-  generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -53,7 +51,6 @@ export default function RootLayout({
           <PWARegister />
           {children}
           <Toaster />
-          <Analytics />
         </AuthProvider>
       </body>
     </html>

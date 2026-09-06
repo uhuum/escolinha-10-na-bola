@@ -57,7 +57,7 @@
 1. Ir para http://localhost:3000
 2. Clicar em "Administrativo"
 3. Usuário: admin
-4. Senha: jp974832
+4. Senha: <senha-removida>
 5. Resultado esperado: ✓ Redirecionado para dashboard
 \`\`\`
 
@@ -66,7 +66,7 @@
 1. Voltar para login
 2. Clicar em "Treinadores"
 3. Usuário: treinadores
-4. Senha: treinar10
+4. Senha: <senha-removida>
 5. Resultado esperado: ✓ Redirecionado para trainer/dashboard
 \`\`\`
 

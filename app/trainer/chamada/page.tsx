@@ -163,7 +163,7 @@ export default function TrainerChamadaPage() {
       setSelectedSchedule("")
       setShowAttendanceModal(false)
     } catch (error) {
-      console.error("[v0] Failed to record attendance:", error)
+      console.error("[SIGA] Failed to record attendance:", error)
       toast({
         title: "Erro ao registrar chamada",
         description: "Tente novamente ou contate o administrador.",

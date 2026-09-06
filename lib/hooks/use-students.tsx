@@ -227,7 +227,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
 
       setStudents(studentsWithPayments)
     } catch (error) {
-      console.error("[v0] Error fetching students:", error)
+      console.error("[SIGA] Error fetching students:", error)
       alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
     }
   }, [supabase, includePayments, lightweightPhotos, paymentFrom, paymentThrough])
@@ -301,7 +301,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
         .single()
 
       if (studentError) {
-        console.error("[v0] Erro ao buscar aluno:", studentError.message)
+        console.error("[SIGA] Erro ao buscar aluno:", studentError.message)
         return null
       }
 
@@ -314,7 +314,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
         .order("due_date", { ascending: true })
 
       if (paymentsError) {
-        console.error("[v0] Erro ao buscar pagamentos:", paymentsError.message)
+        console.error("[SIGA] Erro ao buscar pagamentos:", paymentsError.message)
       }
 
       const studentPayments = (paymentsData || []).map(mapPaymentFromDB)
@@ -388,7 +388,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
       ignoreDuplicates: true,
       })
        if (error && !error.message.includes("duplicate")) {
-       console.error("[v0] Erro ao criar pagamento:", error)
+       console.error("[SIGA] Erro ao criar pagamento:", error)
        throw error
       }
       }
@@ -558,7 +558,7 @@ const { error: paymentsError } = await supabase
 
   if (paymentsError) {
     console.error(
-      "[v0] Erro ao atualizar valor das mensalidades:",
+      "[SIGA] Erro ao atualizar valor das mensalidades:",
       paymentsError,
     )
     throw paymentsError

@@ -95,8 +95,8 @@ Documento de conclusão da refatoração total do sistema com autenticação rea
 
 | Papel | Usuário | Senha |
 |-------|---------|-------|
-| Admin | admin | jp974832 |
-| Coach | treinadores | treinar10 |
+| Admin | admin | <senha-removida> |
+| Coach | treinadores | <senha-removida> |
 
 **Importante:** Alterar senhas após deploy para produção!
 
@@ -122,7 +122,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJxxxxx
 - [ ] Scripts SQL rodados no Supabase
 - [ ] Seed de usuários executado
 - [ ] `npm run dev` funciona
-- [ ] Login com admin/jp974832 funciona
+- [ ] Login com admin/<senha-removida> funciona
 - [ ] Splash screens aparecem
 
 ### Netlify

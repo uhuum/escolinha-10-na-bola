@@ -10,7 +10,7 @@ CREATE POLICY "Enable read access to users (public)" ON public.users
   FOR SELECT
   USING (true);
 
--- Insert admin user with hashed password (bcrypt hash of 'jp974832')
+-- Insert admin user with hashed password (bcrypt hash of '<senha-removida>')
 INSERT INTO public.users (username, password_hash, role, name, created_at, updated_at)
 VALUES (
   'admin',
@@ -21,7 +21,7 @@ VALUES (
   NOW()
 );
 
--- Insert coach user with hashed password (bcrypt hash of 'treinar10')
+-- Insert coach user with hashed password (bcrypt hash of '<senha-removida>')
 INSERT INTO public.users (username, password_hash, role, name, created_at, updated_at)
 VALUES (
   'treinadores',

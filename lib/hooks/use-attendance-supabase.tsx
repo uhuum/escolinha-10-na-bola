@@ -68,7 +68,7 @@ export function useAttendanceSupabase(): AttendanceStore {
         setAttendances(attendancesWithRecords)
         setError(null)
       } catch (err) {
-        console.error("[v0] Error fetching attendances:", err)
+        console.error("[SIGA] Error fetching attendances:", err)
         setError(err instanceof Error ? err.message : "Failed to fetch attendances")
       } finally {
         setLoading(false)
@@ -124,7 +124,7 @@ export function useAttendanceSupabase(): AttendanceStore {
 
         setAttendances((prev) => [...prev, newAttendance])
       } catch (err) {
-        console.error("[v0] Error adding attendance:", err)
+        console.error("[SIGA] Error adding attendance:", err)
         throw err
       }
     },
@@ -169,7 +169,7 @@ export function useAttendanceSupabase(): AttendanceStore {
           ),
         )
       } catch (err) {
-        console.error("[v0] Error updating attendance:", err)
+        console.error("[SIGA] Error updating attendance:", err)
         throw err
       }
     },
@@ -188,7 +188,7 @@ export function useAttendanceSupabase(): AttendanceStore {
 
         setAttendances((prev) => prev.filter((att) => att.id !== id))
       } catch (err) {
-        console.error("[v0] Error deleting attendance:", err)
+        console.error("[SIGA] Error deleting attendance:", err)
         throw err
       }
     },
