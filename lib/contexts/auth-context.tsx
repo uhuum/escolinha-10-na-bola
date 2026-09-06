@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { SplashRole } from "@/components/splash-role"
 import { LogoutSplash } from "@/components/logout-splash"
 import { getBrowserClient } from "@/lib/supabase/client"
+import { canRoleAccessPath, homeForRole } from "@/lib/auth/route-policy"
 
 type UserRole = "admin" | "coach"
 
@@ -87,33 +88,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return
 
-    const isLoginPage = pathname === "/login"
-
-    if (!user && !isLoginPage) {
-      router.replace("/login")
+    if (!user) {
+      if (pathname !== "/login") router.replace("/login")
       return
     }
 
-    if (user && isLoginPage) {
-      router.replace(user.role === "coach" ? "/trainer/dashboard" : "/")
+    if (pathname === "/login") {
+      router.replace(homeForRole(user.role))
       return
     }
 
-    if (user?.role === "coach") {
-      const allowedPaths = [
-        "/trainer/dashboard",
-        "/trainer/carometro",
-        "/trainer/chamada",
-        "/trainer/relatorio",
-        "/trainer/birthdays",
-        "/students",
-        "/carometro",
-        "/chamada",
-      ]
-      const isAllowed = allowedPaths.some((path) => pathname === path || pathname.startsWith("/students/"))
-      if (!isAllowed) router.replace("/trainer/dashboard")
+    if (!canRoleAccessPath(user.role, pathname)) {
+      router.replace(homeForRole(user.role))
     }
   }, [user, pathname, router, isLoading])
+
+  // Browser Back/Forward can restore a page from memory (bfcache) without a
+  // normal server navigation. Revalidate the real Supabase session whenever
+  // a page is restored so an old Admin DOM can never remain visible after a
+  // Coach login (and vice-versa).
+  useEffect(() => {
+    const validateRestoredPage = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser()
+        const freshUser = error ? null : mapSupabaseUser(data.user)
+        setUser(freshUser)
+
+        if (!freshUser) {
+          if (window.location.pathname !== "/login") window.location.replace("/login")
+          return
+        }
+
+        const currentPath = window.location.pathname
+        if (currentPath === "/login" || !canRoleAccessPath(freshUser.role, currentPath)) {
+          window.location.replace(homeForRole(freshUser.role))
+        }
+      } catch (error) {
+        console.error("[SIGA] Erro ao revalidar rota restaurada:", error)
+        window.location.replace("/login")
+      }
+    }
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void validateRestoredPage()
+    }
+
+    window.addEventListener("pageshow", onPageShow)
+    return () => window.removeEventListener("pageshow", onPageShow)
+  }, [supabase])
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
@@ -131,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPendingUser(userData)
       setShowSplashRole(true)
 
-      const destination = userData.role === "coach" ? "/trainer/dashboard" : "/"
+      const destination = homeForRole(userData.role)
       router.replace(destination)
       return true
     } catch (error) {
@@ -167,7 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  if (isLoading) {
+  const routeIsAllowed = user
+    ? pathname === "/login" || canRoleAccessPath(user.role, pathname)
+    : pathname === "/login"
+
+  if (isLoading || !routeIsAllowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

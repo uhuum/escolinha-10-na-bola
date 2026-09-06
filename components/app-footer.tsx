@@ -1,8 +1,29 @@
+"use client"
+
 import Link from "next/link"
-import { Camera, Users, DollarSign, LayoutDashboard } from "lucide-react"
+import { Camera, Users, DollarSign, LayoutDashboard, ClipboardCheck, FileText } from "lucide-react"
 import Image from "next/image"
+import { useAuth } from "@/lib/contexts/auth-context"
 
 export function AppFooter() {
+  const { user } = useAuth()
+  if (!user) return null
+
+  const coach = user.role === "coach"
+  const links = coach
+    ? [
+        { href: "/trainer/dashboard", label: "Painel", icon: LayoutDashboard },
+        { href: "/trainer/chamada", label: "Chamada", icon: ClipboardCheck },
+        { href: "/trainer/relatorio", label: "Relatório", icon: FileText },
+      ]
+    : [
+        { href: "/", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/students", label: "Alunos", icon: Users },
+        { href: "/payments", label: "Pagamentos", icon: DollarSign },
+      ]
+
+  const quickHref = coach ? "/trainer/carometro" : "/carometro"
+
   return (
     <footer className="border-t bg-card mt-auto">
       <div className="container mx-auto px-4 lg:px-8 py-8">
@@ -20,42 +41,23 @@ export function AppFooter() {
           <div>
             <h4 className="font-semibold text-foreground mb-3">Navegação</h4>
             <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
-                >
-                  <LayoutDashboard className="h-3.5 w-3.5" />
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/students"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  Alunos
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/payments"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
-                >
-                  <DollarSign className="h-3.5 w-3.5" />
-                  Pagamentos
-                </Link>
-              </li>
+              {links.map((item) => {
+                const Icon = item.icon
+                return (
+                  <li key={item.href}>
+                    <Link href={item.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
+                      <Icon className="h-3.5 w-3.5" />
+                      {item.label}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-foreground mb-3">Acesso Rápido</h4>
-            <Link
-              href="/carometro"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
-            >
+            <Link href={quickHref} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium">
               <Camera className="h-4 w-4" />
               Ir para Carômetro
             </Link>
