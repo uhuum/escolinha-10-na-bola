@@ -117,25 +117,39 @@ export default function TrainerRelatorioPage() {
 
   const sortedDates = Object.keys(attendancesByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
-  const handleSaveEdit = (updatedRecords: Record<string, "Presente" | "Ausente">) => {
-    if (editingSession) {
-      updateAttendance(editingSession.id, updatedRecords)
+  const handleSaveEdit = async (updatedRecords: Record<string, "Presente" | "Ausente">) => {
+    if (!editingSession) return
+    try {
+      await updateAttendance(editingSession.id, updatedRecords)
       toast({
         title: "Chamada atualizada",
         description: "Registro de presença foi atualizado com sucesso",
       })
       setEditingSession(null)
+    } catch {
+      toast({
+        title: "Não foi possível salvar",
+        description: "A chamada anterior foi mantida. Tente novamente.",
+        variant: "destructive",
+      })
     }
   }
 
-  const handleDeleteAttendance = () => {
-    if (editingSession) {
-      deleteAttendance(editingSession.id)
+  const handleDeleteAttendance = async () => {
+    if (!editingSession) return
+    try {
+      await deleteAttendance(editingSession.id)
       toast({
         title: "Registro apagado",
         description: "A chamada foi removida com sucesso",
       })
       setEditingSession(null)
+    } catch {
+      toast({
+        title: "Não foi possível apagar",
+        description: "O registro continua salvo.",
+        variant: "destructive",
+      })
     }
   }
 

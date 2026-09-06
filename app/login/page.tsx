@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Shield, Users, ArrowLeft } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/lib/contexts/auth-context"
+import { LoadingStudents } from "@/components/loading-students"
 import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, user, isLoading: authLoading } = useAuth()
   const { toast } = useToast()
   const [selectedRole, setSelectedRole] = useState<"admin" | "coach" | null>(null)
   const [username, setUsername] = useState("")
@@ -51,6 +52,12 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Once authentication succeeds, never render the login UI again.
+  // This prevents the brief "return to login" while the dashboard route is opening.
+  if (authLoading || user) {
+    return <LoadingStudents message={user ? "Abrindo seu painel..." : "Preparando acesso..."} />
   }
 
   if (!selectedRole) {

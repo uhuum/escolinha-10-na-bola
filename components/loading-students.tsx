@@ -8,7 +8,7 @@ interface LoadingStudentsProps {
 
 export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStudentsProps) {
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628]">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628]">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-80 h-80 bg-gradient-to-br from-blue-600/30 to-transparent rounded-full blur-3xl animate-pulse" />
@@ -27,12 +27,12 @@ export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStu
         {/* Logo */}
         <div className="relative mb-6">
           <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-red-500 blur-xl opacity-40" />
-          <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center">
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
             <Image
               src="/logo-ceap.png"
               alt="CEAP Logo"
-              width={128}
-              height={128}
+              width={96}
+              height={96}
               className="object-contain drop-shadow-xl"
               priority
             />
@@ -48,7 +48,7 @@ export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStu
 
         {/* Message */}
         <p className="text-base sm:text-lg text-white font-medium">{message}</p>
-        <p className="text-sm text-blue-200/70 mt-1">Por favor, aguarde...</p>
+        <p className="text-sm text-blue-200/70 mt-1">Sincronizando apenas o necessário...</p>
       </div>
     </div>
   )

@@ -140,6 +140,9 @@ export default function PaymentsPage() {
   })
 
   const [showPaymentSplash, setShowPaymentSplash] = useState(false)
+  const [paymentSplashStatus, setPaymentSplashStatus] = useState<"processing" | "success" | "error">("processing")
+  const [paymentSplashError, setPaymentSplashError] = useState("")
+  const [paymentActionInFlight, setPaymentActionInFlight] = useState(false)
   const [paymentSplashData, setPaymentSplashData] = useState<{
     studentName: string
     studentPhoto?: string
@@ -352,36 +355,60 @@ export default function PaymentsPage() {
     setShowPaymentTypeDialog(true)
   }
 
-  const confirmPaymentType = async () => {
-    if (!selectedStudent || !selectedPaymentMonth || !selectedPaymentType) return
-
-    const student = students.find((s) => s.id === selectedStudent)
-    if (!student) return
-
-    // Show splash and mark as paid for both payment types
-    setPaymentSplashData({
-      studentName: student.name,
-      studentPhoto: student.photo,
-      paymentType: selectedPaymentType,
-    })
-    setShowPaymentTypeDialog(false)
-    setShowPaymentSplash(true)
-
-    // Process payment in background
-    await markAsPaidCash(selectedStudent, selectedPaymentMonth)
-  }
-
-  const handlePaymentSplashComplete = () => {
-    const paymentTypeText = selectedPaymentType === "dinheiro" ? "dinheiro" : "PIX"
-    toast({
-      title: "Pagamento confirmado",
-      description: `Pagamento em ${paymentTypeText} registrado com sucesso`,
-    })
+  const resetPaymentSplash = () => {
     setShowPaymentSplash(false)
+    setPaymentSplashStatus("processing")
+    setPaymentSplashError("")
     setPaymentSplashData(null)
     setSelectedStudent(null)
     setSelectedPaymentMonth("")
     setSelectedPaymentType(null)
+  }
+
+  const confirmPaymentType = async () => {
+    if (!selectedStudent || !selectedPaymentMonth || !selectedPaymentType || paymentActionInFlight) return
+
+    const studentId = selectedStudent
+    const paymentMonth = selectedPaymentMonth
+    const paymentType = selectedPaymentType
+    const student = students.find((s) => s.id === studentId)
+    if (!student) return
+
+    setPaymentActionInFlight(true)
+    setPaymentSplashStatus("processing")
+    setPaymentSplashError("")
+    setPaymentSplashData({
+      studentName: student.name,
+      studentPhoto: student.photo,
+      paymentType,
+    })
+    setShowPaymentTypeDialog(false)
+    setShowPaymentSplash(true)
+
+    try {
+      // A animação agora acompanha a operação REAL no Supabase.
+      // Só exibimos sucesso depois que a atualização foi confirmada pelo banco.
+      await markAsPaidCash(studentId, paymentMonth, paymentType)
+      setPaymentSplashStatus("success")
+
+      const paymentTypeText = paymentType === "dinheiro" ? "dinheiro" : "PIX"
+      toast({
+        title: "Pagamento confirmado",
+        description: `Mensalidade de ${student.name} registrada em ${paymentTypeText}.`,
+      })
+
+      // Pequeno tempo apenas para o usuário enxergar a confirmação, sem travar a tela.
+      window.setTimeout(() => {
+        resetPaymentSplash()
+      }, 750)
+    } catch (error) {
+      console.error("[payments] Erro ao dar baixa:", error)
+      const message = error instanceof Error ? error.message : "Não foi possível salvar a baixa no banco."
+      setPaymentSplashError(message)
+      setPaymentSplashStatus("error")
+    } finally {
+      setPaymentActionInFlight(false)
+    }
   }
 
 
@@ -1256,7 +1283,7 @@ export default function PaymentsPage() {
                 >
                   Cancelar
                 </Button>
-                <Button onClick={confirmPaymentType} disabled={!selectedPaymentType}>
+                <Button onClick={confirmPaymentType} disabled={!selectedPaymentType || paymentActionInFlight}>
                   Continuar
                 </Button>
               </div>
@@ -1433,7 +1460,9 @@ export default function PaymentsPage() {
           studentName={paymentSplashData.studentName}
           studentPhoto={paymentSplashData.studentPhoto}
           paymentType={paymentSplashData.paymentType}
-          onComplete={handlePaymentSplashComplete}
+          status={paymentSplashStatus}
+          errorMessage={paymentSplashError}
+          onClose={resetPaymentSplash}
         />
       )}
 

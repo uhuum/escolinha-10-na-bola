@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { Attendance } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { canEditAttendance, getEditDisabledReason } from "@/lib/utils/attendance-permissions"
+import { AttendanceFollowUp } from "@/components/attendance-follow-up"
 
 export default function PresencasPage() {
   const { attendances, updateAttendance, deleteAttendance } = useAttendance()
@@ -135,25 +136,39 @@ export default function PresencasPage() {
 
   const violatingStudents = getStudentsWithConsecutiveAbsences()
 
-  const handleSaveEdit = (updatedRecords: Record<string, "Presente" | "Ausente">) => {
-    if (editingSession) {
-      updateAttendance(editingSession.id, updatedRecords)
+  const handleSaveEdit = async (updatedRecords: Record<string, "Presente" | "Ausente">) => {
+    if (!editingSession) return
+    try {
+      await updateAttendance(editingSession.id, updatedRecords)
       toast({
         title: "Chamada atualizada",
         description: "Registro de presença foi atualizado com sucesso",
       })
       setEditingSession(null)
+    } catch {
+      toast({
+        title: "Não foi possível salvar",
+        description: "A chamada anterior foi mantida. Tente novamente.",
+        variant: "destructive",
+      })
     }
   }
 
-  const handleDeleteAttendance = () => {
-    if (editingSession) {
-      deleteAttendance(editingSession.id)
+  const handleDeleteAttendance = async () => {
+    if (!editingSession) return
+    try {
+      await deleteAttendance(editingSession.id)
       toast({
         title: "Registro apagado",
         description: "A chamada foi removida com sucesso",
       })
       setEditingSession(null)
+    } catch {
+      toast({
+        title: "Não foi possível apagar",
+        description: "O registro continua salvo.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -185,6 +200,14 @@ export default function PresencasPage() {
               Visualize o histórico completo de chamadas e detecte violações de frequência
             </p>
           </div>
+
+          <AttendanceFollowUp
+            students={students}
+            attendances={attendances}
+            title="Alunos com risco de afastamento"
+            description="Priorize o contato com responsáveis de alunos com faltas consecutivas ou baixa frequência recente."
+            maxItems={12}
+          />
 
           <Tabs defaultValue="historico" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">

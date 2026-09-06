@@ -55,15 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isLoginPage = pathname === "/login"
 
     if (!user && !isLoginPage) {
-      router.push("/login")
+      router.replace("/login")
       return
     }
 
     if (user && isLoginPage) {
       if (user.role === "coach") {
-        router.push("/trainer/dashboard")
+        router.replace("/trainer/dashboard")
       } else {
-        router.push("/")
+        router.replace("/")
       }
       return
     }
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isAllowed = allowedPaths.some((path) => pathname === path || pathname.startsWith("/students/"))
 
       if (!isAllowed) {
-        router.push("/trainer/dashboard")
+        router.replace("/trainer/dashboard")
       }
     }
   }, [user, pathname, router, isLoading])
@@ -108,8 +108,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.name,
       }
 
+      // Establish the session immediately so the login screen can never flash back
+      // while Next.js is navigating to the destination.
+      localStorage.setItem("user", JSON.stringify(userData))
+      setUser(userData)
       setPendingUser(userData)
       setShowSplashRole(true)
+
+      const destination = userData.role === "coach" ? "/trainer/dashboard" : "/"
+      router.prefetch(destination)
+      router.replace(destination)
       return true
     } catch (error) {
       console.error("[v0] Login error:", error)
@@ -118,11 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const handleSplashComplete = () => {
-    if (pendingUser) {
-      setUser(pendingUser)
-      localStorage.setItem("user", JSON.stringify(pendingUser))
-      setPendingUser(null)
-    }
+    setPendingUser(null)
     setShowSplashRole(false)
   }
 
@@ -139,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     localStorage.removeItem("user")
     setShowLogoutSplash(false)
-    router.push("/login")
+    router.replace("/login")
   }
 
   if (isLoading) {
@@ -159,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <SplashRole
           role={pendingUser.role}
           userName={pendingUser.name}
-          duration={1500}
+          duration={900}
           onComplete={handleSplashComplete}
         />
       )}

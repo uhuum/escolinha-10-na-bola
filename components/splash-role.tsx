@@ -17,15 +17,15 @@ const roleMessages = {
   coach: "Bem-vindo, Treinador",
 }
 
-export function SplashRole({ role, userName, onComplete, duration = 2500 }: SplashRoleProps) {
+export function SplashRole({ role, userName, onComplete, duration = 1100 }: SplashRoleProps) {
   const [phase, setPhase] = useState<SplashPhase>("welcome")
   const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
-    // Phase 1: Welcome message (1.2s)
+    // Short welcome while the destination route opens
     const welcomeTimer = setTimeout(() => {
       setPhase("loading")
-    }, 1200)
+    }, 450)
 
     // Phase 2: Loading system data (1.3s more)
     const loadingTimer = setTimeout(() => {
@@ -97,7 +97,7 @@ export function SplashRole({ role, userName, onComplete, duration = 2500 }: Spla
 
           {phase === "loading" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <p className="text-lg sm:text-xl text-blue-100 mb-4">Carregando dados do sistema...</p>
+              <p className="text-lg sm:text-xl text-blue-100 mb-4">Abrindo seu painel...</p>
               <div className="flex items-center justify-center gap-2">
                 <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -111,7 +111,7 @@ export function SplashRole({ role, userName, onComplete, duration = 2500 }: Spla
         <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden mt-8">
           <div
             className={`h-full bg-gradient-to-r from-blue-500 via-white to-red-500 rounded-full transition-all ease-out ${
-              phase === "welcome" ? "w-1/2 duration-1000" : "w-full duration-1300"
+              phase === "welcome" ? "w-1/2 duration-1000" : "w-full duration-700"
             }`}
           />
         </div>

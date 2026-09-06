@@ -1,80 +1,92 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Image from "next/image"
-import { Loader2, DollarSign } from "lucide-react"
+import { CheckCircle2, Loader2, XCircle } from "lucide-react"
+
+type PaymentSplashStatus = "processing" | "success" | "error"
 
 interface PaymentSplashProps {
   isOpen: boolean
   studentName: string
   studentPhoto?: string
   paymentType: "dinheiro" | "pix"
-  onComplete: () => void
+  status: PaymentSplashStatus
+  errorMessage?: string
+  onClose?: () => void
 }
 
-export function PaymentSplash({ isOpen, studentName, studentPhoto, paymentType, onComplete }: PaymentSplashProps) {
-  const [phase, setPhase] = useState<"processing" | "complete">("processing")
-
-  useEffect(() => {
-    if (isOpen) {
-      setPhase("processing")
-      // After 1 second, show complete message
-      const timer1 = setTimeout(() => {
-        setPhase("complete")
-      }, 1000)
-
-      // After 2 seconds total, close the splash
-      const timer2 = setTimeout(() => {
-        onComplete()
-      }, 2000)
-
-      return () => {
-        clearTimeout(timer1)
-        clearTimeout(timer2)
-      }
-    }
-  }, [isOpen, onComplete])
-
+export function PaymentSplash({
+  isOpen,
+  studentName,
+  studentPhoto,
+  paymentType,
+  status,
+  errorMessage,
+  onClose,
+}: PaymentSplashProps) {
   if (!isOpen) return null
 
+  const paymentLabel = paymentType === "dinheiro" ? "dinheiro" : "PIX"
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Blurred background */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in duration-300">
-        {/* Student photo */}
-        <div className="relative h-32 w-32 sm:h-40 sm:w-40 rounded-full overflow-hidden border-4 border-green-500 shadow-2xl mb-6">
-          <Image
-            src={studentPhoto || "/placeholder.svg?height=160&width=160&query=student portrait"}
-            alt={studentName}
-            fill
-            className="object-cover"
-          />
-        </div>
+      <div className="relative z-10 w-full max-w-sm rounded-3xl bg-background p-6 shadow-2xl border animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative h-20 w-20 overflow-hidden rounded-full border-2 border-primary/20 bg-muted shadow-sm">
+            <Image
+              src={studentPhoto || "/placeholder.svg?height=96&width=96&query=student portrait"}
+              alt={studentName}
+              fill
+              sizes="80px"
+              className="object-cover"
+            />
+          </div>
 
-        {/* Student name */}
-        <h2 className="text-xl sm:text-2xl font-bold text-white text-center mb-4 text-balance">{studentName}</h2>
+          <h2 className="mt-4 text-lg font-bold text-foreground text-balance">{studentName}</h2>
 
-        {/* Status message */}
-        <div className="flex flex-col items-center gap-3">
-          {phase === "processing" ? (
-            <>
-              <Loader2 className="h-8 w-8 text-green-500 animate-spin" />
-              <p className="text-base sm:text-lg text-white/90 animate-pulse">
-                Confirmando pagamento em {paymentType === "dinheiro" ? "dinheiro" : "PIX"}...
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="h-16 w-16 rounded-full bg-green-500 flex items-center justify-center animate-in zoom-in duration-300">
-                <DollarSign className="h-10 w-10 text-white" />
+          {status === "processing" && (
+            <div className="mt-5 flex flex-col items-center gap-3" aria-live="polite">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
               </div>
-              <p className="text-lg sm:text-xl font-semibold text-green-400 animate-in fade-in duration-300">
-                Pagamento Confirmado!
-              </p>
-            </>
+              <div>
+                <p className="font-semibold">Dando baixa na mensalidade...</p>
+                <p className="mt-1 text-sm text-muted-foreground">Confirmando pagamento em {paymentLabel}</p>
+              </div>
+            </div>
+          )}
+
+          {status === "success" && (
+            <div className="mt-5 flex flex-col items-center gap-3" aria-live="polite">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-emerald-700">Mensalidade dada baixa!</p>
+                <p className="mt-1 text-sm text-muted-foreground">Pagamento em {paymentLabel} salvo com sucesso.</p>
+              </div>
+            </div>
+          )}
+
+          {status === "error" && (
+            <div className="mt-5 flex w-full flex-col items-center gap-3" aria-live="assertive">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <XCircle className="h-8 w-8 text-red-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-red-700">Não foi possível dar baixa</p>
+                <p className="mt-1 text-sm text-muted-foreground">{errorMessage || "Tente novamente em instantes."}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-1 w-full rounded-xl border px-4 py-2.5 text-sm font-semibold hover:bg-muted"
+              >
+                Fechar
+              </button>
+            </div>
           )}
         </div>
       </div>

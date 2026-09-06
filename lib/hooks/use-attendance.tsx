@@ -128,14 +128,28 @@ export function useAttendance(): AttendanceStore {
         if (recordsError) throw recordsError
 
         console.log("[v0] Attendance records created:", records.length)
-        await fetchAttendances()
+
+        // Update only the new call locally. Avoid re-downloading the entire
+        // attendance history after a successful registration.
+        const newAttendance: Attendance = {
+          id: attendanceId,
+          date: attendanceData.date || today,
+          dayOfWeek: attendanceData.day_of_week || dayOfWeek,
+          classSchedule: (attendanceData.class_schedule || classSchedule) as ClassSchedule,
+          classDays,
+          trainerName: attendanceData.trainer_name || trainerName,
+          trainerId: attendanceData.trainer_id || trainerId,
+          records,
+          createdAt: attendanceData.created_at || new Date().toISOString(),
+        }
+        setAttendances((prev) => [newAttendance, ...prev])
       } catch (error) {
         console.error("[v0] Error adding attendance:", error)
         alert("Erro ao registrar presença: " + (error instanceof Error ? error.message : String(error)))
         throw error
       }
     },
-    [supabase, fetchAttendances],
+    [supabase],
   )
 
   const getAttendancesByDate = useCallback(
@@ -162,38 +176,46 @@ export function useAttendance(): AttendanceStore {
   const updateAttendance = useCallback(
     async (id: string, updatedRecords: Record<string, "Presente" | "Ausente">) => {
       try {
-        const { error: deleteError } = await supabase
-          .from("attendance_records")
-          .delete()
-          .eq("attendance_id", id)
-          .throwOnError()
-
-        if (deleteError) throw deleteError
-
         const records = Object.entries(updatedRecords).map(([studentId, status]) => ({
           attendance_id: id,
           student_id: studentId,
           status,
         }))
 
-        const { error: insertError } = await supabase.from("attendance_records").insert(records).throwOnError()
+        // One row per student/call. Upsert changes only the selected statuses and
+        // avoids the old delete + insert cycle that could duplicate rows when a
+        // request was retried or interrupted on mobile.
+        const { error: upsertError } = await supabase
+          .from("attendance_records")
+          .upsert(records, { onConflict: "attendance_id,student_id" })
+          .throwOnError()
 
-        if (insertError) throw insertError
+        if (upsertError) throw upsertError
 
         console.log("[v0] Attendance updated:", id)
-        await fetchAttendances()
+        setAttendances((prev) =>
+          prev.map((attendance) =>
+            attendance.id === id
+              ? {
+                  ...attendance,
+                  records: Object.entries(updatedRecords).map(([studentId, status]) => ({ studentId, status })),
+                }
+              : attendance,
+          ),
+        )
       } catch (error) {
         console.error("[v0] Error updating attendance:", error)
-        alert("Erro ao atualizar presença: " + (error instanceof Error ? error.message : String(error)))
         throw error
       }
     },
-    [supabase, fetchAttendances],
+    [supabase],
   )
 
   const deleteAttendance = useCallback(
     async (id: string) => {
       try {
+        // The FK uses ON DELETE CASCADE, so deleting the parent safely removes
+        // its attendance_records in the same database operation.
         const { error } = await supabase.from("attendance").delete().eq("id", id).throwOnError()
 
         if (error) throw error
@@ -201,7 +223,6 @@ export function useAttendance(): AttendanceStore {
         setAttendances((prev) => prev.filter((a) => a.id !== id))
       } catch (error) {
         console.error("[v0] Error deleting attendance:", error)
-        alert("Erro ao deletar presença: " + (error instanceof Error ? error.message : String(error)))
         throw error
       }
     },

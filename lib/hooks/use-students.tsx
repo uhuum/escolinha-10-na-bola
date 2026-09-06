@@ -58,7 +58,7 @@ interface StudentsStore {
     isScholarship?: boolean,
     registrationDate?: string,
   ) => Promise<void>
-  markAsPaidCash: (studentId: string, month: string) => Promise<void>
+  markAsPaidCash: (studentId: string, month: string, paymentType?: PaymentType) => Promise<void>
   exemptPayment: (studentId: string, month: string) => Promise<void>
   revertPayment: (studentId: string, month: string) => Promise<void>
   removeExemption: (studentId: string, month: string, value: number) => Promise<void>
@@ -160,6 +160,31 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const supabase = getBrowserClient()
+
+  // Keep the current screen responsive after writes. Instead of downloading the
+  // full student/payment dataset after every action, update only the affected
+  // item in local state. Other open tabs are still notified via BroadcastChannel.
+  const patchStudentLocal = useCallback((studentId: string, patch: Partial<Student>) => {
+    setStudents((prev) => prev.map((student) =>
+      student.id === studentId ? { ...student, ...patch } : student
+    ))
+  }, [])
+
+  const patchPaymentLocal = useCallback((
+    studentId: string,
+    matcher: (payment: MonthlyPayment) => boolean,
+    patch: Partial<MonthlyPayment>,
+  ) => {
+    setStudents((prev) => prev.map((student) => {
+      if (student.id !== studentId) return student
+      return {
+        ...student,
+        payments: (student.payments || []).map((payment) =>
+          matcher(payment) ? { ...payment, ...patch } : payment
+        ),
+      }
+    }))
+  }, [])
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -540,10 +565,25 @@ const { error: paymentsError } = await supabase
   }
 }
 
-await refreshStudents()
+patchStudentLocal(studentId, updates)
+
+if (updates.monthlyValue !== undefined) {
+  setStudents((prev) => prev.map((student) =>
+    student.id === studentId
+      ? {
+          ...student,
+          payments: (student.payments || []).map((payment) =>
+            ["Em Aberto", "Não Pagou", "Cobrado", "Adiado"].includes(payment.status)
+              ? { ...payment, value: updates.monthlyValue as number }
+              : payment,
+          ),
+        }
+      : student,
+  ))
+}
 notifyOtherTabs()
   },
-  [supabase, refreshStudents, notifyOtherTabs],
+  [supabase, patchStudentLocal, notifyOtherTabs],
 )
 
   const deleteStudent = useCallback(
@@ -573,10 +613,14 @@ notifyOtherTabs()
         .eq("id", studentId)
 
       if (error) throw error
-      await refreshStudents()
+      patchStudentLocal(studentId, {
+        isActive: false,
+        archivedAt: new Date().toISOString(),
+        archiveReason: reason || undefined,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchStudentLocal, notifyOtherTabs],
   )
 
   const restoreStudent = useCallback(
@@ -592,10 +636,14 @@ notifyOtherTabs()
         .eq("id", studentId)
 
       if (error) throw error
-      await refreshStudents()
+      patchStudentLocal(studentId, {
+        isActive: true,
+        archivedAt: undefined,
+        archiveReason: undefined,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchStudentLocal, notifyOtherTabs],
   )
 
   const updatePaymentStatus = useCallback(
@@ -614,10 +662,14 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, {
+        status,
+        ...(status === "Pago" ? { paidAt: updateData.paid_at } : {}),
+        ...(status === "Cobrado" ? { chargedAt: updateData.charged_at } : {}),
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const updatePaymentStatusByDate = useCallback(
@@ -637,10 +689,18 @@ notifyOtherTabs()
         .eq("year_number", yearNumber)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(
+        studentId,
+        (payment) => payment.monthNumber === monthNumber && payment.yearNumber === yearNumber,
+        {
+          status,
+          ...(status === "Pago" ? { paidAt: updateData.paid_at } : {}),
+          ...(status === "Cobrado" ? { chargedAt: updateData.charged_at } : {}),
+        },
+      )
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const postponePayment = useCallback(
@@ -656,10 +716,13 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, {
+        status: "Adiado",
+        postponedTo: newDate,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const attachReceipt = useCallback(
@@ -678,10 +741,15 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, {
+        receipt: receiptData,
+        status: "Pago",
+        paidAt: new Date().toISOString(),
+        paymentType,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const attachReceiptByDate = useCallback(
@@ -701,10 +769,14 @@ notifyOtherTabs()
         .eq("year_number", yearNumber)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(
+        studentId,
+        (payment) => payment.monthNumber === monthNumber && payment.yearNumber === yearNumber,
+        { receipt: receiptData, status: "Pago", paidAt: new Date().toISOString(), paymentType: "pix" },
+      )
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const deleteReceipt = useCallback(
@@ -722,10 +794,12 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, {
+        receipt: undefined, status: "Não Pagou", paidAt: undefined, paymentType: undefined,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const updateMonthlyValue = useCallback(
@@ -740,30 +814,40 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, { value: newValue })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const markAsPaidCash = useCallback(
-    async (studentId: string, month: string) => {
-      const { error } = await supabase
+    async (studentId: string, month: string, paymentType: PaymentType = "dinheiro") => {
+      const paidAt = new Date().toISOString()
+      const { data, error } = await supabase
         .from("payments")
         .update({
           status: "Pago",
-          paid_at: new Date().toISOString(),
-          payment_type: "dinheiro",
-          updated_at: new Date().toISOString(),
+          paid_at: paidAt,
+          payment_type: paymentType,
+          updated_at: paidAt,
         })
         .eq("student_id", studentId)
         .eq("month", month)
+        .select("id")
 
       if (error) throw error
-      await refreshStudents()
+      if (!data || data.length === 0) {
+        throw new Error("Mensalidade não encontrada no banco para este aluno e período.")
+      }
+
+      patchPaymentLocal(studentId, (payment) => payment.month === month, {
+        status: "Pago",
+        paidAt,
+        paymentType,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const exemptPayment = useCallback(
@@ -779,10 +863,10 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, { status: "Bolsista", value: 0 })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const revertPayment = useCallback(
@@ -800,10 +884,12 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, {
+        status: "Não Pagou", receipt: undefined, paidAt: undefined, paymentType: undefined,
+      })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const removeExemption = useCallback(
@@ -819,10 +905,10 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      await refreshStudents()
+      patchPaymentLocal(studentId, (payment) => payment.month === month, { status: "Não Pagou", value })
       notifyOtherTabs()
     },
-    [supabase, refreshStudents, notifyOtherTabs],
+    [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
   const importStudents = useCallback(

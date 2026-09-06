@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
 import { getTodayDateString } from "@/lib/utils/date"
 import { LoadingStudents } from "@/components/loading-students"
+import { AttendanceFollowUp } from "@/components/attendance-follow-up"
 
 function getDayOfWeekInPortuguese(date: Date): string {
   const days = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
@@ -185,6 +186,14 @@ export default function TrainerChamadaPage() {
         <p className="text-sm sm:text-base text-muted-foreground">Registre a presença dos alunos em tempo real</p>
       </div>
 
+      <AttendanceFollowUp
+        students={students}
+        attendances={attendances.filter((attendance) => !user?.id || attendance.trainerId === user.id)}
+        title="Alunos para acompanhar"
+        description="Faltas recorrentes nas suas chamadas. Use os contatos para entender o motivo e evitar o afastamento do aluno."
+        maxItems={8}
+      />
+
       <Card className="border-2 bg-accent/5">
         <CardHeader className="pb-3 p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base flex items-center gap-2">
@@ -345,9 +354,9 @@ export default function TrainerChamadaPage() {
       </Card>
 
       {showAttendanceModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
-          <Card className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl border-2 max-h-[92dvh] sm:max-h-[90vh] overflow-hidden flex flex-col">
-            <CardHeader className="sticky top-0 bg-card z-10 border-b p-3 sm:p-6 shrink-0">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <Card className="flex h-[86dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border sm:h-auto sm:max-h-[86vh] sm:rounded-2xl">
+            <CardHeader className="z-10 shrink-0 border-b bg-card px-4 py-3 sm:p-5">
               <CardTitle className="text-base sm:text-lg">
                 {selectedDay} - {selectedSchedule}
               </CardTitle>
@@ -355,8 +364,8 @@ export default function TrainerChamadaPage() {
                 Treinador: <span className="font-medium">{trainerName}</span> | Marque a presença clicando nos nomes
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 sm:space-y-4 py-3 sm:py-6 px-2.5 sm:px-6 flex-1 min-h-0 overflow-y-auto overscroll-contain">
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-3 sticky top-0 bg-card z-10 pb-3 sm:pb-4 border-b">
+            <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5">
+              <div className="sticky top-0 z-10 grid grid-cols-3 gap-2 border-b bg-card pb-3">
                 <div className="text-center p-2 sm:p-3 rounded-lg bg-primary/10">
                   <p className="text-lg sm:text-2xl font-bold text-primary">{filteredStudents.length}</p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
@@ -371,7 +380,7 @@ export default function TrainerChamadaPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 sm:space-y-3">
+              <div className="space-y-2 pt-2">
                 {filteredStudents.map((student) => {
                   const status = attendanceRecords[student.id]
                   const isPresent = status === "Presente"
@@ -381,7 +390,7 @@ export default function TrainerChamadaPage() {
                     <div
                       key={student.id}
                       onClick={() => handleToggleAttendance(student.id)}
-                      className={`flex items-center gap-2 sm:gap-4 p-2 sm:p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      className={`flex items-center gap-2.5 rounded-xl border p-2.5 cursor-pointer transition-all sm:gap-3 sm:p-3 ${
                         isPresent
                           ? "border-green-500 bg-green-50 dark:bg-green-950"
                           : isAbsent
@@ -389,7 +398,7 @@ export default function TrainerChamadaPage() {
                             : "border-border hover:border-primary"
                       }`}
                     >
-                      <div className="relative h-10 w-10 sm:h-16 sm:w-16 rounded-full overflow-hidden flex-shrink-0 bg-primary/10 border-2 border-primary/20">
+                      <div className="relative h-11 w-11 sm:h-12 sm:w-12 rounded-full overflow-hidden flex-shrink-0 bg-primary/10 border border-primary/20">
                         <Image
                           src={student.photo || "/placeholder.svg?height=64&width=64&query=student"}
                           alt={student.name}
@@ -425,7 +434,7 @@ export default function TrainerChamadaPage() {
                 })}
               </div>
             </CardContent>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 p-3 sm:p-6 border-t sticky bottom-0 bg-card">
+            <div className="grid shrink-0 grid-cols-2 gap-2 border-t bg-card p-3 sm:p-4">
               <Button onClick={handleSubmitAttendance} size="lg" className="flex-1 text-sm sm:text-base h-10 sm:h-11">
                 Registrar Chamada
               </Button>
