@@ -31,7 +31,7 @@ function AttendanceDetailContent({ attendanceId }: { attendanceId: string }) {
   "use client"
 
   const { getAttendanceById } = useAttendance()
-  const { students } = useStudents()
+  const { students } = useStudents({ includePayments: false, lightweightPhotos: true })
 
   const attendance = getAttendanceById(attendanceId)
 

@@ -21,7 +21,7 @@ import { formatRG, formatCPF, formatPhone } from "@/lib/formatters" // Added imp
 
 export default function NewStudentPage() {
   const router = useRouter()
-  const { addStudent } = useStudents()
+  const { addStudent } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { toast } = useToast()
 
   const [documentType, setDocumentType] = useState<"RG" | "CPF">("RG")

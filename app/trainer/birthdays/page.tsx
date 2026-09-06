@@ -15,7 +15,7 @@ import { LoadingStudents } from "@/components/loading-students"
 export default function TrainerBirthdaysPage() {
   const { user } = useAuth()
   const { getCoachClasses } = useCoaches()
-  const { students, isLoading } = useStudents()
+  const { students, isLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
 
   const coachClasses = user?.id ? getCoachClasses(user.id) : []

@@ -23,7 +23,7 @@ import { canEditAttendance, getEditDisabledReason } from "@/lib/utils/attendance
 
 export default function PresencasPage() {
   const { attendances, updateAttendance, deleteAttendance } = useAttendance()
-  const { students } = useStudents()
+  const { students } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()

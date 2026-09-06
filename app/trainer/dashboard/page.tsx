@@ -14,7 +14,7 @@ import { LoadingStudents } from "@/components/loading-students"
 
 export default function TrainerDashboardPage() {
   const { user } = useAuth()
-  const { students, isLoading } = useStudents()
+  const { students, isLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
 
   const activeStudents = students.filter((student) => student.isActive)
 

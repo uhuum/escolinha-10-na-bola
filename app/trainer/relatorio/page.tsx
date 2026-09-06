@@ -25,7 +25,7 @@ export default function TrainerRelatorioPage() {
   const { user } = useAuth()
   const { getCoachClasses } = useCoaches()
   const { attendances, updateAttendance, deleteAttendance, isLoading: attendanceLoading } = useAttendance()
-  const { students, isLoading: studentsLoading } = useStudents()
+  const { students, isLoading: studentsLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { toast } = useToast()
   const [editingSession, setEditingSession] = useState<Attendance | null>(null)
   const [filterViolationsOnly, setFilterViolationsOnly] = useState(false)

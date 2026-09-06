@@ -26,7 +26,7 @@ function calculateAge(birthDate: string): number {
 }
 
 export default function CarometroPage() {
-  const { students, isLoading } = useStudents()
+  const { students, isLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
   const [scheduleFilter, setScheduleFilter] = useState<ClassSchedule | "all">("all")
   const [dayFilter, setDayFilter] = useState<WeekDay | "all">("all")
   const [nameFilter, setNameFilter] = useState("")

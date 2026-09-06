@@ -27,7 +27,7 @@ function getDayOfWeekInPortuguese(date: Date): string {
 export default function TrainerChamadaPage() {
   const { user } = useAuth()
   const { getCoachClasses } = useCoaches()
-  const { students, isLoading: studentsLoading } = useStudents()
+  const { students, isLoading: studentsLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { addAttendance, attendances, isLoading: attendanceLoading } = useAttendance()
   const { toast } = useToast()
 

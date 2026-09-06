@@ -71,6 +71,26 @@ import autoTable from "jspdf-autotable"
 const PIX_KEY = "43.602.144/0001-20"
 
 export default function PaymentsPage() {
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const currentMonth = getCurrentMonthNumber()
+    const currentYear = getCurrentYear()
+    if (currentYear < BASE_YEAR || (currentYear === BASE_YEAR && currentMonth < BASE_MONTH)) {
+      return getMonthNameFromNumber(BASE_MONTH)
+    }
+    return getCurrentMonthName()
+  })
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const currentYear = getCurrentYear()
+    if (currentYear < BASE_YEAR) return BASE_YEAR
+    return currentYear
+  })
+
+  // Finance only downloads history from the system base date through the
+  // selected month. Future payment rows are not needed until the user navigates
+  // to them, which keeps the initial payload much smaller.
+  const selectedMonthForQuery = getMonthNumberFromName(selectedMonth)
+  const paymentThrough = new Date(selectedYear, selectedMonthForQuery, 0).toISOString().slice(0, 10)
+
   const {
     students,
     isLoading,
@@ -84,22 +104,15 @@ export default function PaymentsPage() {
     exemptPayment,
     revertPayment,
     removeExemption,
-  } = useStudents()
+  } = useStudents({
+    includePayments: true,
+    lightweightPhotos: true,
+    paymentRange: {
+      from: `${BASE_YEAR}-${String(BASE_MONTH).padStart(2, "0")}-01`,
+      through: paymentThrough,
+    },
+  })
   const { toast } = useToast()
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const currentMonth = getCurrentMonthNumber()
-    const currentYear = getCurrentYear()
-    // If current date is before December 2025, show December 2025
-    if (currentYear < BASE_YEAR || (currentYear === BASE_YEAR && currentMonth < BASE_MONTH)) {
-      return getMonthNameFromNumber(BASE_MONTH)
-    }
-    return getCurrentMonthName()
-  })
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const currentYear = getCurrentYear()
-    if (currentYear < BASE_YEAR) return BASE_YEAR
-    return currentYear
-  })
   const [showPendingModal, setShowPendingModal] = useState(false)
   const [searchFilter, setSearchFilter] = useState("")
   const [receiptModal, setReceiptModal] = useState<{

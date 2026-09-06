@@ -51,7 +51,17 @@ export default function DashboardPage() {
   })
   const [scheduleFilter, setScheduleFilter] = useState<ClassSchedule | "all">("all")
   const [dayFilter, setDayFilter] = useState<WeekDay | "all">("all")
-  const { students, getPaymentSummary, filterByPaymentStatus, isLoading } = useStudents()
+
+  // The dashboard only needs the selected month's payments. Keep the full
+  // financial history out of the initial dashboard request.
+  const dashboardMonthNumber = getMonthNumberFromName(selectedMonth)
+  const dashboardPaymentFrom = `${selectedYear}-${String(dashboardMonthNumber).padStart(2, "0")}-01`
+  const dashboardPaymentThrough = new Date(selectedYear, dashboardMonthNumber, 0).toISOString().slice(0, 10)
+  const { students, getPaymentSummary, filterByPaymentStatus, isLoading } = useStudents({
+    includePayments: true,
+    lightweightPhotos: true,
+    paymentRange: { from: dashboardPaymentFrom, through: dashboardPaymentThrough },
+  })
   const summary = getPaymentSummary(selectedMonth, selectedYear)
 
   const months = getAllMonths()

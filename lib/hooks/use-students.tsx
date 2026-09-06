@@ -64,15 +64,28 @@ interface StudentsStore {
   removeExemption: (studentId: string, month: string, value: number) => Promise<void>
 }
 
-async function fetchAllPayments(supabase: ReturnType<typeof getBrowserClient>) {
+interface PaymentFetchRange {
+  from?: string
+  through?: string
+}
+
+async function fetchAllPayments(
+  supabase: ReturnType<typeof getBrowserClient>,
+  range: PaymentFetchRange = {},
+) {
   const pageSize = 1000
   const allPayments: any[] = []
 
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("payments")
       .select("id,student_id,month,status,value,due_date,month_number,year_number,postponed_to,receipt,paid_at,charged_at,payment_type")
       .order("due_date", { ascending: true })
+
+    if (range.from) query = query.gte("due_date", range.from)
+    if (range.through) query = query.lte("due_date", range.through)
+
+    const { data, error } = await query
       .range(from, from + pageSize - 1)
       .throwOnError()
 
@@ -119,7 +132,7 @@ function mapStudentFromDB(dbStudent: any, payments: MonthlyPayment[]): Student {
     classSchedule: dbStudent.class_schedule || undefined,
     classDays: dbStudent.class_days || [],
     scheduleConfigs: dbStudent.schedule_configs || undefined,
-    photo: dbStudent.photo || undefined,
+    photo: dbStudent.photo || dbStudent.thumbnail_url || undefined,
     thumbnailUrl: dbStudent.thumbnail_url || undefined,
     archivedAt: dbStudent.archived_at || undefined,
     archiveReason: dbStudent.archive_reason || undefined,
@@ -128,7 +141,22 @@ function mapStudentFromDB(dbStudent: any, payments: MonthlyPayment[]): Student {
   }
 }
 
-export function useStudents(): StudentsStore {
+interface UseStudentsOptions {
+  /**
+   * Finance screens need the payment history. Operational screens (trainer,
+   * attendance, birthdays, carometro) do not and can skip thousands of rows.
+   */
+  includePayments?: boolean
+  /** Use the thumbnail instead of the full photo payload on list-style screens. */
+  lightweightPhotos?: boolean
+  /** Limit financial history to the period actually needed by the screen. */
+  paymentRange?: PaymentFetchRange
+}
+
+export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
+  const { includePayments = true, lightweightPhotos = false, paymentRange = {} } = options
+  const paymentFrom = paymentRange.from
+  const paymentThrough = paymentRange.through
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const supabase = getBrowserClient()
@@ -136,15 +164,19 @@ export function useStudents(): StudentsStore {
   const fetchStudents = useCallback(async () => {
     try {
       // Select only columns needed for listing — avoids downloading heavy photo blobs on list page
-      const STUDENT_LIST_COLUMNS =
-        "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+      const STUDENT_LIST_COLUMNS = lightweightPhotos
+        ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+        : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
 
+      const studentsPromise = supabase
+        .from("students")
+        .select(STUDENT_LIST_COLUMNS)
+        .order("name", { ascending: true })
+
+      // Do not download the entire financial history on screens that never use it.
       const [studentsResponse, paymentsResponse] = await Promise.all([
-        supabase
-          .from("students")
-          .select(STUDENT_LIST_COLUMNS)
-          .order("name", { ascending: true }),
-        fetchAllPayments(supabase),
+        studentsPromise,
+        includePayments ? fetchAllPayments(supabase, { from: paymentFrom, through: paymentThrough }) : Promise.resolve([]),
       ])
 
       if (studentsResponse.error) {
@@ -173,7 +205,7 @@ export function useStudents(): StudentsStore {
       console.error("[v0] Error fetching students:", error)
       alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
     }
-  }, [supabase])
+  }, [supabase, includePayments, lightweightPhotos, paymentFrom, paymentThrough])
 
   const { notifyOtherTabs } = useRealtimeSync(fetchStudents)
 
@@ -189,14 +221,20 @@ export function useStudents(): StudentsStore {
 
   const refreshStudents = useCallback(async () => {
     try {
-      const STUDENT_LIST_COLUMNS =
-        "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+      const STUDENT_LIST_COLUMNS = lightweightPhotos
+        ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+        : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
 
-      const { data: studentsData, error: studentsError } = await supabase
+      const studentsPromise = supabase
         .from("students")
         .select(STUDENT_LIST_COLUMNS)
         .order("name", { ascending: true })
-      const paymentsData = await fetchAllPayments(supabase)
+
+      const [studentsResponse, paymentsData] = await Promise.all([
+        studentsPromise,
+        includePayments ? fetchAllPayments(supabase, { from: paymentFrom, through: paymentThrough }) : Promise.resolve([]),
+      ])
+      const { data: studentsData, error: studentsError } = studentsResponse
 
       if (studentsError) {
         throw studentsError
@@ -205,11 +243,16 @@ export function useStudents(): StudentsStore {
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
 
-      const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
-        const studentPayments = (paymentsData || [])
-          .filter((p: any) => p.student_id === dbStudent.id)
-          .map(mapPaymentFromDB)
+      // Index payments once instead of scanning the full payment array for every student.
+      const paymentsMap = new Map<string, any[]>()
+      for (const payment of paymentsData || []) {
+        const list = paymentsMap.get(payment.student_id) || []
+        list.push(payment)
+        paymentsMap.set(payment.student_id, list)
+      }
 
+      const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
+        const studentPayments = (paymentsMap.get(dbStudent.id) || []).map(mapPaymentFromDB)
         return mapStudentFromDB(dbStudent, studentPayments)
       })
 
@@ -217,12 +260,12 @@ export function useStudents(): StudentsStore {
     } catch (error) {
       console.error("Error refreshing students:", error)
     }
-  }, [supabase])
+  }, [supabase, includePayments, lightweightPhotos, paymentFrom, paymentThrough])
 
   const getStudent = useCallback(
     async (id: string): Promise<Student | null> => {
       const local = students.find((s) => s.id === id)
-      if (local) {
+      if (local && includePayments && !lightweightPhotos) {
         return local
       }
 
@@ -252,7 +295,7 @@ export function useStudents(): StudentsStore {
       const studentPayments = (paymentsData || []).map(mapPaymentFromDB)
       return mapStudentFromDB(studentData, studentPayments)
     },
-    [students, supabase],
+    [students, supabase, includePayments, lightweightPhotos],
   )
 
   const generateStudentPayments = useCallback(

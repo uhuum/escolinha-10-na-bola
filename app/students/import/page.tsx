@@ -140,7 +140,7 @@ function validateStudent(csv: CSVStudent): ParsedStudent {
 }
 
 export default function ImportStudentsPage() {
-  const { addStudent, students } = useStudents()
+  const { addStudent, students } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { toast } = useToast()
   const router = useRouter()
   const [file, setFile] = useState<File | null>(null)

@@ -17,7 +17,7 @@ export default function AdminBirthdaysPage() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [hasAccess, setHasAccess] = useState(false)
-  const { students, isLoading: studentsLoading } = useStudents()
+  const { students, isLoading: studentsLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
 
   const months = [

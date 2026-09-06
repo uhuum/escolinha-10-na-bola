@@ -318,7 +318,7 @@ function EditScheduleModal({ student, onClose, onSave }: EditScheduleModalProps)
 export default function TrainerCarometroPage() {
   const { user } = useAuth()
   const { getCoachClasses } = useCoaches()
-  const { students, isLoading, updateStudent } = useStudents()
+  const { students, isLoading, updateStudent } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { getStudentAttendanceHistory } = useAttendance()
   const { toast } = useToast()
 

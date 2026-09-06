@@ -26,7 +26,7 @@ import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMo
 import { formatDueDate } from "@/lib/utils/date"
 
 export function StudentDetailClient({ id }: { id: string }) {
-  const { getStudent, deleteStudent, updateStudent } = useStudents()
+  const { getStudent, deleteStudent, updateStudent } = useStudents({ includePayments: false, lightweightPhotos: true })
   const router = useRouter()
   const { toast } = useToast()
   const [student, setStudent] = useState<Student | null>(null)

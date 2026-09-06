@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { getCurrentMonthName, getCurrentMonthNumber, getCurrentYear } from "@/lib/utils/date"
 import { useStudents } from "@/lib/hooks/use-students"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,17 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function StudentsPage() {
-  const { students, deleteStudent, archiveStudent, restoreStudent, isLoading } = useStudents()
+  const currentMonthNumber = getCurrentMonthNumber()
+  const currentYear = getCurrentYear()
+  const currentMonth = getCurrentMonthName()
+  const paymentFrom = `${currentYear}-${String(currentMonthNumber).padStart(2, "0")}-01`
+  const paymentThrough = new Date(currentYear, currentMonthNumber, 0).toISOString().slice(0, 10)
+
+  const { students, deleteStudent, archiveStudent, restoreStudent, isLoading } = useStudents({
+    includePayments: true,
+    lightweightPhotos: true,
+    paymentRange: { from: paymentFrom, through: paymentThrough },
+  })
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "all">("all")
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active")
@@ -32,7 +43,6 @@ export default function StudentsPage() {
   const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null)
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null)
 
-  const currentMonth = "Janeiro"
 
   const handleGenerateEnrollment = async (studentId: string) => {
     const student = students.find((s) => s.id === studentId)
@@ -64,7 +74,9 @@ export default function StudentsPage() {
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.responsible.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const currentPayment = student.payments.find((p) => p.month === currentMonth)
+    const currentPayment = student.payments.find((p) =>
+      p.monthNumber === currentMonthNumber && p.yearNumber === currentYear,
+    ) || student.payments.find((p) => p.month.startsWith(currentMonth))
     const matchesStatus = statusFilter === "all" || currentPayment?.status === statusFilter
 
     return matchesSearch && matchesStatus
@@ -223,7 +235,9 @@ export default function StudentsPage() {
 
         <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {filteredStudents.map((student) => {
-            const currentPayment = student.payments.find((p) => p.month === currentMonth)
+            const currentPayment = student.payments.find((p) =>
+      p.monthNumber === currentMonthNumber && p.yearNumber === currentYear,
+    ) || student.payments.find((p) => p.month.startsWith(currentMonth))
             const isArchived = !student.isActive || student.archivedAt
 
             return (

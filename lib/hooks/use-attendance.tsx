@@ -31,12 +31,34 @@ export function useAttendance(): AttendanceStore {
   const fetchAttendances = useCallback(async () => {
     try {
       setIsLoading(true)
-      const { data: attendanceData } = await supabase
-        .from("attendance")
-        .select("*")
-        .order("created_at", { ascending: false })
+      // Fetch both datasets in parallel and transfer only the columns used by the UI.
+      const [attendanceResponse, recordsResponse] = await Promise.all([
+        supabase
+          .from("attendance")
+          .select("id,date,day_of_week,class_schedule,trainer_name,trainer_id,created_at")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("attendance_records")
+          .select("attendance_id,student_id,status"),
+      ])
 
-      const { data: recordsData } = await supabase.from("attendance_records").select("*")
+      if (attendanceResponse.error) throw attendanceResponse.error
+      if (recordsResponse.error) throw recordsResponse.error
+
+      const attendanceData = attendanceResponse.data
+      const recordsData = recordsResponse.data
+
+      // Group records once. This keeps the merge O(attendances + records) instead
+      // of scanning every record again for every attendance.
+      const recordsByAttendance = new Map<string, AttendanceRecord[]>()
+      for (const record of recordsData || []) {
+        const list = recordsByAttendance.get(record.attendance_id) || []
+        list.push({
+          studentId: record.student_id,
+          status: record.status as "Presente" | "Ausente",
+        })
+        recordsByAttendance.set(record.attendance_id, list)
+      }
 
       const combined: Attendance[] = (attendanceData || []).map((att: any) => ({
         id: att.id,
@@ -45,14 +67,9 @@ export function useAttendance(): AttendanceStore {
         classSchedule: att.class_schedule,
         classDays: [],
         trainerName: att.trainer_name,
-        trainerId: att.trainer_id || "", // Map trainer_id from database
+        trainerId: att.trainer_id || "",
         createdAt: att.created_at,
-        records: (recordsData || [])
-          .filter((r: any) => r.attendance_id === att.id)
-          .map((r: any) => ({
-            studentId: r.student_id,
-            status: r.status as "Presente" | "Ausente",
-          })),
+        records: recordsByAttendance.get(att.id) || [],
       }))
 
       setAttendances(combined)
