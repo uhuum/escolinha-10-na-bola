@@ -1,71 +1,70 @@
-// Service Worker para PWA - Escolinha 10 na Bola
-const CACHE_NAME = 'escolinha-10-na-bola-v1';
-const urlsToCache = [
-  '/',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/apple-icon-180x180.png',
-  '/favicon.ico',
-];
+const SW_VERSION = "siga-push-v1"
 
-// Install event - cache resources
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => self.skipWaiting())
-  );
-});
+self.addEventListener("install", () => {
+  self.skipWaiting()
+})
 
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
+    (async () => {
+      const cacheNames = await caches.keys()
+      await Promise.all(cacheNames.map((name) => caches.delete(name)))
+      await self.clients.claim()
+    })(),
+  )
+})
+
+self.addEventListener("push", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const subscription = await self.registration.pushManager.getSubscription()
+        if (!subscription) return
+
+        const response = await fetch("/api/push/pending", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
         })
-      );
-    }).then(() => self.clients.claim())
-  );
-});
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
+        if (!response.ok) return
+        const payload = await response.json()
+        const notification = payload?.notification
+        if (!notification?.title) return
 
-        // Clone the request
-        const fetchRequest = event.request.clone();
+        await self.registration.showNotification(notification.title, {
+          body: notification.body || "",
+          icon: "/icon-192x192.png",
+          badge: "/icon-96x96.png",
+          tag: notification.id || SW_VERSION,
+          renotify: true,
+          vibrate: [250, 120, 250],
+          data: {
+            href: notification.href || "/",
+          },
+        })
+      } catch (error) {
+        console.error("[SIGA] Falha ao exibir push:", error)
+      }
+    })(),
+  )
+})
 
-        return fetch(fetchRequest).then((response) => {
-          // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  event.waitUntil(
+    (async () => {
+      const href = event.notification?.data?.href || "/"
+      const destination = new URL(href, self.location.origin).href
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
 
-          // Clone the response
-          const responseToCache = response.clone();
+      for (const client of windows) {
+        if ("navigate" in client) await client.navigate(destination)
+        if ("focus" in client) return client.focus()
+      }
 
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return response;
-        });
-      })
-  );
-});
+      if (self.clients.openWindow) return self.clients.openWindow(destination)
+    })(),
+  )
+})

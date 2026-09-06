@@ -30,6 +30,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
+import { NotificationCenter } from "@/components/notification-center"
 
 export function AppHeader() {
   const pathname = usePathname()
@@ -145,6 +146,8 @@ export function AppHeader() {
                 </nav>
               </SheetContent>
             </Sheet>
+
+            {user && <NotificationCenter user={{ id: user.id, role: user.role }} />}
 
             {user && (
               <DropdownMenu>

@@ -1,11 +1,13 @@
 {
-  "name": "Escolinha 10 na Bola",
-  "short_name": "10 na Bola",
-  "description": "Sistema de gestão para escolinha de futebol",
+  "id": "/",
+  "name": "SIGA - 10 na Bola",
+  "short_name": "SIGA",
+  "description": "Sistema Integrado de Gestão de Alunos da Escola de Futebol 10 na Bola",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
   "orientation": "portrait",
   "icons": [
     {
