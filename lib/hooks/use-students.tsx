@@ -315,13 +315,14 @@ export function useStudents(): StudentsStore {
 
       // Insert with ON CONFLICT to avoid duplicates
       for (const payment of paymentsToInsert) {
-        const { error } = await supabase.from("payments").upsert(payment, {
-          onConflict: "student_id,due_date",
-          ignoreDuplicates: true,
-        })
-        if (error && !error.message.includes("duplicate")) {
-          console.error("[v0] Error inserting payment:", error)
-        }
+      const { error } = await supabase.from("payments").upsert(payment, {
+      onConflict: "student_id,month",
+      ignoreDuplicates: true,
+      })
+       if (error && !error.message.includes("duplicate")) {
+       console.error("[v0] Erro ao criar pagamento:", error)
+       throw error
+      }
       }
     },
     [supabase],
@@ -469,15 +470,35 @@ export function useStudents(): StudentsStore {
       updateData.thumbnail_url = updates.thumbnailUrl || null
     }
 
-    const { error } = await supabase
-      .from("students")
-      .update(updateData)
-      .eq("id", studentId)
+const { error } = await supabase
+  .from("students")
+  .update(updateData)
+  .eq("id", studentId)
 
-    if (error) throw error
+if (error) throw error
 
-    await refreshStudents()
-    notifyOtherTabs()
+// Sincroniza o novo valor com os pagamentos do aluno
+if (updates.monthlyValue !== undefined) {
+const { error: paymentsError } = await supabase
+  .from("payments")
+  .update({
+    value: updates.monthlyValue,
+    updated_at: new Date().toISOString(),
+  })
+  .eq("student_id", studentId)
+  .in("status", ["Em Aberto", "Não Pagou", "Cobrado", "Adiado"])
+
+  if (paymentsError) {
+    console.error(
+      "[v0] Erro ao atualizar valor das mensalidades:",
+      paymentsError,
+    )
+    throw paymentsError
+  }
+}
+
+await refreshStudents()
+notifyOtherTabs()
   },
   [supabase, refreshStudents, notifyOtherTabs],
 )
