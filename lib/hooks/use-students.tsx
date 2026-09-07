@@ -12,10 +12,13 @@ import {
   matchesMonthYearByNumbers,
 } from "@/lib/utils/date"
 import { useRealtimeSync } from "./use-realtime-sync"
+import { toast } from "@/hooks/use-toast"
 
 interface StudentsStore {
   students: Student[]
   isLoading: boolean
+  loadError: string | null
+  retryLoad: () => Promise<void>
   updatePaymentStatus: (studentId: string, month: string, status: PaymentStatus) => Promise<void>
   postponePayment: (studentId: string, month: string, newDate: string) => Promise<void>
   attachReceipt: (studentId: string, month: string, receipt: File | string, paymentType?: PaymentType) => Promise<void>
@@ -67,6 +70,40 @@ interface StudentsStore {
 interface PaymentFetchRange {
   from?: string
   through?: string
+}
+
+function isAuthenticationError(error: any) {
+  const status = Number(error?.status || error?.statusCode || 0)
+  const code = String(error?.code || "")
+  const message = String(error?.message || "").toLowerCase()
+
+  return (
+    status === 401 ||
+    code === "PGRST301" ||
+    code === "PGRST302" ||
+    message.includes("jwt") ||
+    message.includes("unauthorized") ||
+    message.includes("not authenticated")
+  )
+}
+
+async function ensureAuthenticatedSession(
+  supabase: ReturnType<typeof getBrowserClient>,
+  forceRefresh = false,
+) {
+  if (!forceRefresh) {
+    const { data, error } = await supabase.auth.getSession()
+    if (!error && data.session) return data.session
+  }
+
+  const { data, error } = await supabase.auth.refreshSession()
+  if (error || !data.session) {
+    const sessionError = error || new Error("Sessão expirada")
+    ;(sessionError as any).status = (sessionError as any).status || 401
+    throw sessionError
+  }
+
+  return data.session
 }
 
 async function fetchAllPayments(
@@ -159,6 +196,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
   const paymentThrough = paymentRange.through
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const supabase = getBrowserClient()
 
   // Keep the current screen responsive after writes. Instead of downloading the
@@ -187,48 +225,75 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
   }, [])
 
   const fetchStudents = useCallback(async () => {
-    try {
-      // Select only columns needed for listing — avoids downloading heavy photo blobs on list page
-      const STUDENT_LIST_COLUMNS = lightweightPhotos
-        ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
-        : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+    const STUDENT_LIST_COLUMNS = lightweightPhotos
+      ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+      : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+
+    const loadOnce = async (forceRefreshSession = false) => {
+      // Never start protected queries before Supabase has a usable session.
+      // This avoids intermittent 401s when mobile/desktop resumes from sleep.
+      await ensureAuthenticatedSession(supabase, forceRefreshSession)
 
       const studentsPromise = supabase
         .from("students")
         .select(STUDENT_LIST_COLUMNS)
         .order("name", { ascending: true })
 
-      // Do not download the entire financial history on screens that never use it.
       const [studentsResponse, paymentsResponse] = await Promise.all([
         studentsPromise,
-        includePayments ? fetchAllPayments(supabase, { from: paymentFrom, through: paymentThrough }) : Promise.resolve([]),
+        includePayments
+          ? fetchAllPayments(supabase, { from: paymentFrom, through: paymentThrough })
+          : Promise.resolve([]),
       ])
 
-      if (studentsResponse.error) {
-        throw studentsResponse.error
-      }
+      if (studentsResponse.error) throw studentsResponse.error
+
       const sortedStudents = (studentsResponse.data || []).sort((a: any, b: any) =>
         a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
       )
 
-      // Create a map for faster payment lookup
       const paymentsMap = new Map<string, any[]>()
       for (const payment of paymentsResponse || []) {
-        if (!paymentsMap.has(payment.student_id)) {
-          paymentsMap.set(payment.student_id, [])
-        }
+        if (!paymentsMap.has(payment.student_id)) paymentsMap.set(payment.student_id, [])
         paymentsMap.get(payment.student_id)!.push(payment)
       }
 
-      const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
+      return sortedStudents.map((dbStudent: any) => {
         const studentPayments = (paymentsMap.get(dbStudent.id) || []).map(mapPaymentFromDB)
         return mapStudentFromDB(dbStudent, studentPayments)
       })
+    }
 
-      setStudents(studentsWithPayments)
+    try {
+      setLoadError(null)
+      let loadedStudents: Student[]
+
+      try {
+        loadedStudents = await loadOnce(false)
+      } catch (error) {
+        if (!isAuthenticationError(error)) throw error
+
+        console.info("[SIGA] Sessão renovada automaticamente após resposta 401.")
+        loadedStudents = await loadOnce(true)
+      }
+
+      setStudents(loadedStudents)
     } catch (error) {
       console.error("[SIGA] Error fetching students:", error)
-      alert("Erro ao carregar alunos: " + (error instanceof Error ? error.message : String(error)))
+      const authFailure = isAuthenticationError(error)
+      setLoadError(
+        authFailure
+          ? "Sua sessão precisa ser atualizada. Tente carregar novamente."
+          : "Não foi possível carregar os dados agora. Verifique sua conexão e tente novamente.",
+      )
+
+      toast({
+        title: "Não foi possível carregar os dados",
+        description: authFailure
+          ? "A sessão não pôde ser renovada automaticamente."
+          : "O SIGA manteve seus dados intactos. Tente novamente em instantes.",
+        variant: "destructive",
+      })
     }
   }, [supabase, includePayments, lightweightPhotos, paymentFrom, paymentThrough])
 
@@ -244,48 +309,18 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
     loadData()
   }, [fetchStudents])
 
-  const refreshStudents = useCallback(async () => {
+  const retryLoad = useCallback(async () => {
+    setIsLoading(true)
     try {
-      const STUDENT_LIST_COLUMNS = lightweightPhotos
-        ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
-        : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
-
-      const studentsPromise = supabase
-        .from("students")
-        .select(STUDENT_LIST_COLUMNS)
-        .order("name", { ascending: true })
-
-      const [studentsResponse, paymentsData] = await Promise.all([
-        studentsPromise,
-        includePayments ? fetchAllPayments(supabase, { from: paymentFrom, through: paymentThrough }) : Promise.resolve([]),
-      ])
-      const { data: studentsData, error: studentsError } = studentsResponse
-
-      if (studentsError) {
-        throw studentsError
-      }
-      const sortedStudents = (studentsData || []).sort((a: any, b: any) =>
-        a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
-      )
-
-      // Index payments once instead of scanning the full payment array for every student.
-      const paymentsMap = new Map<string, any[]>()
-      for (const payment of paymentsData || []) {
-        const list = paymentsMap.get(payment.student_id) || []
-        list.push(payment)
-        paymentsMap.set(payment.student_id, list)
-      }
-
-      const studentsWithPayments: Student[] = sortedStudents.map((dbStudent: any) => {
-        const studentPayments = (paymentsMap.get(dbStudent.id) || []).map(mapPaymentFromDB)
-        return mapStudentFromDB(dbStudent, studentPayments)
-      })
-
-      setStudents(studentsWithPayments)
-    } catch (error) {
-      console.error("Error refreshing students:", error)
+      await fetchStudents()
+    } finally {
+      setIsLoading(false)
     }
-  }, [supabase, includePayments, lightweightPhotos, paymentFrom, paymentThrough])
+  }, [fetchStudents])
+
+  const refreshStudents = useCallback(async () => {
+    await fetchStudents()
+  }, [fetchStudents])
 
   const getStudent = useCallback(
     async (id: string): Promise<Student | null> => {
@@ -294,31 +329,44 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
         return local
       }
 
-      const { data: studentData, error: studentError } = await supabase
-        .from("students")
-        .select("*")
-        .eq("id", id)
-        .single()
+      const loadStudent = async (forceRefreshSession = false) => {
+        await ensureAuthenticatedSession(supabase, forceRefreshSession)
 
-      if (studentError) {
-        console.error("[SIGA] Erro ao buscar aluno:", studentError.message)
+        const { data: studentData, error: studentError } = await supabase
+          .from("students")
+          .select("*")
+          .eq("id", id)
+          .single()
+
+        if (studentError) throw studentError
+        if (!studentData) return null
+
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("student_id", id)
+          .order("due_date", { ascending: true })
+
+        if (paymentsError) throw paymentsError
+
+        return mapStudentFromDB(studentData, (paymentsData || []).map(mapPaymentFromDB))
+      }
+
+      try {
+        return await loadStudent(false)
+      } catch (error) {
+        if (isAuthenticationError(error)) {
+          try {
+            return await loadStudent(true)
+          } catch (retryError) {
+            console.error("[SIGA] Erro ao buscar aluno após renovar sessão:", retryError)
+            return null
+          }
+        }
+
+        console.error("[SIGA] Erro ao buscar aluno:", error)
         return null
       }
-
-      if (!studentData) return null
-
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("student_id", id)
-        .order("due_date", { ascending: true })
-
-      if (paymentsError) {
-        console.error("[SIGA] Erro ao buscar pagamentos:", paymentsError.message)
-      }
-
-      const studentPayments = (paymentsData || []).map(mapPaymentFromDB)
-      return mapStudentFromDB(studentData, studentPayments)
     },
     [students, supabase, includePayments, lightweightPhotos],
   )
@@ -952,6 +1000,8 @@ notifyOtherTabs()
   return {
     students,
     isLoading,
+    loadError,
+    retryLoad,
     updatePaymentStatus,
     updatePaymentStatusByDate,
     postponePayment,

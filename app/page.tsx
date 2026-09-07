@@ -16,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react"
 import Link from "next/link"
 import { Progress } from "@/components/ui/progress"
@@ -58,7 +60,7 @@ export default function DashboardPage() {
   const dashboardMonthNumber = getMonthNumberFromName(selectedMonth)
   const dashboardPaymentFrom = `${selectedYear}-${String(dashboardMonthNumber).padStart(2, "0")}-01`
   const dashboardPaymentThrough = new Date(selectedYear, dashboardMonthNumber, 0).toISOString().slice(0, 10)
-  const { students, getPaymentSummary, filterByPaymentStatus, isLoading } = useStudents({
+  const { students, getPaymentSummary, filterByPaymentStatus, isLoading, loadError, retryLoad } = useStudents({
     includePayments: true,
     lightweightPhotos: true,
     paymentRange: { from: dashboardPaymentFrom, through: dashboardPaymentThrough },
@@ -181,6 +183,30 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return <LoadingStudents message="Carregando dashboard..." />
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <AppHeader />
+        <main className="container mx-auto flex flex-1 items-center justify-center px-4 py-10">
+          <Card className="w-full max-w-lg border-border/70 shadow-sm">
+            <CardContent className="flex flex-col items-center px-6 py-10 text-center sm:px-10">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <ShieldCheck className="h-7 w-7" />
+              </div>
+              <h2 className="text-xl font-bold text-foreground sm:text-2xl">Não foi possível carregar o dashboard</h2>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{loadError}</p>
+              <p className="mt-3 text-xs text-muted-foreground">Nenhum dado foi alterado ou perdido.</p>
+              <Button className="mt-6 min-w-44" onClick={() => void retryLoad()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
   }
 
   return (

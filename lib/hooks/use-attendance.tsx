@@ -145,7 +145,6 @@ export function useAttendance(): AttendanceStore {
         setAttendances((prev) => [newAttendance, ...prev])
       } catch (error) {
         console.error("[SIGA] Error adding attendance:", error)
-        alert("Erro ao registrar presença: " + (error instanceof Error ? error.message : String(error)))
         throw error
       }
     },

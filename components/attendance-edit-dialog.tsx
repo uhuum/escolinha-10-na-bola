@@ -3,6 +3,16 @@
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { CheckCircle2, XCircle, Trash2, Users, X } from "lucide-react"
 import type { Attendance, Student } from "@/lib/types"
 import Image from "next/image"
@@ -21,6 +31,7 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
   )
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const studentById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students])
   const presentCount = Object.values(records).filter((status) => status === "Presente").length
@@ -42,10 +53,11 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
   }
 
   const handleDelete = async () => {
-    if (!onDelete || !window.confirm("Apagar esta chamada? Essa ação não pode ser desfeita.")) return
+    if (!onDelete) return
     try {
       setDeleting(true)
       await onDelete()
+      setConfirmDeleteOpen(false)
     } finally {
       setDeleting(false)
     }
@@ -142,7 +154,7 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
           {onDelete && (
             <Button
               variant="ghost"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={busy}
               className="mt-2 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
@@ -152,6 +164,37 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
           )}
         </footer>
       </section>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={(open) => !deleting && setConfirmDeleteOpen(open)}>
+        <AlertDialogContent className="max-w-md rounded-2xl p-0 overflow-hidden">
+          <div className="border-b bg-destructive/5 px-6 py-5">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <AlertDialogHeader className="text-left">
+              <AlertDialogTitle>Excluir registro de chamada?</AlertDialogTitle>
+              <AlertDialogDescription className="leading-relaxed">
+                A chamada de <strong className="font-semibold text-foreground">{attendance.dayOfWeek}</strong>, às{` `}
+                <strong className="font-semibold text-foreground">{attendance.classSchedule}</strong>, será removida permanentemente.
+                As presenças registradas nesta chamada também serão apagadas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <AlertDialogFooter className="grid grid-cols-2 gap-2 px-6 pb-6 sm:grid-cols-2 sm:justify-stretch">
+            <AlertDialogCancel disabled={deleting} className="mt-0 w-full">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDelete()
+              }}
+              disabled={deleting}
+              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Sim, excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
