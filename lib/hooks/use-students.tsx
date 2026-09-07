@@ -297,7 +297,10 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
     }
   }, [supabase, includePayments, lightweightPhotos, paymentFrom, paymentThrough])
 
-  const { notifyOtherTabs } = useRealtimeSync(fetchStudents)
+  const { notifyOtherTabs } = useRealtimeSync(fetchStudents, {
+    tables: includePayments ? ["students", "payments"] : ["students"],
+    resyncOnResume: true,
+  })
 
   useEffect(() => {
     const loadData = async () => {

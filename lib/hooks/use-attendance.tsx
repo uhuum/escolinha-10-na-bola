@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { getTodayDateString } from "@/lib/utils/date"
 import type { Attendance, AttendanceRecord, ClassSchedule, WeekDay } from "../types"
+import { useRealtimeSync } from "./use-realtime-sync"
 
 interface AttendanceStore {
   attendances: Attendance[]
@@ -84,6 +85,13 @@ export function useAttendance(): AttendanceStore {
     fetchAttendances()
   }, [fetchAttendances])
 
+  // Keep attendance reports/current calls synchronized across phones, tablets
+  // and computers. Reconnect/resume also reconciles missed offline events.
+  const { notifyOtherTabs } = useRealtimeSync(fetchAttendances, {
+    tables: ["attendance", "attendance_records"],
+    resyncOnResume: true,
+  })
+
   const addAttendance = useCallback(
     async (
       classSchedule: ClassSchedule,
@@ -143,12 +151,13 @@ export function useAttendance(): AttendanceStore {
           createdAt: attendanceData.created_at || new Date().toISOString(),
         }
         setAttendances((prev) => [newAttendance, ...prev])
+        notifyOtherTabs()
       } catch (error) {
         console.error("[SIGA] Error adding attendance:", error)
         throw error
       }
     },
-    [supabase],
+    [supabase, notifyOtherTabs],
   )
 
   const getAttendancesByDate = useCallback(
@@ -202,12 +211,13 @@ export function useAttendance(): AttendanceStore {
               : attendance,
           ),
         )
+        notifyOtherTabs()
       } catch (error) {
         console.error("[SIGA] Error updating attendance:", error)
         throw error
       }
     },
-    [supabase],
+    [supabase, notifyOtherTabs],
   )
 
   const deleteAttendance = useCallback(
@@ -220,12 +230,13 @@ export function useAttendance(): AttendanceStore {
         if (error) throw error
         console.log("[SIGA] Attendance deleted:", id)
         setAttendances((prev) => prev.filter((a) => a.id !== id))
+        notifyOtherTabs()
       } catch (error) {
         console.error("[SIGA] Error deleting attendance:", error)
         throw error
       }
     },
-    [supabase],
+    [supabase, notifyOtherTabs],
   )
 
   return {
