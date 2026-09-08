@@ -118,6 +118,41 @@ async function main() {
   const now = spNow()
   const messages: PushMessage[] = []
 
+  // Mensalidades adiadas: no dia combinado, avisa o administrativo com
+  // nome completo do aluno e do responsável. O eventKey por pagamento/data
+  // garante apenas um push por aparelho, mesmo com o scheduler rodando a cada 10 min.
+  const { data: postponedPayments, error: postponedError } = await supabase
+    .from("payments")
+    .select("id,student_id,month,postponed_to")
+    .eq("status", "Adiado")
+    .gte("postponed_to", `${now.date}T00:00:00`)
+    .lt("postponed_to", `${now.date}T23:59:59.999`)
+  if (postponedError) throw postponedError
+
+  const postponedStudentIds = Array.from(new Set((postponedPayments || []).map((payment: any) => payment.student_id)))
+  let postponedStudentById = new Map<string, any>()
+  if (postponedStudentIds.length) {
+    const { data: postponedStudents, error: postponedStudentsError } = await supabase
+      .from("students")
+      .select("id,name,responsible")
+      .in("id", postponedStudentIds)
+    if (postponedStudentsError) throw postponedStudentsError
+    postponedStudentById = new Map((postponedStudents || []).map((student: any) => [student.id, student]))
+  }
+
+  for (const payment of postponedPayments || []) {
+    const student = postponedStudentById.get(payment.student_id)
+    const studentName = student?.name || "Aluno não identificado"
+    const responsibleName = student?.responsible || "Responsável não informado"
+    messages.push({
+      eventKey: `admin-postponed-due-${payment.id}-${now.date}`,
+      role: "admin",
+      title: "Mensalidade adiada vence hoje",
+      body: `${studentName} — responsável: ${responsibleName}. ${payment.month ? `Mensalidade de ${payment.month}.` : "Confira a mensalidade adiada."}`,
+      href: "/payments",
+    })
+  }
+
   if (now.day === 1 && now.minutes >= 8 * 60) {
     messages.push({
       eventKey: `admin-month-start-${now.year}-${now.month}`,

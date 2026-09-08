@@ -151,46 +151,87 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
 
     setIsLoading(true)
     try {
-      if (role === "admin" && isLastDayOfMonth(now)) {
-        const [paymentsResult, studentsResult] = await Promise.all([
-          supabase
-            .from("payments")
-            .select("student_id,status")
-            .eq("month_number", now.month)
-            .eq("year_number", now.year),
-          supabase
+      if (role === "admin") {
+        const postponedResult = await supabase
+          .from("payments")
+          .select("id,student_id,month,postponed_to")
+          .eq("status", "Adiado")
+          .gte("postponed_to", `${now.dateString}T00:00:00`)
+          .lt("postponed_to", `${now.dateString}T23:59:59.999`)
+
+        if (postponedResult.error) throw postponedResult.error
+
+        const postponedPayments = postponedResult.data || []
+        const postponedStudentIds = Array.from(new Set(postponedPayments.map((payment: any) => payment.student_id)))
+        let studentById = new Map<string, any>()
+
+        if (postponedStudentIds.length) {
+          const studentsResult = await supabase
             .from("students")
-            .select("id,name,registration_date,created_at")
-            .order("name", { ascending: true }),
-        ])
+            .select("id,name,responsible")
+            .in("id", postponedStudentIds)
+          if (studentsResult.error) throw studentsResult.error
+          studentById = new Map((studentsResult.data || []).map((student: any) => [student.id, student]))
+        }
 
-        if (paymentsResult.error) throw paymentsResult.error
-        if (studentsResult.error) throw studentsResult.error
-
-        const pendingStatuses = new Set(["Em Aberto", "Não Pagou", "Cobrado", "Adiado", "Novo"])
-        const pendingStudentIds = new Set(
-          (paymentsResult.data || [])
-            .filter((payment: any) => pendingStatuses.has(payment.status))
-            .map((payment: any) => payment.student_id),
-        )
-
-        const monthPrefix = `${now.year}-${String(now.month).padStart(2, "0")}`
-        const newStudents = (studentsResult.data || []).filter((student: any) => {
-          const enteredAt = student.registration_date || student.created_at || ""
-          return String(enteredAt).startsWith(monthPrefix)
+        const items: SigaNotification[] = postponedPayments.map((payment: any) => {
+          const student = studentById.get(payment.student_id)
+          const studentName = student?.name || "Aluno não identificado"
+          const responsibleName = student?.responsible || "Responsável não informado"
+          return {
+            id: `admin-postponed-due-${payment.id}-${now.dateString}`,
+            title: "Mensalidade adiada vence hoje",
+            message: `${studentName} — responsável: ${responsibleName}. A mensalidade ${payment.month ? `de ${payment.month}` : "adiada"} vence hoje.`,
+            href: "/payments",
+            actionLabel: "Ver mensalidade",
+            kind: "warning" as const,
+            details: [`Aluno: ${studentName}`, `Responsável: ${responsibleName}`],
+          }
         })
 
-        setDynamicNotifications([{
-          id: `admin-month-close-${now.year}-${now.month}`,
-          title: `Fechamento de ${now.monthName}`,
-          message: `Chegou o último dia do mês: ${pendingStudentIds.size} pendência${pendingStudentIds.size === 1 ? "" : "s"} e ${newStudents.length} aluno${newStudents.length === 1 ? " novo" : "s novos"}.`,
-          href: "/payments",
-          actionLabel: "Abrir pagamentos",
-          kind: "summary",
-          details: newStudents.length
-            ? ["Alunos novos do mês:", ...newStudents.map((student: any) => student.name)]
-            : ["Nenhum aluno novo cadastrado neste mês."],
-        }])
+        if (isLastDayOfMonth(now)) {
+          const [paymentsResult, studentsResult] = await Promise.all([
+            supabase
+              .from("payments")
+              .select("student_id,status")
+              .eq("month_number", now.month)
+              .eq("year_number", now.year),
+            supabase
+              .from("students")
+              .select("id,name,registration_date,created_at")
+              .order("name", { ascending: true }),
+          ])
+
+          if (paymentsResult.error) throw paymentsResult.error
+          if (studentsResult.error) throw studentsResult.error
+
+          const pendingStatuses = new Set(["Em Aberto", "Não Pagou", "Cobrado", "Adiado", "Novo"])
+          const pendingStudentIds = new Set(
+            (paymentsResult.data || [])
+              .filter((payment: any) => pendingStatuses.has(payment.status))
+              .map((payment: any) => payment.student_id),
+          )
+
+          const monthPrefix = `${now.year}-${String(now.month).padStart(2, "0")}`
+          const newStudents = (studentsResult.data || []).filter((student: any) => {
+            const enteredAt = student.registration_date || student.created_at || ""
+            return String(enteredAt).startsWith(monthPrefix)
+          })
+
+          items.push({
+            id: `admin-month-close-${now.year}-${now.month}`,
+            title: `Fechamento de ${now.monthName}`,
+            message: `Chegou o último dia do mês: ${pendingStudentIds.size} pendência${pendingStudentIds.size === 1 ? "" : "s"} e ${newStudents.length} aluno${newStudents.length === 1 ? " novo" : "s novos"}.`,
+            href: "/payments",
+            actionLabel: "Abrir pagamentos",
+            kind: "summary",
+            details: newStudents.length
+              ? ["Alunos novos do mês:", ...newStudents.map((student: any) => student.name)]
+              : ["Nenhum aluno novo cadastrado neste mês."],
+          })
+        }
+
+        setDynamicNotifications(items)
         return
       }
 
