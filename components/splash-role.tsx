@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
+import { ShieldCheck, UsersRound } from "lucide-react"
 
 interface SplashRoleProps {
   role: "admin" | "coach"
@@ -10,112 +11,80 @@ interface SplashRoleProps {
   duration?: number
 }
 
-type SplashPhase = "welcome" | "loading" | "complete"
-
-const roleMessages = {
-  admin: "Bem-vindo, Administrador",
-  coach: "Bem-vindo, Treinador",
+const roleContent = {
+  admin: {
+    eyebrow: "SISTEMA ADMINISTRATIVO",
+    title: "Bem-vindo ao sistema Administrativo",
+    description: "Preparando seu painel no SIGA",
+    Icon: ShieldCheck,
+    accent: "bg-blue-500",
+    soft: "bg-blue-500/10 text-blue-300 border-blue-400/15",
+  },
+  coach: {
+    eyebrow: "SISTEMA DE TREINADORES",
+    title: "Bem-vindo ao sistema dos Treinadores",
+    description: "Preparando suas turmas e chamadas no SIGA",
+    Icon: UsersRound,
+    accent: "bg-red-500",
+    soft: "bg-red-500/10 text-red-300 border-red-400/15",
+  },
 }
 
-export function SplashRole({ role, userName, onComplete, duration = 1100 }: SplashRoleProps) {
-  const [phase, setPhase] = useState<SplashPhase>("welcome")
-  const [fadeOut, setFadeOut] = useState(false)
+export function SplashRole({ role, userName, onComplete, duration = 720 }: SplashRoleProps) {
+  const [closing, setClosing] = useState(false)
+  const [done, setDone] = useState(false)
+  const content = roleContent[role]
+  const Icon = content.Icon
 
   useEffect(() => {
-    // Short welcome while the destination route opens
-    const welcomeTimer = setTimeout(() => {
-      setPhase("loading")
-    }, 450)
-
-    // Phase 2: Loading system data (1.3s more)
-    const loadingTimer = setTimeout(() => {
-      setFadeOut(true)
-    }, duration - 400)
-
-    // Complete and hide
-    const completeTimer = setTimeout(() => {
-      setPhase("complete")
+    const fadeTimer = window.setTimeout(() => setClosing(true), Math.max(250, duration - 180))
+    const completeTimer = window.setTimeout(() => {
+      setDone(true)
       onComplete?.()
     }, duration)
 
     return () => {
-      clearTimeout(welcomeTimer)
-      clearTimeout(loadingTimer)
-      clearTimeout(completeTimer)
+      window.clearTimeout(fadeTimer)
+      window.clearTimeout(completeTimer)
     }
   }, [duration, onComplete])
 
-  if (phase === "complete") return null
+  if (done) return null
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628] overflow-hidden transition-opacity duration-400 ${fadeOut ? "opacity-0" : "opacity-100"}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#081321] px-5 transition-opacity duration-200 ${closing ? "opacity-0" : "opacity-100"}`}
+      role="status"
+      aria-live="polite"
     >
-      {/* Background effects */}
-      <div className="absolute inset-0">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-blue-600/40 to-transparent rounded-full blur-3xl animate-pulse" />
-        <div
-          className="absolute top-1/3 right-0 w-80 h-80 bg-gradient-to-bl from-red-500/35 to-transparent rounded-full blur-3xl animate-pulse"
-          style={{ animationDelay: "1s" }}
-        />
-        <div
-          className="absolute -bottom-40 left-1/4 w-96 h-96 bg-gradient-to-t from-blue-600/30 to-transparent rounded-full blur-3xl animate-pulse"
-          style={{ animationDelay: "2s" }}
-        />
-      </div>
+      <div className="absolute inset-x-0 top-0 h-px bg-white/10" />
+      <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.025] blur-3xl" />
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
-        {/* Logo */}
-        <div className="relative mb-6 sm:mb-8">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-red-500 blur-2xl opacity-50 -z-10" />
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center">
-            <Image
-              src="/logo-ceap.png"
-              alt="CEAP Logo"
-              width={144}
-              height={144}
-              className="object-contain drop-shadow-2xl"
-              priority
-            />
-          </div>
+      <div className="relative z-10 w-full max-w-sm text-center">
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/20">
+          <Image src="/logo-ceap.png" alt="Logo CEAP" width={58} height={58} className="object-contain" priority />
         </div>
 
-        {/* Title */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-2 tracking-tighter">SIGA</h1>
-        <div className="w-16 h-1 bg-gradient-to-r from-blue-500 via-white to-red-500 mx-auto mb-6 rounded-full" />
-
-        {/* Phase-based messages */}
-        <div className="min-h-[100px] flex flex-col items-center justify-center">
-          {phase === "welcome" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">{roleMessages[role]}</p>
-              {userName && <p className="text-lg sm:text-xl text-blue-300 font-semibold">{userName}</p>}
-              <p className="text-sm sm:text-base text-blue-200/70 mt-2">Sistema Integrado de Gestão de Alunos</p>
-            </div>
-          )}
-
-          {phase === "loading" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <p className="text-lg sm:text-xl text-blue-100 mb-4">Abrindo seu painel...</p>
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-            </div>
-          )}
+        <div className={`mx-auto mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${content.soft}`}>
+          <Icon className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold tracking-[0.16em]">{content.eyebrow}</span>
         </div>
 
-        {/* Progress bar */}
-        <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden mt-8">
-          <div
-            className={`h-full bg-gradient-to-r from-blue-500 via-white to-red-500 rounded-full transition-all ease-out ${
-              phase === "welcome" ? "w-1/2 duration-1000" : "w-full duration-700"
-            }`}
-          />
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{content.title}</h1>
+        {userName && <p className="mt-2 text-sm font-medium text-white/75">{userName}</p>}
+        <p className="mt-2 text-sm text-white/45">{content.description}</p>
+
+        <div className="mx-auto mt-8 h-1 w-40 overflow-hidden rounded-full bg-white/10">
+          <div className={`h-full w-2/3 animate-[siga-entry_0.7s_ease-in-out_infinite_alternate] rounded-full ${content.accent}`} />
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes siga-entry {
+          from { transform: translateX(-65%); }
+          to { transform: translateX(115%); }
+        }
+      `}</style>
     </div>
   )
 }
