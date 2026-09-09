@@ -6,3 +6,6 @@
   NEXT_TELEMETRY_DISABLED = "1"
   NEXT_PUBLIC_SUPABASE_URL = "https://giatwiftvtxqwdljfuil.supabase.co"
   NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_emSmRQj9RCon2Sm0PEV8nw_mNoSo8_q"
+
+[functions."push-notifications"]
+  schedule = "*/10 * * * *"
