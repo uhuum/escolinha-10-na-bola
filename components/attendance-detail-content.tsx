@@ -50,15 +50,15 @@ export function AttendanceDetailContent({ attendanceId }: { attendanceId: string
     return (
       <Link
         href={`/students/${student.id}`}
-        className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/60 sm:gap-4 ${present ? "border-green-200/70" : "border-red-200/70"}`}
+        className={`group flex w-full min-w-0 max-w-full items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/60 sm:gap-4 ${present ? "border-green-200/70" : "border-red-200/70"}`}
       >
         <Avatar className="h-14 w-14 shrink-0 border sm:h-16 sm:w-16">
           <AvatarImage src={student.photo || "/placeholder.svg"} alt={student.name} className="object-cover" />
           <AvatarFallback className="text-lg font-semibold">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold text-foreground sm:text-lg">{student.name}</p>
-          <p className="truncate text-sm text-muted-foreground">{student.classSchedule}</p>
+          <p className="break-words text-base font-semibold leading-tight text-foreground sm:text-lg">{student.name}</p>
+          <p className="text-sm text-muted-foreground">{student.classSchedule}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {present ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
@@ -69,8 +69,8 @@ export function AttendanceDetailContent({ attendanceId }: { attendanceId: string
   }
 
   return (
-    <div className="space-y-5">
-      <Card>
+    <div className="w-full min-w-0 max-w-full space-y-5 overflow-x-hidden">
+      <Card className="w-full min-w-0 max-w-full overflow-hidden">
         <CardHeader>
           <CardTitle>Detalhes da Chamada</CardTitle>
           <CardDescription>Informações completas do registro e dos alunos.</CardDescription>
@@ -85,12 +85,12 @@ export function AttendanceDetailContent({ attendanceId }: { attendanceId: string
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="w-full min-w-0 max-w-full overflow-hidden">
         <CardHeader className="pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2 text-lg"><CheckCircle2 className="h-5 w-5 text-green-600" />Presentes</CardTitle><Badge className="bg-green-600">{presentStudents.length}</Badge></div></CardHeader>
         <CardContent>{presentStudents.length ? <div className="grid gap-3 md:grid-cols-2">{presentStudents.map((record) => <StudentRow key={record.studentId} record={record} present />)}</div> : <p className="py-4 text-center text-sm text-muted-foreground">Nenhum aluno presente</p>}</CardContent>
       </Card>
 
-      <Card>
+      <Card className="w-full min-w-0 max-w-full overflow-hidden">
         <CardHeader className="pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2 text-lg"><XCircle className="h-5 w-5 text-red-600" />Ausentes</CardTitle><Badge variant="destructive">{absentStudents.length}</Badge></div></CardHeader>
         <CardContent>{absentStudents.length ? <div className="grid gap-3 md:grid-cols-2">{absentStudents.map((record) => <StudentRow key={record.studentId} record={record} present={false} />)}</div> : <p className="py-4 text-center text-sm text-muted-foreground">Nenhum aluno ausente</p>}</CardContent>
       </Card>
