@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -16,6 +16,7 @@ import {
 import { CheckCircle2, XCircle, Trash2, Users, X } from "lucide-react"
 import type { Attendance, Student } from "@/lib/types"
 import Image from "next/image"
+import { getTodayDateString } from "@/lib/utils/date"
 
 interface AttendanceEditDialogProps {
   attendance: Attendance
@@ -34,8 +35,47 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const studentById = useMemo(() => new Map(students.map((student) => [student.id, student])), [students])
-  const presentCount = Object.values(records).filter((status) => status === "Presente").length
-  const absentCount = Object.values(records).filter((status) => status === "Ausente").length
+  const isToday = attendance.date === getTodayDateString()
+
+  // Chamadas de hoje acompanham a turma atual em tempo real. Se o admin mover
+  // um aluno enquanto o treinador estiver com a edição aberta, ele entra/sai
+  // da lista sem precisar fechar a tela ou atualizar o navegador. Chamadas
+  // históricas preservam o elenco registrado naquele dia.
+  const visibleStudentIds = useMemo(() => {
+    if (!isToday) return attendance.records.map((record) => record.studentId)
+
+    return students
+      .filter((student) => {
+        if (!student.isActive) return false
+
+        if (student.scheduleConfigs && student.scheduleConfigs.length > 0) {
+          return student.scheduleConfigs.some(
+            (config) => config.schedule === attendance.classSchedule && config.day === attendance.dayOfWeek,
+          )
+        }
+
+        return (
+          student.classSchedule === attendance.classSchedule &&
+          !!student.classDays?.includes(attendance.dayOfWeek as any)
+        )
+      })
+      .map((student) => student.id)
+  }, [attendance.classSchedule, attendance.dayOfWeek, attendance.records, isToday, students])
+
+  useEffect(() => {
+    if (!isToday) return
+
+    setRecords((previous) => {
+      const next: Record<string, "Presente" | "Ausente"> = {}
+      for (const studentId of visibleStudentIds) {
+        next[studentId] = previous[studentId] || "Ausente"
+      }
+      return next
+    })
+  }, [isToday, visibleStudentIds])
+
+  const presentCount = visibleStudentIds.filter((studentId) => records[studentId] === "Presente").length
+  const absentCount = visibleStudentIds.filter((studentId) => records[studentId] !== "Presente").length
   const busy = saving || deleting
 
   const handleToggle = (studentId: string) => {
@@ -90,7 +130,7 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
         <div className="grid shrink-0 grid-cols-3 gap-2 border-b bg-background px-3 py-3 sm:px-5">
           <div className="rounded-xl bg-muted p-2.5 text-center">
             <div className="flex items-center justify-center gap-1 text-lg font-bold text-primary">
-              <Users className="h-4 w-4" /> {attendance.records.length}
+              <Users className="h-4 w-4" /> {visibleStudentIds.length}
             </div>
             <p className="text-[11px] text-muted-foreground">Total</p>
           </div>
@@ -106,14 +146,14 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5">
           <div className="space-y-2">
-            {attendance.records.map((record) => {
-              const student = studentById.get(record.studentId)
-              const isPresent = records[record.studentId] === "Presente"
+            {visibleStudentIds.map((studentId) => {
+              const student = studentById.get(studentId)
+              const isPresent = records[studentId] === "Presente"
               return (
                 <button
                   type="button"
-                  key={record.studentId}
-                  onClick={() => handleToggle(record.studentId)}
+                  key={studentId}
+                  onClick={() => handleToggle(studentId)}
                   disabled={busy}
                   className={`flex w-full items-center gap-3 rounded-2xl border p-2.5 text-left transition active:scale-[.995] disabled:opacity-70 ${
                     isPresent

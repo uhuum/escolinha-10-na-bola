@@ -190,15 +190,30 @@ export function useAttendance(): AttendanceStore {
           status,
         }))
 
-        // One row per student/call. Upsert changes only the selected statuses and
-        // avoids the old delete + insert cycle that could duplicate rows when a
-        // request was retried or interrupted on mobile.
-        const { error: upsertError } = await supabase
-          .from("attendance_records")
-          .upsert(records, { onConflict: "attendance_id,student_id" })
-          .throwOnError()
+        // First remove only students that are no longer part of the current
+        // roster. This is different from the old delete-all + insert flow: rows
+        // that remain in the class are never deleted, so retries stay safe.
+        const studentIds = Object.keys(updatedRecords)
+        let removeQuery = supabase.from("attendance_records").delete().eq("attendance_id", id)
 
-        if (upsertError) throw upsertError
+        if (studentIds.length > 0) {
+          const inList = `(${studentIds.map((studentId) => `"${studentId}"`).join(",")})`
+          removeQuery = removeQuery.not("student_id", "in", inList)
+        }
+
+        const { error: removeError } = await removeQuery.throwOnError()
+        if (removeError) throw removeError
+
+        // One row per student/call. Upsert changes only statuses for students
+        // still in the roster and adds anyone who entered the class in real time.
+        if (records.length > 0) {
+          const { error: upsertError } = await supabase
+            .from("attendance_records")
+            .upsert(records, { onConflict: "attendance_id,student_id" })
+            .throwOnError()
+
+          if (upsertError) throw upsertError
+        }
 
         console.log("[SIGA] Attendance updated:", id)
         setAttendances((prev) =>
