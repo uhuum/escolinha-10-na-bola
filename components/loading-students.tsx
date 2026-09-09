@@ -1,15 +1,19 @@
 "use client"
 
 import Image from "next/image"
+import { PaymentPeriodLoading } from "@/components/payment-period-loading"
 
 interface LoadingStudentsProps {
   message?: string
 }
 
 export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStudentsProps) {
+  if (message.toLowerCase().includes("pagamento")) {
+    return <PaymentPeriodLoading />
+  }
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#132644] to-[#0a1628]">
-      {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-80 h-80 bg-gradient-to-br from-blue-600/30 to-transparent rounded-full blur-3xl animate-pulse" />
         <div
@@ -22,9 +26,7 @@ export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStu
         />
       </div>
 
-      {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
-        {/* Logo */}
         <div className="relative mb-6">
           <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-red-500 blur-xl opacity-40" />
           <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
@@ -39,14 +41,12 @@ export function LoadingStudents({ message = "Carregando alunos..." }: LoadingStu
           </div>
         </div>
 
-        {/* Loading animation */}
         <div className="flex items-center justify-center gap-2 mb-4">
           <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
           <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
           <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
         </div>
 
-        {/* Message */}
         <p className="text-base sm:text-lg text-white font-medium">{message}</p>
         <p className="text-sm text-blue-200/70 mt-1">Sincronizando apenas o necessário...</p>
       </div>
