@@ -3,14 +3,16 @@
 import { Loader2 } from "lucide-react"
 
 interface PaymentPeriodLoadingProps {
-  month: string
-  year: number
+  month?: string
+  year?: number
 }
 
 export function PaymentPeriodLoading({ month, year }: PaymentPeriodLoadingProps) {
+  const hasPeriod = Boolean(month && year)
+
   return (
     <div
-      className="absolute inset-0 z-40 flex items-start justify-center bg-background/80 px-4 pt-24 backdrop-blur-[1.5px] sm:pt-28"
+      className="fixed inset-0 z-[9999] flex items-start justify-center bg-background/72 px-4 pt-24 backdrop-blur-[1.5px] sm:pt-28"
       aria-live="polite"
       aria-busy="true"
     >
@@ -21,7 +23,7 @@ export function PaymentPeriodLoading({ month, year }: PaymentPeriodLoadingProps)
         <div className="min-w-0">
           <p className="text-sm font-semibold leading-none text-foreground">Atualizando período</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {month} de {year}
+            {hasPeriod ? `${month} de ${year}` : "Carregando os pagamentos do período selecionado..."}
           </p>
         </div>
       </div>
