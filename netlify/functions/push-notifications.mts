@@ -106,7 +106,7 @@ async function sendEmptyWebPush(endpoint: string) {
   })
 }
 
-async function main() {
+export async function runPushScheduler() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceKey) throw new Error("Supabase não configurado")
@@ -118,9 +118,6 @@ async function main() {
   const now = spNow()
   const messages: PushMessage[] = []
 
-  // Mensalidades adiadas: no dia combinado, avisa o administrativo com
-  // nome completo do aluno e do responsável. O eventKey por pagamento/data
-  // garante apenas um push por aparelho, mesmo com o scheduler rodando a cada 10 min.
   const { data: postponedPayments, error: postponedError } = await supabase
     .from("payments")
     .select("id,student_id,month,postponed_to")
@@ -284,7 +281,7 @@ async function main() {
 
 export default async () => {
   try {
-    const result = await main()
+    const result = await runPushScheduler()
     console.log("[SIGA] Push scheduler:", result)
     return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } })
   } catch (error) {
