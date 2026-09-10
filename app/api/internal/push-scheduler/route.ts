@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto"
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { runPushScheduler } from "@/netlify/functions/push-notifications"
+import { runPushScheduler } from "../../../../netlify/functions/push-notifications.mts"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -25,22 +25,14 @@ function safeEqualHex(a: string, b: string) {
 export async function POST(request: Request) {
   try {
     const token = request.headers.get("x-siga-cron-token")?.trim()
-    if (!token || token.length > 256) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
+    if (!token || token.length > 256) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
     const service = adminClient()
-    const { data, error } = await service
-      .from("system_cron_secrets")
-      .select("secret_hash")
-      .eq("name", "push_scheduler")
-      .maybeSingle()
-
+    const { data, error } = await service.from("system_cron_secrets").select("secret_hash").eq("name", "push_scheduler").maybeSingle()
     if (error) throw error
+
     const expected = data?.secret_hash
-    if (!expected || !safeEqualHex(sha256(token), expected)) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
+    if (!expected || !safeEqualHex(sha256(token), expected)) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
     const result = await runPushScheduler()
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } })
