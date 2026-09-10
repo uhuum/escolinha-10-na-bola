@@ -5,6 +5,7 @@ const PUBLIC_PAGE_PATHS = new Set(["/login"])
 const ADMIN_ROUTE_PREFIXES = [
   "/students",
   "/payments",
+  "/competitions",
   "/presencas",
   "/birthdays",
   "/carometro",
@@ -43,20 +44,11 @@ export function homeForRole(role: AppRole) {
   return role === "coach" ? "/trainer/dashboard" : "/"
 }
 
-/**
- * Central route policy. Only pages that belong to the authenticated profile
- * are allowed. Unknown/legacy paths are redirected to the profile home.
- */
 export function canRoleAccessPath(role: AppRole, pathname: string) {
   const path = normalizePathname(pathname)
-
   if (isPublicPage(path)) return false
   if (isApiPath(path)) return true
-
-  if (role === "coach") {
-    return COACH_ROUTE_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
-  }
-
+  if (role === "coach") return COACH_ROUTE_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
   if (path === "/") return true
   return ADMIN_ROUTE_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
 }
