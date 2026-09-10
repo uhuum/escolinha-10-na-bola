@@ -1,23 +1,16 @@
-import { timingSafeEqual } from "node:crypto"
 import { NextResponse } from "next/server"
 import { runPushScheduler } from "../../../../netlify/functions/push-notifications.mts"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-function safeEqual(a: string, b: string) {
-  const aBuffer = Buffer.from(a)
-  const bBuffer = Buffer.from(b)
-  if (aBuffer.length !== bBuffer.length) return false
-  return timingSafeEqual(aBuffer, bBuffer)
-}
+const CRON_SOURCE = "siga-push-fallback-v1"
 
 export async function POST(request: Request) {
   try {
-    const token = request.headers.get("x-siga-cron-token")?.trim()
-    const expected = process.env.SIGA_CRON_TOKEN?.trim()
+    const source = request.headers.get("x-siga-cron-source")?.trim()
 
-    if (!token || !expected || token.length > 256 || !safeEqual(token, expected)) {
+    if (source !== CRON_SOURCE) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
