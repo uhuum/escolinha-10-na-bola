@@ -1,493 +1,127 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { ChevronLeft, ChevronRight, CalendarDays, Loader2, ArrowLeft, Edit2 } from "lucide-react"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useCoaches } from "@/lib/hooks/use-coaches"
 import { useAttendance } from "@/lib/hooks/use-attendance"
 import { useStudents } from "@/lib/hooks/use-students"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, Calendar, Edit2, AlertTriangle, Filter, BarChart3, Lock } from "lucide-react"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { getBrowserClient } from "@/lib/supabase/client"
+import { getTrainingDayStatus, getTrainingSlotStatus } from "@/lib/utils/training-day-status"
 import { AttendanceEditDialog } from "@/components/attendance-edit-dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { Attendance } from "@/lib/types"
+import { canEditAttendance } from "@/lib/utils/attendance-permissions"
 import { useToast } from "@/hooks/use-toast"
-import { LoadingStudents } from "@/components/loading-students"
-import { canEditAttendance, getEditDisabledReason } from "@/lib/utils/attendance-permissions"
+import type { Attendance } from "@/lib/types"
+
+const SCHEDULES = ["18:00-19:30", "19:30-21:00"] as const
+const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+const labels = { realizado: "Realizado", cancelado: "Cancelado", pendente: "Pendente", misto: "Misto", neutro: "Neutro" }
+const colors = { realizado: "bg-emerald-100 text-emerald-800 border-emerald-300", cancelado: "bg-rose-100 text-rose-800 border-rose-300", pendente: "bg-amber-100 text-amber-800 border-amber-300", misto: "bg-violet-100 text-violet-800 border-violet-300", neutro: "bg-muted text-muted-foreground border-border" }
+const keyOf = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+type Cancellation = { id: string; date: string; class_schedule: string; reason: string }
 
 export default function TrainerRelatorioPage() {
   const { user } = useAuth()
-  const { getCoachClasses } = useCoaches()
-  const { attendances, updateAttendance, deleteAttendance, isLoading: attendanceLoading } = useAttendance()
+  const { attendances, updateAttendance, deleteAttendance, isLoading } = useAttendance()
   const { students, isLoading: studentsLoading } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { toast } = useToast()
-  const [editingSession, setEditingSession] = useState<Attendance | null>(null)
-  const [filterViolationsOnly, setFilterViolationsOnly] = useState(false)
-  const [filterStudent, setFilterStudent] = useState("")
-  const [filterMonth, setFilterMonth] = useState("")
+  const supabase = useMemo(() => getBrowserClient(), [])
+  const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [selected, setSelected] = useState(() => keyOf(new Date()))
+  const [opened, setOpened] = useState<Attendance | null>(null)
+  const [editing, setEditing] = useState<Attendance | null>(null)
+  const [cancellations, setCancellations] = useState<Cancellation[]>([])
+  const [loadingCancellations, setLoadingCancellations] = useState(true)
+  const [error, setError] = useState("")
+  const start = keyOf(month)
+  const end = keyOf(new Date(month.getFullYear(), month.getMonth() + 1, 0))
 
-  const coachClasses = user?.id ? getCoachClasses(user.id) : []
-  const availableSchedules = coachClasses.map((c) => c.schedule)
-
-  if (studentsLoading || attendanceLoading) {
-    return <LoadingStudents message="Carregando relatório..." />
-  }
-
-  const coachAttendances = attendances
-
-  const getStudentsWithConsecutiveAbsences = (count = 3) => {
-    const studentAbsenceChains: Record<string, { maxConsecutive: number; currentChain: number }> = {}
-
-    const sortedAttendances = [...coachAttendances].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    )
-
-    for (const attendance of sortedAttendances) {
-      for (const record of attendance.records) {
-        if (!studentAbsenceChains[record.studentId]) {
-          studentAbsenceChains[record.studentId] = { maxConsecutive: 0, currentChain: 0 }
-        }
-
-        if (record.status === "Ausente") {
-          studentAbsenceChains[record.studentId].currentChain++
-          studentAbsenceChains[record.studentId].maxConsecutive = Math.max(
-            studentAbsenceChains[record.studentId].maxConsecutive,
-            studentAbsenceChains[record.studentId].currentChain,
-          )
-        } else {
-          studentAbsenceChains[record.studentId].currentChain = 0
-        }
-      }
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      setLoadingCancellations(true)
+      setError("")
+      const { data, error: queryError } = await supabase.from("training_cancellations").select("id,date,class_schedule,reason").gte("date", start).lte("date", end)
+      if (!active) return
+      setCancellations(data || [])
+      if (queryError) setError("Não foi possível carregar os cancelamentos. Tente novamente.")
+      setLoadingCancellations(false)
     }
+    void load()
+    return () => { active = false }
+  }, [supabase, start, end])
 
-    return Object.entries(studentAbsenceChains)
-      .filter(([_, data]) => data.maxConsecutive >= count)
-      .map(([studentId]) => studentId)
+  const cells = useMemo(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1)
+    const count = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+    return [...Array(first.getDay()).fill(null), ...Array.from({ length: count }, (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1))] as (Date | null)[]
+  }, [month])
+  const day = new Date(`${selected}T12:00:00`)
+  const weekend = day.getDay() === 0 || day.getDay() === 6
+  const dayAttendances = attendances.filter((item) => item.date === selected)
+  const dayCancellations = cancellations.filter((item) => item.date === selected)
+  const loading = isLoading || loadingCancellations || studentsLoading
+  const stats = attendances.reduce((acc, item) => {
+    acc.total += item.records.length
+    acc.present += item.records.filter((record) => record.status === "Presente").length
+    acc.absent += item.records.filter((record) => record.status === "Ausente").length
+    return acc
+  }, { total: 0, present: 0, absent: 0 })
+  const changeMonth = (offset: number) => {
+    const next = new Date(month.getFullYear(), month.getMonth() + offset, 1)
+    setLoadingCancellations(true)
+    setMonth(next)
+    setSelected(keyOf(next))
+    setOpened(null)
   }
-
-  const studentsWithConsecutiveAbsences = getStudentsWithConsecutiveAbsences(3)
-
-  let attendancesByDate = coachAttendances.reduce(
-    (acc, attendance) => {
-      if (!acc[attendance.date]) {
-        acc[attendance.date] = []
-      }
-      acc[attendance.date].push(attendance)
-      return acc
-    },
-    {} as Record<string, typeof coachAttendances>,
-  )
-
-  if (filterStudent || filterMonth) {
-    const filteredAttendances = coachAttendances.filter((att) => {
-      const matchesStudent = filterStudent
-        ? att.records.some((r) => {
-            const student = students.find((s) => s.id === r.studentId)
-            return student?.name.toLowerCase().includes(filterStudent.toLowerCase())
-          })
-        : true
-
-      const matchesMonth =
-        filterMonth && filterMonth !== "all"
-          ? format(new Date(att.date + "T00:00:00"), "MMMM", { locale: ptBR })
-              .toLowerCase()
-              .includes(filterMonth.toLowerCase())
-          : true
-
-      return matchesStudent && matchesMonth
-    })
-
-    attendancesByDate = filteredAttendances.reduce(
-      (acc, attendance) => {
-        if (!acc[attendance.date]) {
-          acc[attendance.date] = []
-        }
-        acc[attendance.date].push(attendance)
-        return acc
-      },
-      {} as Record<string, typeof coachAttendances>,
-    )
-  }
-
-  const sortedDates = Object.keys(attendancesByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-
-  const handleSaveEdit = async (updatedRecords: Record<string, "Presente" | "Ausente">) => {
-    if (!editingSession) return
+  const saveEdit = async (records: Record<string, "Presente" | "Ausente">) => {
+    if (!editing) return
     try {
-      await updateAttendance(editingSession.id, updatedRecords)
-      toast({
-        title: "Chamada atualizada",
-        description: "Registro de presença foi atualizado com sucesso",
-      })
-      setEditingSession(null)
-    } catch {
-      toast({
-        title: "Não foi possível salvar",
-        description: "A chamada anterior foi mantida. Tente novamente.",
-        variant: "destructive",
-      })
-    }
+      await updateAttendance(editing.id, records)
+      setEditing(null)
+      setOpened(null)
+      toast({ title: "Chamada atualizada" })
+    } catch { toast({ title: "Não foi possível salvar", variant: "destructive" }) }
   }
-
-  const handleDeleteAttendance = async () => {
-    if (!editingSession) return
+  const removeAttendance = async () => {
+    if (!editing) return
     try {
-      await deleteAttendance(editingSession.id)
-      toast({
-        title: "Registro apagado",
-        description: "A chamada foi removida com sucesso",
-      })
-      setEditingSession(null)
-    } catch {
-      toast({
-        title: "Não foi possível apagar",
-        description: "O registro continua salvo.",
-        variant: "destructive",
-      })
-    }
+      await deleteAttendance(editing.id)
+      setEditing(null)
+      setOpened(null)
+      toast({ title: "Registro apagado" })
+    } catch { toast({ title: "Não foi possível apagar", variant: "destructive" }) }
   }
 
-  const handleEditClick = (attendance: Attendance) => {
-    const userForCheck = user ? { id: user.id, role: user.role as "admin" | "coach" } : null
-    if (canEditAttendance(attendance, userForCheck)) {
-      setEditingSession(attendance)
-    } else {
-      const reason = getEditDisabledReason(attendance, userForCheck)
-      toast({
-        title: "Edição não permitida",
-        description: reason || "Você não tem permissão para editar esta chamada",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const displayedDates = filterViolationsOnly
-    ? sortedDates.filter((date) => {
-        const dateAttendances = attendancesByDate[date]
-        return dateAttendances.some((attendance) =>
-          attendance.records.some(
-            (record) => record.status === "Ausente" && studentsWithConsecutiveAbsences.includes(record.studentId),
-          ),
-        )
-      })
-    : sortedDates
-
-  const stats = {
-    total: Object.values(attendancesByDate)
-      .flat()
-      .reduce((sum, att) => sum + att.records.length, 0),
-    present: Object.values(attendancesByDate)
-      .flat()
-      .reduce((sum, att) => sum + att.records.filter((r) => r.status === "Presente").length, 0),
-    absent: Object.values(attendancesByDate)
-      .flat()
-      .reduce((sum, att) => sum + att.records.filter((r) => r.status === "Ausente").length, 0),
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="mb-6 lg:mb-8">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2 text-balance">
-          Relatório de Presenças
-        </h1>
-        <p className="text-sm sm:text-base lg:text-lg text-muted-foreground">
-          Visualize e edite o histórico de chamadas das suas turmas ({coachAttendances.length} registros)
-        </p>
+  return <div className="min-w-0 space-y-6">
+    <div><h1 className="text-2xl font-bold sm:text-3xl">Relatório de Presenças</h1><p className="mt-2 text-sm text-muted-foreground">Selecione uma data e um horário para consultar a chamada, sem listas extensas.</p></div>
+    <section className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm sm:p-6" aria-label="Calendário do treinador" aria-busy={loading}>
+      <h2 className="flex items-center gap-2 text-lg font-bold sm:text-xl"><CalendarDays className="h-5 w-5 shrink-0" />Calendário de treinos</h2>
+      <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-2 rounded-xl border p-2">
+        <button type="button" onClick={() => changeMonth(-1)} aria-label="Mês anterior" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-muted"><ChevronLeft className="h-5 w-5" /></button>
+        <span className="min-w-0 text-center text-sm font-semibold capitalize sm:text-base">{month.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>
+        <button type="button" onClick={() => changeMonth(1)} aria-label="Próximo mês" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-muted"><ChevronRight className="h-5 w-5" /></button>
       </div>
-
-      <Tabs defaultValue="historico" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="historico" className="flex items-center gap-2 text-xs sm:text-sm">
-            <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">Histórico</span>
-          </TabsTrigger>
-          <TabsTrigger value="estatisticas" className="flex items-center gap-2 text-xs sm:text-sm">
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Estatísticas</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="historico" className="space-y-6">
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Filter className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <label className="text-xs sm:text-sm font-medium mb-2 block">Nome do Aluno</label>
-                  <Input
-                    placeholder="Filtrar por nome..."
-                    value={filterStudent}
-                    onChange={(e) => setFilterStudent(e.target.value)}
-                    className="h-10 sm:h-11 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs sm:text-sm font-medium mb-2 block">Mês</label>
-                  <Select value={filterMonth} onValueChange={setFilterMonth}>
-                    <SelectTrigger className="h-10 sm:h-11 text-sm">
-                      <SelectValue placeholder="Todos os meses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os meses</SelectItem>
-                      <SelectItem value="janeiro">Janeiro</SelectItem>
-                      <SelectItem value="fevereiro">Fevereiro</SelectItem>
-                      <SelectItem value="março">Março</SelectItem>
-                      <SelectItem value="abril">Abril</SelectItem>
-                      <SelectItem value="maio">Maio</SelectItem>
-                      <SelectItem value="junho">Junho</SelectItem>
-                      <SelectItem value="julho">Julho</SelectItem>
-                      <SelectItem value="agosto">Agosto</SelectItem>
-                      <SelectItem value="setembro">Setembro</SelectItem>
-                      <SelectItem value="outubro">Outubro</SelectItem>
-                      <SelectItem value="novembro">Novembro</SelectItem>
-                      <SelectItem value="dezembro">Dezembro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="sm:col-span-2 lg:col-span-2">
-                  <label className="text-xs sm:text-sm font-medium mb-2 block">Filtro Especial</label>
-                  <Button
-                    variant={filterViolationsOnly ? "default" : "outline"}
-                    className="w-full h-10 sm:h-11 text-sm gap-2"
-                    onClick={() => setFilterViolationsOnly(!filterViolationsOnly)}
-                  >
-                    <AlertTriangle className="h-4 w-4" />
-                    {filterViolationsOnly ? "Mostrando Violações" : "Ver Violações (3+ Faltas)"}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {studentsWithConsecutiveAbsences.length > 0 && filterViolationsOnly && (
-            <Card className="border-2 border-destructive/50 bg-destructive/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="h-5 w-5" />
-                  Alunos com 3+ Faltas Seguidas
-                </CardTitle>
-                <CardDescription className="text-base">
-                  {studentsWithConsecutiveAbsences.length} aluno(s) com preocupante histórico de faltas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {studentsWithConsecutiveAbsences.map((studentId) => {
-                    const student = students.find((s) => s.id === studentId)
-                    return (
-                      <div
-                        key={studentId}
-                        className="flex items-center justify-between p-3 rounded-lg border-2 border-destructive/20 bg-destructive/10"
-                      >
-                        <div>
-                          <p className="font-semibold text-foreground">{student?.name}</p>
-                          <p className="text-xs text-muted-foreground">{student?.classSchedule}</p>
-                        </div>
-                        <Badge className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Atenção
-                        </Badge>
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {displayedDates.length === 0 && (
-            <Card className="border-2">
-              <CardContent className="py-12 text-center">
-                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground">
-                  {filterViolationsOnly ? "Nenhuma violação encontrada" : "Nenhuma chamada registrada ainda"}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {displayedDates.map((date) => {
-            const dateAttendances = attendancesByDate[date]
-            const formattedDate = format(new Date(date + "T00:00:00"), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-
-            return (
-              <Card key={date} className="border-2">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg sm:text-xl">{formattedDate}</CardTitle>
-                  </div>
-                  <CardDescription>{dateAttendances.length} chamada(s) registrada(s)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {dateAttendances.map((attendance) => {
-                      const presentCount = attendance.records.filter((r) => r.status === "Presente").length
-                      const absentCount = attendance.records.filter((r) => r.status === "Ausente").length
-                      const totalStudents = attendance.records.length
-
-                      const userForCheck = user ? { id: user.id, role: user.role as "admin" | "coach" } : null
-                      const canEdit = canEditAttendance(attendance, userForCheck)
-                      const editDisabledReason = getEditDisabledReason(attendance, userForCheck)
-
-                      return (
-                        <Card key={attendance.id} className="border-2 hover:shadow-md transition-shadow">
-                          <CardContent className="pt-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <p className="font-semibold text-lg">{attendance.classSchedule}</p>
-                                  <p className="text-sm text-muted-foreground">{attendance.dayOfWeek}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Treinador: {attendance.trainerName}
-                                  </p>
-                                </div>
-                                <Badge variant="outline">
-                                  <Users className="h-3 w-3 mr-1" />
-                                  {totalStudents}
-                                </Badge>
-                              </div>
-
-                              <div className="flex gap-4">
-                                <div className="flex-1">
-                                  <p className="text-2xl font-bold text-accent">{presentCount}</p>
-                                  <p className="text-xs text-muted-foreground">Presentes</p>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-2xl font-bold text-destructive">{absentCount}</p>
-                                  <p className="text-xs text-muted-foreground">Ausentes</p>
-                                </div>
-                              </div>
-
-                              <div className="pt-4 border-t space-y-2 max-h-[200px] overflow-y-auto">
-                                {attendance.records.map((record) => {
-                                  const student = students.find((s) => s.id === record.studentId)
-                                  const isViolating = studentsWithConsecutiveAbsences.includes(record.studentId)
-                                  return (
-                                    <div
-                                      key={record.studentId}
-                                      className={`flex items-center justify-between text-sm p-2 rounded transition-colors ${
-                                        isViolating && record.status === "Ausente"
-                                          ? "bg-destructive/10 border border-destructive/20"
-                                          : "hover:bg-muted/50"
-                                      }`}
-                                    >
-                                      <span className="text-foreground">{student?.name || "Aluno não encontrado"}</span>
-                                      <Badge
-                                        className={
-                                          record.status === "Presente"
-                                            ? "bg-accent hover:bg-accent/90"
-                                            : "bg-destructive hover:bg-destructive/90"
-                                        }
-                                      >
-                                        {record.status}
-                                      </Badge>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="w-full">
-                                      <Button
-                                        onClick={() => handleEditClick(attendance)}
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full mt-4"
-                                        disabled={!canEdit}
-                                      >
-                                        {canEdit ? (
-                                          <>
-                                            <Edit2 className="h-4 w-4 mr-2" />
-                                            Editar Registro
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Lock className="h-4 w-4 mr-2" />
-                                            Edição Bloqueada
-                                          </>
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </TooltipTrigger>
-                                  {!canEdit && editDisabledReason && (
-                                    <TooltipContent>
-                                      <p>{editDisabledReason}</p>
-                                    </TooltipContent>
-                                  )}
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </TabsContent>
-
-        <TabsContent value="estatisticas" className="space-y-6">
-          <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-3">
-            <Card className="border-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Total de Registros</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-foreground">{stats.total}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-2 border-green-500/30 bg-green-500/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-green-600">Presenças</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-green-600">{stats.present}</p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.total > 0 ? `${((stats.present / stats.total) * 100).toFixed(1)}%` : "0%"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-2 border-red-500/30 bg-red-500/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-red-600">Ausências</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-red-600">{stats.absent}</p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.total > 0 ? `${((stats.absent / stats.total) * 100).toFixed(1)}%` : "0%"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {editingSession && (
-        <AttendanceEditDialog
-          isOpen={!!editingSession}
-          onClose={() => setEditingSession(null)}
-          attendance={editingSession}
-          students={students}
-          onSave={handleSaveEdit}
-          onDelete={handleDeleteAttendance}
-        />
-      )}
-    </div>
-  )
+      {loading ? <div className="flex min-h-72 flex-col items-center justify-center gap-4 text-center" role="status" aria-live="polite"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="font-semibold">Carregando registros de treinos...</p></div> : <>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <div className="grid min-w-0 grid-cols-7 gap-1 text-center text-xs sm:gap-2">{DAYS.map((name) => <span key={name} className="py-2 font-semibold text-muted-foreground">{name}</span>)}{cells.map((date, index) => {
+          if (!date) return <span key={`empty-${index}`} />
+          const key = keyOf(date)
+          const attended = attendances.filter((item) => item.date === key).map((item) => item.classSchedule)
+          const cancelled = cancellations.filter((item) => item.date === key).map((item) => item.class_schedule)
+          const status = getTrainingDayStatus(date.getDay(), SCHEDULES, attended, cancelled)
+          return <button key={key} type="button" onClick={() => { setSelected(key); setOpened(null) }} aria-label={`${date.toLocaleDateString("pt-BR")}: ${labels[status]}`} aria-pressed={selected === key} className={`flex aspect-square min-w-0 flex-col items-center justify-center rounded-lg border p-0.5 ${colors[status]} ${selected === key ? "ring-2 ring-primary ring-offset-1" : ""}`}><span className="text-sm font-bold sm:text-base">{date.getDate()}</span><span className="hidden text-[10px] sm:block">{labels[status]}</span><span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-current sm:hidden" aria-hidden="true" /></button>
+        })}</div>
+        <div className="flex flex-wrap gap-2 text-xs">{(Object.keys(labels) as (keyof typeof labels)[]).map((status) => <span key={status} className={`rounded-full border px-2 py-1 ${colors[status]}`}>{labels[status]}</span>)}</div>
+        <div className="space-y-3 border-t pt-4"><h3 className="font-bold capitalize">{day.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</h3>
+          {opened ? <div className="space-y-4 rounded-xl border p-3"><button type="button" onClick={() => setOpened(null)} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"><ArrowLeft className="h-4 w-4" />Voltar ao calendário</button><h4 className="font-bold">{opened.classSchedule} · {opened.trainerName}</h4><p className="text-sm text-muted-foreground">{opened.records.filter((r) => r.status === "Presente").length} presentes · {opened.records.filter((r) => r.status === "Ausente").length} ausentes</p><div className="space-y-2">{opened.records.map((record) => <div key={record.studentId} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-sm"><span className="min-w-0 break-words">{students.find((s) => s.id === record.studentId)?.name || "Aluno não encontrado"}</span><span className={`shrink-0 rounded-full px-2 py-1 text-xs ${record.status === "Presente" ? colors.realizado : colors.cancelado}`}>{record.status}</span></div>)}</div>{canEditAttendance(opened, user ? { id: user.id, role: user.role as "admin" | "coach" } : null) && <button type="button" onClick={() => setEditing(opened)} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold"><Edit2 className="h-4 w-4" />Editar registro</button>}</div> : weekend ? <p className="text-sm text-muted-foreground">Fim de semana: calendário neutro.</p> : SCHEDULES.map((schedule) => {
+            const attendance = dayAttendances.find((item) => item.classSchedule === schedule)
+            const cancellation = dayCancellations.find((item) => item.class_schedule === schedule)
+            const status = getTrainingSlotStatus(schedule, attendance ? [schedule] : [], cancellation ? [schedule] : [])
+            return <div key={schedule} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div className="min-w-0"><p className="font-semibold">{schedule.replace("-", " às ")}</p><span className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-xs ${colors[status]}`}>{labels[status]}</span>{cancellation && !attendance && <p className="mt-2 break-words text-sm text-muted-foreground">Motivo: {cancellation.reason}</p>}{attendance && <p className="mt-1 text-xs text-muted-foreground">{attendance.records.length} alunos · Treinador: {attendance.trainerName}</p>}</div>{attendance && <button type="button" onClick={() => setOpened(attendance)} className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted">Abrir chamada</button>}</div>
+          })}</div>
+      </>}
+    </section>
+    {!loading && <section className="grid gap-3 sm:grid-cols-3" aria-label="Estatísticas de presença"><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Total de registros</p><p className="text-2xl font-bold">{stats.total}</p></div><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Presenças</p><p className="text-2xl font-bold text-emerald-600">{stats.present}</p></div><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Ausências</p><p className="text-2xl font-bold text-rose-600">{stats.absent}</p></div></section>}
+    {editing && <AttendanceEditDialog isOpen={!!editing} onClose={() => setEditing(null)} attendance={editing} students={students} onSave={saveEdit} onDelete={removeAttendance} />}
+  </div>
 }
