@@ -112,6 +112,10 @@ export default function PaymentsPage() {
       through: paymentThrough,
     },
   })
+  const [hasLoadedInitially, setHasLoadedInitially] = useState(false)
+useEffect(() => {
+  if (!isLoading) setHasLoadedInitially(true)
+}, [isLoading])
   const { toast } = useToast()
   const [showPendingModal, setShowPendingModal] = useState(false)
   const [searchFilter, setSearchFilter] = useState("")
@@ -693,7 +697,7 @@ export default function PaymentsPage() {
 
   const monthlyReport = getMonthlyReport(selectedMonth, selectedYear)
 
-  if (isLoading) {
+  if (isLoading && !hasLoadedInitially) {
     return <LoadingStudents message="Carregando pagamentos..." />
   }
 
@@ -708,6 +712,18 @@ export default function PaymentsPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {isLoading && hasLoadedInitially && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" role="status" aria-live="polite" aria-busy="true">
+          <div className="absolute inset-0 bg-slate-950/25 backdrop-blur-md" />
+          <div className="relative flex w-full max-w-md items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-2xl">
+            <span className="h-6 w-6 shrink-0 animate-spin rounded-full border-[3px] border-primary/20 border-t-primary" aria-hidden="true" />
+            <div>
+              <p className="font-semibold text-foreground">Atualizando período</p>
+              <p className="text-sm text-muted-foreground">Carregando os pagamentos do período selecionado...</p>
+            </div>
+          </div>
+        </div>
+      )}
       <AppHeader />
 
       <main className="container mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-12 flex-1">
