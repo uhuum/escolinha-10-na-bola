@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, CalendarDays, Loader2, ArrowLeft, Edit2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, CalendarDays, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useAttendance } from "@/lib/hooks/use-attendance"
 import { useStudents } from "@/lib/hooks/use-students"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { getTrainingDayStatus, getTrainingSlotStatus } from "@/lib/utils/training-day-status"
 import { AttendanceEditDialog } from "@/components/attendance-edit-dialog"
+import { AttendanceStudentsPreview } from "@/components/attendance-students-preview"
 import { canEditAttendance } from "@/lib/utils/attendance-permissions"
 import { useToast } from "@/hooks/use-toast"
 import type { Attendance } from "@/lib/types"
@@ -113,7 +114,7 @@ export default function TrainerRelatorioPage() {
         })}</div>
         <div className="flex flex-wrap gap-2 text-xs">{(Object.keys(labels) as (keyof typeof labels)[]).map((status) => <span key={status} className={`rounded-full border px-2 py-1 ${colors[status]}`}>{labels[status]}</span>)}</div>
         <div className="space-y-3 border-t pt-4"><h3 className="font-bold capitalize">{day.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</h3>
-          {opened ? <div className="space-y-4 rounded-xl border p-3"><button type="button" onClick={() => setOpened(null)} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"><ArrowLeft className="h-4 w-4" />Voltar ao calendário</button><h4 className="font-bold">{opened.classSchedule} · {opened.trainerName}</h4><p className="text-sm text-muted-foreground">{opened.records.filter((r) => r.status === "Presente").length} presentes · {opened.records.filter((r) => r.status === "Ausente").length} ausentes</p><div className="space-y-2">{opened.records.map((record) => <div key={record.studentId} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-sm"><span className="min-w-0 break-words">{students.find((s) => s.id === record.studentId)?.name || "Aluno não encontrado"}</span><span className={`shrink-0 rounded-full px-2 py-1 text-xs ${record.status === "Presente" ? colors.realizado : colors.cancelado}`}>{record.status}</span></div>)}</div>{canEditAttendance(opened, user ? { id: user.id, role: user.role as "admin" | "coach" } : null) && <button type="button" onClick={() => setEditing(opened)} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold"><Edit2 className="h-4 w-4" />Editar registro</button>}</div> : weekend ? <p className="text-sm text-muted-foreground">Fim de semana: calendário neutro.</p> : SCHEDULES.map((schedule) => {
+          {weekend ? <p className="text-sm text-muted-foreground">Fim de semana: calendário neutro.</p> : SCHEDULES.map((schedule) => {
             const attendance = dayAttendances.find((item) => item.classSchedule === schedule)
             const cancellation = dayCancellations.find((item) => item.class_schedule === schedule)
             const status = getTrainingSlotStatus(schedule, attendance ? [schedule] : [], cancellation ? [schedule] : [])
@@ -122,6 +123,7 @@ export default function TrainerRelatorioPage() {
       </>}
     </section>
     {!loading && <section className="grid gap-3 sm:grid-cols-3" aria-label="Estatísticas de presença"><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Total de registros</p><p className="text-2xl font-bold">{stats.total}</p></div><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Presenças</p><p className="text-2xl font-bold text-emerald-600">{stats.present}</p></div><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Ausências</p><p className="text-2xl font-bold text-rose-600">{stats.absent}</p></div></section>}
+    {opened && !editing && <AttendanceStudentsPreview attendance={opened} students={students} onClose={() => setOpened(null)} onEdit={canEditAttendance(opened, user ? { id: user.id, role: user.role as "admin" | "coach" } : null) ? () => setEditing(opened) : undefined} />}
     {editing && <AttendanceEditDialog isOpen={!!editing} onClose={() => setEditing(null)} attendance={editing} students={students} onSave={saveEdit} onDelete={removeAttendance} />}
   </div>
 }
