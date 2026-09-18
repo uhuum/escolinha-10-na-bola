@@ -1,14 +1,43 @@
 "use client"
 
 import Image from "next/image"
+import { useEffect, useState } from "react"
 
 interface LoadingStudentsProps {
   message?: string
   description?: string
 }
 
+// O estado persiste enquanto o módulo estiver carregado: voltar à aba continua
+// exibindo a tela de entrada pela rota loading.tsx; mudanças de período usam
+// o aviso compacto, sem repetir a tela azul.
+let paymentsInitialLoadCompleted = false
+
 export function LoadingStudents({ message = "Carregando alunos...", description }: LoadingStudentsProps) {
-  const subtitle = description ?? (message.toLowerCase().includes("pagamento")
+  const isPayments = message.toLowerCase().includes("pagamento")
+  const [isPeriodChange] = useState(() => isPayments && paymentsInitialLoadCompleted)
+
+  useEffect(() => {
+    if (isPayments && !isPeriodChange) paymentsInitialLoadCompleted = true
+  }, [isPayments, isPeriodChange])
+
+  if (isPeriodChange) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/65 p-4 backdrop-blur-md" role="status" aria-live="polite" aria-busy="true">
+        <div className="flex w-full max-w-md items-center gap-4 rounded-2xl border bg-card p-5 shadow-xl">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden="true">
+            <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-primary border-r-transparent" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-foreground">Atualizando período</p>
+            <p className="mt-1 text-sm text-muted-foreground">Carregando os pagamentos do período selecionado...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const subtitle = description ?? (isPayments
     ? "Sincronizando mensalidades e registros financeiros..."
     : "Sincronizando apenas o necessário...")
 
