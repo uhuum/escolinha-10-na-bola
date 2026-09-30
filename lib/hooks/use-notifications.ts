@@ -315,7 +315,7 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
     } finally {
       setIsLoading(false)
     }
-  }, [now, role, supabase, userId])
+  }, [now.dateString, now.month, now.year, now.weekday, role, supabase, userId])
 
   useEffect(() => {
     void loadDynamicNotifications()
@@ -325,7 +325,7 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
   // periodicamente sem recarregar o restante do sistema.
   useEffect(() => {
     if (role !== "coach") return
-    const interval = window.setInterval(() => void loadDynamicNotifications(), 60_000)
+    const interval = window.setInterval(() => void loadDynamicNotifications(), 5 * 60_000)
     return () => window.clearInterval(interval)
   }, [loadDynamicNotifications, role])
 
