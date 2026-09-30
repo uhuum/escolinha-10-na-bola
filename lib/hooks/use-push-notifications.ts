@@ -21,6 +21,9 @@ function isStandalone() {
 }
 
 async function syncSubscription(subscription: PushSubscription) {
+  const syncKey = `siga:push-synced:${subscription.endpoint}`
+  const lastSync = Number(window.localStorage.getItem(syncKey) || 0)
+  if (Date.now() - lastSync < 6 * 60 * 60 * 1000) return
   const json = subscription.toJSON()
   const response = await fetch("/api/push/subscribe", {
     method: "POST",
@@ -33,6 +36,7 @@ async function syncSubscription(subscription: PushSubscription) {
     }),
   })
   if (!response.ok) throw new Error("Falha ao registrar este aparelho")
+  window.localStorage.setItem(syncKey, String(Date.now()))
 }
 
 export function usePushNotifications() {
