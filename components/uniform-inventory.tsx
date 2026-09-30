@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"\nimport { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,7 +35,12 @@ export function UniformInventory() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [deliveryKit, setDeliveryKit] = useState("")
   const [student, setStudent] = useState("")
-  const [studentSearch, setStudentSearch] = useState("")\n  const [entryOpen, setEntryOpen] = useState(false)\n  const [deliveryOpen, setDeliveryOpen] = useState(false)\n  const [stockView, setStockView] = useState(false)\n  const [stockType, setStockType] = useState<"Todos" | KitType>("Todos")\n  const [stockSize, setStockSize] = useState("Todos")
+  const [studentSearch, setStudentSearch] = useState("")
+  const [entryOpen, setEntryOpen] = useState(false)
+  const [deliveryOpen, setDeliveryOpen] = useState(false)
+  const [stockView, setStockView] = useState(false)
+  const [stockType, setStockType] = useState<"Todos" | KitType>("Todos")
+  const [stockSize, setStockSize] = useState("Todos")
 
   const load = async () => {
     setLoading(true)
@@ -79,7 +85,8 @@ export function UniformInventory() {
   const availableTotal = Math.max(0, total - delivered)
   const belowMinimum = groups.filter((group) => group.minimum > 0 && group.available < group.minimum).length
   const byType = (value: KitType) => groups.filter((group) => group.type === value).reduce((sum, group) => sum + group.available, 0)
-  const sizes = [...new Set(groups.map((group) => group.size))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }))\n  const filtered = groups.filter((group) => (stockType === "Todos" || group.type === stockType) && (stockSize === "Todos" || group.size === stockSize) && `${group.type} ${group.model} ${group.size} ${group.items.map((kit) => kit.shirt_number).join(" ")}`.toLowerCase().includes(search.toLowerCase()))
+  const sizes = [...new Set(groups.map((group) => group.size))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }))
+  const filtered = groups.filter((group) => (stockType === "Todos" || group.type === stockType) && (stockSize === "Todos" || group.size === stockSize) && `${group.type} ${group.model} ${group.size} ${group.items.map((kit) => kit.shirt_number).join(" ")}`.toLowerCase().includes(search.toLowerCase()))
   const filteredStudents = students.filter((item) => item.name.toLowerCase().includes(studentSearch.toLowerCase())).slice(0, 12)
   const formTotal = rows.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0)
 
