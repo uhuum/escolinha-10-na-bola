@@ -5,7 +5,8 @@ const PUBLIC_PAGE_PATHS = new Set(["/login"])
 const ADMIN_ROUTE_PREFIXES = [
   "/students",
   "/payments",
-  "/competitions",\n  "/uniforms",
+  "/competitions",
+  "/uniforms",
   "/presencas",
   "/birthdays",
   "/carometro",
@@ -17,7 +18,8 @@ const COACH_ROUTE_PREFIXES = [
   "/trainer/carometro",
   "/trainer/chamada",
   "/trainer/relatorio",
-  "/trainer/birthdays",\n  "/trainer/uniforms",
+  "/trainer/birthdays",
+  "/trainer/uniforms",
 ] as const
 
 export function normalizePathname(pathname: string) {
