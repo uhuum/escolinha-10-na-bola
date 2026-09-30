@@ -180,21 +180,28 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
 
         if (uniformResult.error) throw uniformResult.error
 
-        const lowStockItems: SigaNotification[] = (uniformResult.data || []).flatMap((kit: any) => {
+        const uniformGroups = new Map<string, { kits: any[]; available: number; minimum: number }>()
+        for (const kit of uniformResult.data || []) {
           const delivered = (kit.uniform_deliveries || []).reduce((sum: number, delivery: any) => sum + Number(delivery.quantity || 0), 0)
           const available = Math.max(0, Number(kit.quantity || 0) - delivered)
-          const minimum = Number(kit.minimum_stock || 0)
-          if (minimum <= 0 || available >= minimum) return []
-
-          const missing = minimum - available
+          const key = `${kit.kit_type}||${kit.model_name}||${kit.size}`
+          const current = uniformGroups.get(key) || { kits: [], available: 0, minimum: 0 }
+          current.kits.push(kit)
+          current.available += available
+          current.minimum = Math.max(current.minimum, Number(kit.minimum_stock || 0))
+          uniformGroups.set(key, current)
+        }
+        const lowStockItems: SigaNotification[] = [...uniformGroups.entries()].flatMap(([key, group]) => {
+          if (group.minimum <= 0 || group.available >= group.minimum) return []
+          const kit = group.kits[0]
           return [{
-            id: `admin-uniform-low-${kit.id}-${available}`,
+            id: `admin-uniform-low-${key}-${group.available}`,
             title: "Estoque de uniforme baixo",
-            message: `${kit.kit_type} • ${kit.model_name} • Tam. ${kit.size} • Nº ${kit.shirt_number} — ${available === 0 ? "sem kits disponíveis" : `resta ${available} kit${available === 1 ? "" : "s"}`}.`,
+            message: `${kit.kit_type} • ${kit.model_name} • Tam. ${kit.size} — ${group.available === 0 ? "sem kits disponíveis" : `restam ${group.available} kit${group.available === 1 ? "" : "s"}`}.`,
             href: "/uniforms",
             actionLabel: "Ver estoque",
             kind: "warning" as const,
-            details: [`Estoque mínimo: ${minimum}`],
+            details: [`Estoque mínimo: ${group.minimum}`],
           }]
         })
 
