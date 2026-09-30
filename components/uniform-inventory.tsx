@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Package, Plus, Search, Shirt, TriangleAlert, UserRoundCheck } from "lucide-react"
 
-type KitType = "Treino" | "Jogador" | "Goleiro"
+type KitType = "Jogador" | "Goleiro"
 type Kit = { id:string; kit_type:KitType; model_name:string; size:string; shirt_number:number; quantity:number; minimum_stock:number }
 type Delivery = { id:string; uniform_kit_id:string; student_id:string; quantity:number; delivered_at:string; students?: { name:string } | null }
 type Student = { id:string; name:string }
 
-const TYPES: KitType[] = ["Treino","Jogador","Goleiro"]
+const TYPES: KitType[] = ["Jogador","Goleiro"]
 
 export function UniformInventory() {
   const supabase = useMemo(() => getBrowserClient(), [])
@@ -26,7 +26,7 @@ export function UniformInventory() {
   const [loading,setLoading]=useState(true)
   const [saving,setSaving]=useState(false)
   const [search,setSearch]=useState("")
-  const [type,setType]=useState<KitType>("Treino")
+  const [type,setType]=useState<KitType>("Jogador")
   const [model,setModel]=useState("Kit padrão")
   const [size,setSize]=useState("")
   const [number,setNumber]=useState("")
@@ -100,12 +100,12 @@ export function UniformInventory() {
       <Card className={toOrder>0?"border-amber-400/60":""}><CardContent className="p-4"><TriangleAlert className="mb-2 h-5 w-5 text-amber-600"/><p className="text-xs text-muted-foreground">Precisam pedir</p><p className="text-2xl font-bold">{toOrder}</p></CardContent></Card>
     </section>
 
-    <section className="grid gap-3 sm:grid-cols-3">{TYPES.map(t=><Card key={t}><CardContent className="flex items-center justify-between p-4"><div><p className="text-sm font-semibold">{t}</p><p className="text-xs text-muted-foreground">kits disponíveis</p></div><span className="text-2xl font-bold">{byType(t)}</span></CardContent></Card>)}</section>
+    <section className="grid gap-3 sm:grid-cols-2">{TYPES.map(t=><Card key={t}><CardContent className="flex items-center justify-between p-4"><div><p className="text-sm font-semibold">{t}</p><p className="text-xs text-muted-foreground">kits disponíveis</p></div><span className="text-2xl font-bold">{byType(t)}</span></CardContent></Card>)}</section>
 
     <div className="grid gap-6 lg:grid-cols-2">
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5"/>Cadastrar / adicionar kits</CardTitle><CardDescription>O kit representa sempre camiseta + short.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
         <div><Label>Tipo</Label><Select value={type} onValueChange={v=>setType(v as KitType)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{TYPES.map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
-        <div><Label>Nome / modelo</Label><Input value={model} onChange={e=>setModel(e.target.value)} placeholder="Ex.: Kit treino azul"/></div>
+        <div><Label>Nome / modelo</Label><Input value={model} onChange={e=>setModel(e.target.value)} placeholder="Ex.: Kit jogador azul"/></div>
         <div><Label>Tamanho</Label><Input value={size} onChange={e=>setSize(e.target.value)} placeholder="Ex.: 16, P, M, G"/></div>
         <div><Label>Número da camisa</Label><Input type="number" min="0" value={number} onChange={e=>setNumber(e.target.value)} placeholder="Ex.: 10"/></div>
         <div><Label>Quantidade para adicionar</Label><Input type="number" min="1" value={quantity} onChange={e=>setQuantity(e.target.value)}/></div>
