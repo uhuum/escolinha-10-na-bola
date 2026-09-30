@@ -108,7 +108,8 @@ export default function PaymentsPage() {
     includePayments: true,
     lightweightPhotos: true,
     paymentRange: {
-      from: `${BASE_YEAR}-${String(BASE_MONTH).padStart(2, "0")}-01`,
+      // A tela trabalha com um mês por vez: evita baixar todo o histórico financeiro.
+      from: `${selectedYear}-${String(selectedMonthForQuery).padStart(2, "0")}-01`,
       through: paymentThrough,
     },
   })
