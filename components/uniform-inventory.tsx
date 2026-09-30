@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronDown, ChevronUp, Package, Plus, Search, Shirt, Trash2, TriangleAlert, UserRoundCheck } from "lucide-react"
+import { ChevronDown, ChevronUp, Hash, Package, Plus, Search, Shirt, Trash2, TriangleAlert, UserRoundCheck } from "lucide-react"
 
 type KitType = "Jogador" | "Goleiro"
 type Kit = { id: string; kit_type: KitType; model_name: string; size: string; shirt_number: number; quantity: number; minimum_stock: number }
@@ -158,9 +158,9 @@ export function UniformInventory() {
       {TYPES.map((item) => <Card key={item}><CardContent className="flex items-center justify-between p-4"><div><p className="text-sm font-semibold">{item}</p><p className="text-xs text-muted-foreground">kits disponíveis</p></div><span className="text-2xl font-bold">{byType(item)}</span></CardContent></Card>)}
     </section>
 
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" />Cadastrar kits</CardTitle><CardDescription>Cadastre um tamanho e distribua os kits pelas numerações das camisas.</CardDescription></CardHeader>
+        <CardHeader className="border-b bg-muted/20"><CardTitle className="flex items-center gap-2 text-lg"><Plus className="h-5 w-5" />Entrada de uniformes</CardTitle><CardDescription>Cadastre o modelo, o tamanho e informe quantas camisas existem de cada número.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div><Label>Tipo</Label><Select value={type} onValueChange={(value) => setType(value as KitType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
@@ -168,8 +168,8 @@ export function UniformInventory() {
             <div><Label>Nome / modelo</Label><Input value={model} onChange={(event) => setModel(event.target.value)} placeholder="Ex.: Kit padrão" /></div>
             <div><Label>Estoque mínimo do tamanho</Label><Input type="number" min="0" value={minimum} onChange={(event) => setMinimum(event.target.value)} /></div>
           </div>
-          <div className="rounded-2xl border bg-muted/20 p-3">
-            <div className="mb-3 flex items-center justify-between"><div><p className="font-semibold">Numeração das camisas</p><p className="text-xs text-muted-foreground">Informe quantos kits existem de cada número</p></div><span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">{formTotal} kits</span></div>
+          <div className="rounded-2xl border-2 border-dashed bg-muted/20 p-4">
+            <div className="mb-4 flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 font-semibold"><Hash className="h-4 w-4 text-primary" />Numeração das camisas</p><p className="mt-1 text-xs text-muted-foreground">Cada linha representa um número de camisa e sua quantidade</p></div><span className="shrink-0 rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">Total: {formTotal}</span></div>
             <div className="space-y-2">
               {rows.map((row, index) => <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2"><Input type="number" min="0" value={row.number} onChange={(event) => changeRow(index, "number", event.target.value)} placeholder="Nº camisa" /><Input type="number" min="1" value={row.quantity} onChange={(event) => changeRow(index, "quantity", event.target.value)} placeholder="Qtd." /><Button type="button" variant="ghost" size="icon" onClick={() => removeRow(index)} disabled={rows.length === 1}><Trash2 className="h-4 w-4" /></Button></div>)}
             </div>
@@ -180,7 +180,7 @@ export function UniformInventory() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><UserRoundCheck className="h-5 w-5" />Saída / entrega</CardTitle><CardDescription>Escolha exatamente o tamanho e o número entregue ao aluno.</CardDescription></CardHeader>
+        <CardHeader className="border-b bg-muted/20"><CardTitle className="flex items-center gap-2 text-lg"><UserRoundCheck className="h-5 w-5" />Entregar uniforme</CardTitle><CardDescription>Registre qual kit, tamanho e número foi entregue ao aluno.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <div><Label>Kit e numeração</Label><Select value={deliveryKit} onValueChange={setDeliveryKit}><SelectTrigger><SelectValue placeholder="Selecione o kit" /></SelectTrigger><SelectContent>{kits.filter((kit) => available(kit) > 0).map((kit) => <SelectItem key={kit.id} value={kit.id}>{kit.kit_type} • Tam. {kit.size} • Nº {kit.shirt_number} ({available(kit)} disp.)</SelectItem>)}</SelectContent></Select></div>
           <div><Label>Buscar aluno</Label><Input value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setStudent("") }} placeholder="Digite o nome do aluno" /></div>
@@ -190,23 +190,13 @@ export function UniformInventory() {
       </Card>
     </div>
 
-    <Card>
-      <CardHeader><CardTitle>Estoque por tamanho</CardTitle><CardDescription>Abra um tamanho para conferir exatamente quantos kits existem de cada número.</CardDescription></CardHeader>
-      <CardContent>
-        <div className="relative mb-4"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar tipo, tamanho ou número..." /></div>
-        <div className="space-y-3">
-          {filtered.length ? filtered.map((group) => {
-            const isOpen = !!expanded[group.id]
-            const low = group.minimum > 0 && group.available < group.minimum
-            return <div key={group.id} className="overflow-hidden rounded-2xl border">
-              <button type="button" className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-muted/40" onClick={() => setExpanded((current) => ({ ...current, [group.id]: !current[group.id] }))}>
-                <div><div className="flex flex-wrap items-center gap-2"><span className="font-bold">{group.type}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">Tam. {group.size}</span>{group.model !== "Kit padrão" && <span className="text-xs text-muted-foreground">{group.model}</span>}</div><p className="mt-1 text-xs text-muted-foreground">{[...group.items].sort((a, b) => a.shirt_number - b.shirt_number).map((kit) => `Nº ${kit.shirt_number} ×${available(kit)}`).join(" • ")}</p></div>
-                <div className="flex items-center gap-3"><div className="text-right"><p className="text-xl font-bold">{group.available}</p><p className="text-[11px] text-muted-foreground">kits disponíveis</p></div>{low && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">Baixo</span>}{isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}</div>
-              </button>
-              {isOpen && <div className="border-t bg-muted/10 p-4"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...group.items].sort((a, b) => a.shirt_number - b.shirt_number).map((kit) => <div key={kit.id} className="flex items-center justify-between rounded-xl border bg-background p-3"><div><p className="text-xs text-muted-foreground">Camisa</p><p className="text-lg font-bold">Nº {kit.shirt_number}</p></div><div className="text-right"><p className="text-lg font-bold">{available(kit)}</p><p className="text-xs text-muted-foreground">disponíveis</p></div></div>)}</div><div className="mt-3 flex justify-between border-t pt-3 text-sm"><span>Estoque mínimo do tamanho</span><b>{group.minimum}</b></div></div>}
-            </div>
-          }) : <p className="py-8 text-center text-sm text-muted-foreground">Nenhum kit encontrado.</p>}
-        </div>
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/20"><div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"><div><CardTitle className="text-xl">Estoque atual</CardTitle><CardDescription className="mt-1">Organizado por categoria e tamanho. Clique para ver as numerações.</CardDescription></div><div className="text-sm text-muted-foreground"><b className="text-foreground">{availableTotal}</b> kits disponíveis</div></div></CardHeader>
+      <CardContent className="p-4 sm:p-6"><div className="relative mb-5"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar categoria, tamanho ou número..." /></div>
+        <div className="grid gap-4">{filtered.length ? filtered.map((group) => { const isOpen=!!expanded[group.id]; const low=group.minimum>0&&group.available<group.minimum; const sorted=[...group.items].sort((a,b)=>a.shirt_number-b.shirt_number); return <div key={group.id} className={`overflow-hidden rounded-2xl border-2 ${low?"border-amber-300":"border-border"}`}>
+          <button type="button" className="grid w-full gap-4 p-4 text-left hover:bg-muted/30 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5" onClick={()=>setExpanded(current=>({...current,[group.id]:!current[group.id]}))}><div className="min-w-0"><div className="mb-3 flex flex-wrap items-center gap-2"><span className={`rounded-lg px-3 py-1 text-xs font-bold uppercase ${group.type==="Goleiro"?"bg-amber-100 text-amber-800":"bg-primary/10 text-primary"}`}>{group.type}</span><span className="rounded-lg border bg-background px-3 py-1 text-xs font-bold">TAMANHO {group.size}</span>{group.model!=="Kit padrão"&&<span className="text-sm text-muted-foreground">{group.model}</span>}{low&&<span className="rounded-lg bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">ESTOQUE BAIXO</span>}</div><div className="flex flex-wrap gap-2">{sorted.map(kit=><span key={kit.id} className="rounded-lg bg-muted px-3 py-2 text-sm"><b>Nº {kit.shirt_number}</b><span className="mx-2 text-muted-foreground">•</span>{available(kit)} {available(kit)===1?"kit":"kits"}</span>)}</div></div><div className="flex items-center justify-between gap-4 sm:justify-end"><div className="min-w-24 rounded-xl bg-primary/5 px-4 py-3 text-center"><p className="text-3xl font-black leading-none text-primary">{group.available}</p><p className="mt-1 text-[10px] font-bold text-muted-foreground">DISPONÍVEIS</p></div>{isOpen?<ChevronUp className="h-5 w-5"/>:<ChevronDown className="h-5 w-5"/>}</div></button>
+          {isOpen&&<div className="border-t bg-muted/20 p-4 sm:p-5"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">Detalhamento das camisas</p><span className="rounded-lg border bg-background px-3 py-1.5 text-sm">Estoque mínimo: <b>{group.minimum}</b></span></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{sorted.map(kit=>{const qty=available(kit);return <div key={kit.id} className="rounded-xl border bg-background p-4 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold uppercase text-muted-foreground">Camisa</p><p className="mt-1 text-2xl font-black">Nº {kit.shirt_number}</p></div><Shirt className="h-5 w-5 text-primary"/></div><div className="mt-4 border-t pt-3"><p className="text-xs text-muted-foreground">Em estoque</p><p className="text-lg font-bold">{qty} {qty===1?"kit":"kits"}</p></div></div>})}</div></div>}
+        </div>}) : <div className="rounded-2xl border border-dashed py-12 text-center"><Shirt className="mx-auto mb-3 h-8 w-8 text-muted-foreground"/><p className="font-medium">Nenhum uniforme encontrado</p><p className="mt-1 text-sm text-muted-foreground">Tente outra busca ou cadastre novos kits.</p></div>}</div>
       </CardContent>
     </Card>
 
