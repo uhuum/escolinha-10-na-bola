@@ -66,6 +66,7 @@ export function useRealtimeSync(
     let broadcast: BroadcastChannel | null = null
     const supabase = getBrowserClient()
     const realtimeChannels: ReturnType<typeof supabase.channel>[] = []
+    const subscribedOnce = new Set<string>()
 
     try {
       broadcast = new BroadcastChannel(CHANNEL_NAME)
@@ -81,8 +82,9 @@ export function useRealtimeSync(
     // One lightweight Realtime channel per table. The payload is only a signal;
     // each screen reloads only the dataset/range it already needs.
     for (const table of tables) {
+      const channelName = `siga-sync-${table}-${Math.random().toString(36).slice(2)}`
       const channel = supabase
-        .channel(`siga-sync-${table}-${Math.random().toString(36).slice(2)}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table },
@@ -91,7 +93,10 @@ export function useRealtimeSync(
         .subscribe((status) => {
           // When a websocket reconnects after sleep/network loss, reconcile with
           // the database because events may have happened while this device was offline.
-          if (status === "SUBSCRIBED") scheduleSync(100)
+          if (status === "SUBSCRIBED") {
+            if (subscribedOnce.has(channelName)) scheduleSync(100)
+            else subscribedOnce.add(channelName)
+          }
         })
 
       realtimeChannels.push(channel)
