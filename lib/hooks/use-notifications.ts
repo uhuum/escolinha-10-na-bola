@@ -174,7 +174,31 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
           studentById = new Map((studentsResult.data || []).map((student: any) => [student.id, student]))
         }
 
-        const items: SigaNotification[] = postponedPayments.map((payment: any) => {
+        const uniformResult = await supabase
+          .from("uniform_kits")
+          .select("id,kit_type,model_name,size,shirt_number,quantity,minimum_stock,uniform_deliveries(quantity)")
+
+        if (uniformResult.error) throw uniformResult.error
+
+        const lowStockItems: SigaNotification[] = (uniformResult.data || []).flatMap((kit: any) => {
+          const delivered = (kit.uniform_deliveries || []).reduce((sum: number, delivery: any) => sum + Number(delivery.quantity || 0), 0)
+          const available = Math.max(0, Number(kit.quantity || 0) - delivered)
+          const minimum = Number(kit.minimum_stock || 0)
+          if (minimum <= 0 || available >= minimum) return []
+
+          const missing = minimum - available
+          return [{
+            id: `admin-uniform-low-${kit.id}-${available}`,
+            title: "Estoque de uniforme baixo",
+            message: `${kit.kit_type} • ${kit.model_name} • Tam. ${kit.size} • Nº ${kit.shirt_number} — ${available === 0 ? "sem kits disponíveis" : `resta ${available} kit${available === 1 ? "" : "s"}`}.`,
+            href: "/uniforms",
+            actionLabel: "Ver estoque",
+            kind: "warning" as const,
+            details: [`Estoque mínimo: ${minimum}`, `Sugestão: pedir ${missing} kit${missing === 1 ? "" : "s"}`],
+          }]
+        })
+
+        const items: SigaNotification[] = [...lowStockItems, ...postponedPayments.map((payment: any) => {
           const student = studentById.get(payment.student_id)
           const studentName = student?.name || "Aluno não identificado"
           const responsibleName = student?.responsible || "Responsável não informado"
@@ -187,7 +211,7 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
             kind: "warning" as const,
             details: [`Aluno: ${studentName}`, `Responsável: ${responsibleName}`],
           }
-        })
+        })]
 
         if (isLastDayOfMonth(now)) {
           const [paymentsResult, studentsResult] = await Promise.all([
