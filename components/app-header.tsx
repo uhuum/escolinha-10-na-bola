@@ -21,7 +21,8 @@ export function AppHeader() {
     { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
     { href: "/students", label: "Alunos", icon: Users, roles: ["admin"] },
     { href: "/payments", label: "Pagamentos", icon: DollarSign, roles: ["admin"] },
-    { href: "/competitions", label: "Competições", icon: Trophy, roles: ["admin"] },\n    { href: "/uniforms", label: "Uniformes", icon: Shirt, roles: ["admin"] },
+    { href: "/competitions", label: "Competições", icon: Trophy, roles: ["admin"] },
+    { href: "/uniforms", label: "Uniformes", icon: Shirt, roles: ["admin"] },
     { href: "/presencas", label: "Presenças", icon: CalendarCheck, roles: ["admin"] },
     { href: "/birthdays", label: "Aniversariantes", icon: Cake, roles: ["admin"] },
     { href: "/carometro", label: "Carômetro", icon: Camera, roles: ["admin"] },
@@ -29,7 +30,8 @@ export function AppHeader() {
     { href: "/trainer/carometro", label: "Carômetro", icon: BookOpen, roles: ["coach"] },
     { href: "/trainer/chamada", label: "Chamada", icon: ClipboardCheck, roles: ["coach"] },
     { href: "/trainer/relatorio", label: "Relatório", icon: FileText, roles: ["coach"] },
-    { href: "/trainer/birthdays", label: "Aniversariantes", icon: Cake, roles: ["coach"] },\n    { href: "/trainer/uniforms", label: "Uniformes", icon: Shirt, roles: ["coach"] },
+    { href: "/trainer/birthdays", label: "Aniversariantes", icon: Cake, roles: ["coach"] },
+    { href: "/trainer/uniforms", label: "Uniformes", icon: Shirt, roles: ["coach"] },
   ]
   const navItems = allNavItems.filter((item) => user && item.roles.includes(user.role))
   const isTrainerRoute = pathname.startsWith("/trainer")
