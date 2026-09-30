@@ -7,7 +7,7 @@ import { useState } from "react"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, DollarSign, Camera, LogOut, ClipboardCheck, CalendarCheck, BookOpen, Menu, Cake, FileText, Trophy } from "lucide-react"
+import { LayoutDashboard, Users, DollarSign, Camera, LogOut, ClipboardCheck, CalendarCheck, BookOpen, Menu, Cake, FileText, Trophy, Shirt } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -21,7 +21,7 @@ export function AppHeader() {
     { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
     { href: "/students", label: "Alunos", icon: Users, roles: ["admin"] },
     { href: "/payments", label: "Pagamentos", icon: DollarSign, roles: ["admin"] },
-    { href: "/competitions", label: "Competições", icon: Trophy, roles: ["admin"] },
+    { href: "/competitions", label: "Competições", icon: Trophy, roles: ["admin"] },\n    { href: "/uniforms", label: "Uniformes", icon: Shirt, roles: ["admin"] },
     { href: "/presencas", label: "Presenças", icon: CalendarCheck, roles: ["admin"] },
     { href: "/birthdays", label: "Aniversariantes", icon: Cake, roles: ["admin"] },
     { href: "/carometro", label: "Carômetro", icon: Camera, roles: ["admin"] },
@@ -29,7 +29,7 @@ export function AppHeader() {
     { href: "/trainer/carometro", label: "Carômetro", icon: BookOpen, roles: ["coach"] },
     { href: "/trainer/chamada", label: "Chamada", icon: ClipboardCheck, roles: ["coach"] },
     { href: "/trainer/relatorio", label: "Relatório", icon: FileText, roles: ["coach"] },
-    { href: "/trainer/birthdays", label: "Aniversariantes", icon: Cake, roles: ["coach"] },
+    { href: "/trainer/birthdays", label: "Aniversariantes", icon: Cake, roles: ["coach"] },\n    { href: "/trainer/uniforms", label: "Uniformes", icon: Shirt, roles: ["coach"] },
   ]
   const navItems = allNavItems.filter((item) => user && item.roles.includes(user.role))
   const isTrainerRoute = pathname.startsWith("/trainer")
