@@ -194,7 +194,7 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
             href: "/uniforms",
             actionLabel: "Ver estoque",
             kind: "warning" as const,
-            details: [`Estoque mínimo: ${minimum}`, `Sugestão: pedir ${missing} kit${missing === 1 ? "" : "s"}`],
+            details: [`Estoque mínimo: ${minimum}`],
           }]
         })
 
