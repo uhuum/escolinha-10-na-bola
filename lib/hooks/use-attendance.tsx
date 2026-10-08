@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { getBrowserClient } from "@/lib/supabase/client"
+import { fetchAllRows } from "@/lib/supabase/paginate"
 import { getTodayDateString } from "@/lib/utils/date"
 import type { Attendance, AttendanceRecord, ClassSchedule, WeekDay } from "../types"
 import { useRealtimeSync } from "./use-realtime-sync"
@@ -33,21 +34,19 @@ export function useAttendance(): AttendanceStore {
     try {
       setIsLoading(true)
       // Fetch both datasets in parallel and transfer only the columns used by the UI.
-      const [attendanceResponse, recordsResponse] = await Promise.all([
-        supabase
+      const [attendanceData, recordsData] = await Promise.all([
+        fetchAllRows((from, to) => supabase
           .from("attendance")
           .select("id,date,day_of_week,class_schedule,trainer_name,trainer_id,created_at")
-          .order("created_at", { ascending: false }),
-        supabase
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to)),
+        fetchAllRows<{ attendance_id: string; student_id: string; status: string }>((from, to) => supabase
           .from("attendance_records")
-          .select("attendance_id,student_id,status"),
+          .select("attendance_id,student_id,status")
+          .order("id", { ascending: true })
+          .range(from, to)),
       ])
-
-      if (attendanceResponse.error) throw attendanceResponse.error
-      if (recordsResponse.error) throw recordsResponse.error
-
-      const attendanceData = attendanceResponse.data
-      const recordsData = recordsResponse.data
 
       // Group records once. This keeps the merge O(attendances + records) instead
       // of scanning every record again for every attendance.
