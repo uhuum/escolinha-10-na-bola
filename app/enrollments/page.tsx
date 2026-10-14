@@ -90,7 +90,7 @@ export default function EnrollmentsPage() {
       const url = `https://matricula10nabola.netlify.app/#${token}`
       setGeneratedLink(url)
       setLabel("")
-      setConfirmation("Convite criado. Copie o link e envie ao responsável depois que o site Matrícula Digital estiver publicado.")
+      setConfirmation("Convite criado. Copie o link exclusivo e envie ao responsável pelo WhatsApp.")
       await load()
     } catch {
       setError("Não foi possível criar o convite. Confira se você está logado como administrador.")
