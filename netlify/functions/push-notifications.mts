@@ -118,6 +118,26 @@ export async function runPushScheduler() {
   const now = spNow()
   const messages: PushMessage[] = []
 
+  // Uma notificação por nova ficha enviada, somente para dispositivos administrativos.
+  // A chave estável do evento evita avisos duplicados a cada execução do scheduler.
+  const { data: newEnrollments, error: enrollmentError } = await supabase
+    .from("enrollment_requests")
+    .select("id")
+    .eq("status", "pending")
+    .gte("submitted_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    .order("submitted_at", { ascending: false })
+    .limit(500)
+  if (enrollmentError) throw enrollmentError
+  for (const enrollment of newEnrollments || []) {
+    messages.push({
+      eventKey: `admin-new-enrollment-${enrollment.id}`,
+      role: "admin",
+      title: "Nova matrícula para aprovação",
+      body: "Uma nova ficha foi enviada. Acesse o SIGA para conferir e aprovar.",
+      href: `/enrollments/${enrollment.id}`,
+    })
+  }
+
   const { data: postponedPayments, error: postponedError } = await supabase
     .from("payments")
     .select("id,student_id,month,postponed_to")
