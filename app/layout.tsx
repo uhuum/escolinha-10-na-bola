@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from "@/lib/contexts/auth-context"
+import { AppSession } from "@/components/app-session"
 import { PWARegister } from "@/components/pwa-register"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -47,11 +47,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`font-sans antialiased`}>
-        <AuthProvider>
+        <AppSession>
           <PWARegister />
           {children}
           <Toaster />
-        </AuthProvider>
+        </AppSession>
       </body>
     </html>
   )
