@@ -20,6 +20,7 @@ export function AppHeader() {
   const allNavItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
     { href: "/students", label: "Alunos", icon: Users, roles: ["admin"] },
+    { href: "/enrollments", label: "Matrículas", icon: FileText, roles: ["admin"] },
     { href: "/payments", label: "Pagamentos", icon: DollarSign, roles: ["admin"] },
     { href: "/competitions", label: "Competições", icon: Trophy, roles: ["admin"] },
     { href: "/uniforms", label: "Uniformes", icon: Shirt, roles: ["admin"] },
