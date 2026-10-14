@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { usePathname } from "next/navigation"
 import { AuthProvider } from "@/lib/contexts/auth-context"
+import { PWARegister } from "@/components/pwa-register"
 
 export function AppSession({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -12,5 +13,5 @@ export function AppSession({ children }: { children: ReactNode }) {
     return <>{children}</>
   }
 
-  return <AuthProvider>{children}</AuthProvider>
+  return <AuthProvider><PWARegister />{children}</AuthProvider>
 }
