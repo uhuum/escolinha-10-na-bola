@@ -127,19 +127,9 @@ function StudentDetailModal({ student, onClose, attendanceHistory, onEdit }: Stu
             </div>
           </div>
 
-          <div className="space-y-3 pt-4 border-t">
-            <p className="font-semibold text-foreground">Contato</p>
-            <div className="space-y-2 text-sm">
-              <p>
-                <span className="font-medium">Email:</span> {student.responsibleEmail || "N/A"}
-              </p>
-              <p>
-                <span className="font-medium">Telefone Pai:</span> {student.fatherPhone || "N/A"}
-              </p>
-              <p>
-                <span className="font-medium">Telefone Mãe:</span> {student.motherPhone || "N/A"}
-              </p>
-            </div>
+          <div className="space-y-2 border-t pt-4">
+            <p className="font-semibold text-foreground">Informações de contato</p>
+            <p className="text-sm text-muted-foreground">Dados pessoais dos responsáveis estão disponíveis somente ao administrativo.</p>
           </div>
 
           <div className="flex gap-3 pt-4 border-t">

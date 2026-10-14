@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { SectionLoadingScreen } from "@/components/section-loading-screen"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/contexts/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,8 @@ export function UniformInventory() {
   const pathname = usePathname()
   const stockPath = pathname.startsWith("/trainer") ? "/trainer/uniforms/stock" : "/uniforms/stock"
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isAdmin = user?.role === "admin"
   const [kits, setKits] = useState<Kit[]>([])
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [students, setStudents] = useState<Student[]>([])
@@ -51,11 +54,21 @@ export function UniformInventory() {
     setLoading(true)
     const [k, d, s] = await Promise.all([
       supabase.from("uniform_kits").select("*").order("kit_type").order("size").order("shirt_number"),
-      supabase.from("uniform_deliveries").select("id,uniform_kit_id,student_id,quantity,delivered_at,students(name)").order("created_at", { ascending: false }),
-      supabase.from("students").select("id,name").eq("is_active", true).order("name"),
+      supabase.from("uniform_deliveries").select("id,uniform_kit_id,student_id,quantity,delivered_at").order("created_at", { ascending: false }),
+      isAdmin
+        ? supabase.from("students").select("id,name").eq("is_active", true).order("name")
+        : supabase.rpc("coach_student_roster"),
     ])
     if (k.error || d.error || s.error) toast({ title: "Erro ao carregar uniformes", description: k.error?.message || d.error?.message || s.error?.message, variant: "destructive" })
-    else { setKits(k.data as Kit[]); setDeliveries(d.data as unknown as Delivery[]); setStudents(s.data as Student[]) }
+    else {
+      const roster = (s.data || []) as Student[]
+      const nameById = new Map(roster.map(item => [item.id, item.name]))
+      setKits(k.data as Kit[])
+      setDeliveries(((d.data || []) as Omit<Delivery, "students">[]).map(item => ({
+        ...item, students: nameById.has(item.student_id) ? { name: nameById.get(item.student_id)! } : null,
+      })))
+      setStudents(roster)
+    }
     setLoading(false)
     setFirstLoadCompleted(true)
   }
@@ -99,6 +112,10 @@ export function UniformInventory() {
   const removeRow = (index: number) => setRows((current) => current.length === 1 ? current : current.filter((_, i) => i !== index))
 
   const addKit = async () => {
+    if (!isAdmin) {
+      toast({ title: "Apenas o administrativo pode registrar entradas", variant: "destructive" })
+      return
+    }
     const min = Number(minimum)
     if (!size.trim() || !Number.isInteger(min) || min < 0 || rows.some((row) => !row.number.trim() || !Number.isInteger(Number(row.number)) || Number(row.number) < 0 || !Number.isInteger(Number(row.quantity)) || Number(row.quantity) < 1)) {
       toast({ title: "Confira o cadastro", description: "Preencha tamanho, numerações e quantidades corretamente.", variant: "destructive" })
@@ -171,12 +188,12 @@ export function UniformInventory() {
 
     <>
       <section className="grid gap-4 md:grid-cols-3">
-        <button type="button" onClick={() => setEntryOpen(true)} className="group rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plus className="h-5 w-5" /></div><p className="text-lg font-bold">Registrar entrada</p><p className="mt-1 text-sm text-muted-foreground">Adicionar novos kits ao estoque, com tamanho e numeração.</p></button>
+        {isAdmin && <button type="button" onClick={() => setEntryOpen(true)} className="group rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plus className="h-5 w-5" /></div><p className="text-lg font-bold">Registrar entrada</p><p className="mt-1 text-sm text-muted-foreground">Adicionar novos kits ao estoque, com tamanho e numeração.</p></button>}
         <button type="button" onClick={() => setDeliveryOpen(true)} className="group rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserRoundCheck className="h-5 w-5" /></div><p className="text-lg font-bold">Entregar uniforme</p><p className="mt-1 text-sm text-muted-foreground">Registrar o kit e o número entregues para um aluno.</p></button>
         <button type="button" onClick={() => router.push(stockPath)} className="group rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Search className="h-5 w-5" /></div><p className="text-lg font-bold">Consultar estoque</p><p className="mt-1 text-sm text-muted-foreground">Pesquisar por categoria, tamanho e número da camisa.</p></button>
       </section>
 
-      <Dialog open={entryOpen} onOpenChange={setEntryOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Registrar entrada de uniformes</DialogTitle><DialogDescription>Cadastre o tamanho e informe quantos kits existem de cada número de camisa.</DialogDescription></DialogHeader><div className="space-y-5 pt-2"><div className="grid gap-4 sm:grid-cols-2"><div><Label>Categoria</Label><Select value={type} onValueChange={(value) => setType(value as KitType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div><div><Label>Tamanho do kit</Label><Select value={size} onValueChange={setSize}><SelectTrigger><SelectValue placeholder="Selecione o tamanho" /></SelectTrigger><SelectContent>{SIZES.map((item) => <SelectItem key={item} value={item}>Tamanho {item}</SelectItem>)}</SelectContent></Select></div><div><Label>Modelo</Label><Input value={model} onChange={(event) => setModel(event.target.value)} placeholder="Kit padrão" /></div><div><Label>Estoque mínimo deste tamanho</Label><Input type="number" min="0" value={minimum} onChange={(event) => setMinimum(event.target.value)} /></div></div><div className="rounded-2xl border bg-muted/20 p-4"><div className="mb-4 flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 font-semibold"><Hash className="h-4 w-4 text-primary" />Números das camisas</p><p className="mt-1 text-xs text-muted-foreground">Informe o número e quantos kits existem dele.</p></div><span className="rounded-lg bg-primary px-3 py-1.5 text-sm font-bold text-primary-foreground">Total {formTotal}</span></div><div className="space-y-2"><div className="grid grid-cols-[1fr_1fr_40px] gap-2 px-1 text-xs font-medium text-muted-foreground"><span>Número</span><span>Quantidade</span><span /></div>{rows.map((row,index)=><div key={index} className="grid grid-cols-[1fr_1fr_40px] gap-2"><Input type="number" min="0" value={row.number} onChange={(event)=>changeRow(index,"number",event.target.value)} placeholder="Ex.: 16"/><Input type="number" min="1" value={row.quantity} onChange={(event)=>changeRow(index,"quantity",event.target.value)} placeholder="Ex.: 2"/><Button type="button" variant="ghost" size="icon" onClick={()=>removeRow(index)} disabled={rows.length===1}><Trash2 className="h-4 w-4"/></Button></div>)}</div><Button type="button" variant="outline" className="mt-3 w-full" onClick={addRow}><Plus className="mr-2 h-4 w-4"/>Adicionar outro número</Button></div><Button className="w-full" onClick={addKit} disabled={saving}>{saving?"Salvando...":`Registrar entrada de ${formTotal} kit${formTotal===1?"":"s"}`}</Button></div></DialogContent></Dialog>
+      {isAdmin && <Dialog open={entryOpen} onOpenChange={setEntryOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Registrar entrada de uniformes</DialogTitle><DialogDescription>Cadastre o tamanho e informe quantos kits existem de cada número de camisa.</DialogDescription></DialogHeader><div className="space-y-5 pt-2"><div className="grid gap-4 sm:grid-cols-2"><div><Label>Categoria</Label><Select value={type} onValueChange={(value) => setType(value as KitType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div><div><Label>Tamanho do kit</Label><Select value={size} onValueChange={setSize}><SelectTrigger><SelectValue placeholder="Selecione o tamanho" /></SelectTrigger><SelectContent>{SIZES.map((item) => <SelectItem key={item} value={item}>Tamanho {item}</SelectItem>)}</SelectContent></Select></div><div><Label>Modelo</Label><Input value={model} onChange={(event) => setModel(event.target.value)} placeholder="Kit padrão" /></div><div><Label>Estoque mínimo deste tamanho</Label><Input type="number" min="0" value={minimum} onChange={(event) => setMinimum(event.target.value)} /></div></div><div className="rounded-2xl border bg-muted/20 p-4"><div className="mb-4 flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 font-semibold"><Hash className="h-4 w-4 text-primary" />Números das camisas</p><p className="mt-1 text-xs text-muted-foreground">Informe o número e quantos kits existem dele.</p></div><span className="rounded-lg bg-primary px-3 py-1.5 text-sm font-bold text-primary-foreground">Total {formTotal}</span></div><div className="space-y-2"><div className="grid grid-cols-[1fr_1fr_40px] gap-2 px-1 text-xs font-medium text-muted-foreground"><span>Número</span><span>Quantidade</span><span /></div>{rows.map((row,index)=><div key={index} className="grid grid-cols-[1fr_1fr_40px] gap-2"><Input type="number" min="0" value={row.number} onChange={(event)=>changeRow(index,"number",event.target.value)} placeholder="Ex.: 16"/><Input type="number" min="1" value={row.quantity} onChange={(event)=>changeRow(index,"quantity",event.target.value)} placeholder="Ex.: 2"/><Button type="button" variant="ghost" size="icon" onClick={()=>removeRow(index)} disabled={rows.length===1}><Trash2 className="h-4 w-4"/></Button></div>)}</div><Button type="button" variant="outline" className="mt-3 w-full" onClick={addRow}><Plus className="mr-2 h-4 w-4"/>Adicionar outro número</Button></div><Button className="w-full" onClick={addKit} disabled={saving}>{saving?"Salvando...":`Registrar entrada de ${formTotal} kit${formTotal===1?"":"s"}`}</Button></div></DialogContent></Dialog>}
 
       <Dialog open={deliveryOpen} onOpenChange={setDeliveryOpen}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Entregar uniforme</DialogTitle><DialogDescription>Selecione exatamente o tamanho e o número da camisa entregue.</DialogDescription></DialogHeader><div className="space-y-4 pt-2"><div><Label>Uniforme</Label><Select value={deliveryKit} onValueChange={setDeliveryKit}><SelectTrigger><SelectValue placeholder="Selecione tamanho e número" /></SelectTrigger><SelectContent>{kits.filter((kit)=>available(kit)>0).map((kit)=><SelectItem key={kit.id} value={kit.id}>{kit.kit_type} • Tam. {kit.size} • Nº {kit.shirt_number} • {available(kit)} disp.</SelectItem>)}</SelectContent></Select></div><div><Label>Aluno</Label><Input value={studentSearch} onChange={(event)=>{setStudentSearch(event.target.value);setStudent("")}} placeholder="Digite o nome do aluno"/>{studentSearch&&<div className="mt-2 max-h-48 overflow-auto rounded-xl border">{filteredStudents.map((item)=><button key={item.id} type="button" onClick={()=>{setStudent(item.id);setStudentSearch(item.name)}} className={`block w-full border-b px-3 py-2.5 text-left text-sm last:border-0 hover:bg-muted ${student===item.id?"bg-primary/10 font-semibold":""}`}>{item.name}</button>)}</div>}</div><Button className="w-full" onClick={deliver} disabled={saving||!deliveryKit||!student}>{saving?"Registrando...":"Confirmar entrega"}</Button></div></DialogContent></Dialog>
     </>

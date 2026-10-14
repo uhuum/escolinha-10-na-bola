@@ -236,14 +236,19 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
       // This avoids intermittent 401s when mobile/desktop resumes from sleep.
       await ensureAuthenticatedSession(supabase, forceRefreshSession)
 
-      const studentsPromise = supabase
-        .from("students")
-        .select(STUDENT_LIST_COLUMNS)
-        .order("name", { ascending: true })
+      const { data: authData, error: roleError } = await supabase.auth.getUser()
+      if (roleError || !authData.user) throw roleError || new Error("Sessão inválida")
+      const isCoach = authData.user.app_metadata?.role === "coach"
+      if (!isCoach && authData.user.app_metadata?.role !== "admin") throw new Error("Acesso não autorizado")
+
+      // Treinadores recebem apenas o cadastro pedagógico, nunca a tabela de dados privados.
+      const studentsPromise = isCoach
+        ? supabase.rpc("coach_student_roster")
+        : supabase.from("students").select(STUDENT_LIST_COLUMNS).order("name", { ascending: true })
 
       const [studentsResponse, paymentsResponse] = await Promise.all([
         studentsPromise,
-        includePayments
+        includePayments && !isCoach
           ? fetchAllPayments(supabase, { from: paymentFrom, through: paymentThrough })
           : Promise.resolve([]),
       ])
@@ -330,6 +335,8 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
   const getStudent = useCallback(
     async (id: string): Promise<Student | null> => {
       const local = students.find((s) => s.id === id)
+      const { data: authData } = await supabase.auth.getUser()
+      if (authData.user?.app_metadata?.role === "coach") return local || null
       if (local && includePayments && !lightweightPhotos) {
         return local
       }
@@ -521,6 +528,25 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
 
   const updateStudent = useCallback(
   async (studentId: string, updates: Partial<Student>) => {
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError || !authData.user) throw new Error("Sessão inválida")
+    if (authData.user.app_metadata?.role === "coach") {
+      const allowedFields = ["classSchedule", "classDays", "scheduleConfigs"]
+      if (Object.keys(updates).some((field) => !allowedFields.includes(field))
+          || !Array.isArray(updates.scheduleConfigs)) {
+        throw new Error("O treinador pode modificar somente as turmas e horários.")
+      }
+      const { data: changed, error } = await supabase.rpc("coach_update_student_schedule", {
+        p_student_id: studentId,
+        p_schedule_configs: updates.scheduleConfigs,
+      })
+      if (error || changed !== true) throw error || new Error("Alteração não autorizada")
+      patchStudentLocal(studentId, updates)
+      notifyOtherTabs()
+      return
+    }
+    if (authData.user.app_metadata?.role !== "admin") throw new Error("Acesso negado")
+
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     }
