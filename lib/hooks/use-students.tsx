@@ -164,6 +164,8 @@ function mapStudentFromDB(dbStudent: any, payments: MonthlyPayment[]): Student {
     fatherPhone: dbStudent.father_phone || "",
     motherPhone: dbStudent.mother_phone || "",
     monthlyValue: dbStudent.monthly_value || 0,
+    paymentDueDay: dbStudent.payment_due_day ?? undefined,
+    enrollmentCategory: dbStudent.enrollment_category || undefined,
     isActive: dbStudent.is_active ?? true,
     isScholarship: dbStudent.is_scholarship ?? false,
     classSchedule: dbStudent.class_schedule || undefined,
@@ -226,8 +228,8 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
 
   const fetchStudents = useCallback(async () => {
     const STUDENT_LIST_COLUMNS = lightweightPhotos
-      ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
-      : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+      ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,payment_due_day,enrollment_category,updated_at"
+      : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,payment_due_day,enrollment_category,updated_at"
 
     const loadOnce = async (forceRefreshSession = false) => {
       // Never start protected queries before Supabase has a usable session.
