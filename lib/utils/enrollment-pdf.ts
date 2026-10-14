@@ -183,21 +183,30 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
     [documentLabel, documentValue],
     ["Responsável", student.responsible || "Não informado"],
     ["CPF do responsável", student.responsibleCpf ? formatCPF(student.responsibleCpf) : "Não informado"],
+    ...(student.enrollmentCategory ? [["Categoria", student.enrollmentCategory] as [string, string]] : []),
     ["Dias e horários", formatSchedule(student)],
     ["Valor da mensalidade", formatCurrency(student.monthlyValue || 0)],
+    ["Vencimento", `Dia ${student.paymentDueDay || 10} de cada mês`],
     ["Bolsista", student.isScholarship ? "Sim" : "Não"],
   ]
 
-  const rowHeight = 11
   const labelW = 55
   let y = contentTop
 
   rows.forEach(([label, value], index) => {
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(10)
+    const valueLines = doc.splitTextToSize(value, pageWidth - marginX * 2 - labelW - 6)
+    const rowHeight = Math.max(11, valueLines.length * 5 + 6)
+    if (y + rowHeight > pageHeight - 38) { doc.addPage(); y = 22 }
     const bg = index % 2 === 0
     if (bg) {
       doc.setFillColor(244, 246, 250)
       doc.rect(marginX, y, pageWidth - marginX * 2, rowHeight, "F")
     }
+    doc.setDrawColor(218, 224, 232)
+    doc.setLineWidth(0.2)
+    doc.rect(marginX, y, pageWidth - marginX * 2, rowHeight)
     // label
     doc.setFont("helvetica", "bold")
     doc.setFontSize(10)
@@ -206,15 +215,10 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
     // value
     doc.setFont("helvetica", "normal")
     doc.setTextColor(...dark)
-    const valueLines = doc.splitTextToSize(value, pageWidth - marginX * 2 - labelW - 6)
     doc.text(valueLines, marginX + labelW, y + 7)
     y += rowHeight
   })
 
-  // borda da tabela
-  doc.setDrawColor(...secondary)
-  doc.setLineWidth(0.3)
-  doc.rect(marginX, contentTop, pageWidth - marginX * 2, y - contentTop)
 
   // ===== Data de emissão =====
   const today = new Date().toLocaleDateString("pt-BR", {
@@ -222,6 +226,7 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
     month: "long",
     year: "numeric",
   })
+  if (y + 18 > pageHeight - 28) { doc.addPage(); y = 22 }
   y += 18
   doc.setFont("helvetica", "normal")
   doc.setFontSize(11)

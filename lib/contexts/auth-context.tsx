@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { SplashRole } from "@/components/splash-role"
 import { LogoutSplash } from "@/components/logout-splash"
 import { getBrowserClient } from "@/lib/supabase/client"
-import { canRoleAccessPath, homeForRole } from "@/lib/auth/route-policy"
+import { canRoleAccessPath, homeForRole, isPublicPage } from "@/lib/auth/route-policy"
 
 type UserRole = "admin" | "coach"
 
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase])
 
   useEffect(() => {
-    if (isLoading) return
+    if (isLoading || pathname === "/matricula") return
 
     if (!user) {
       if (pathname !== "/login") router.replace("/login")
@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Coach login (and vice-versa).
   useEffect(() => {
     const validateRestoredPage = async () => {
+      if (window.location.pathname === "/matricula") return
       try {
         const { data, error } = await supabase.auth.getUser()
         const freshUser = error ? null : mapSupabaseUser(data.user)
@@ -189,11 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const routeIsAllowed = user
-    ? pathname === "/login" || canRoleAccessPath(user.role, pathname)
-    : pathname === "/login"
+  const routeIsAllowed = isPublicPage(pathname) || (!!user && canRoleAccessPath(user.role, pathname))
 
-  if (isLoading || !routeIsAllowed) {
+  if ((isLoading && pathname !== "/matricula") || !routeIsAllowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

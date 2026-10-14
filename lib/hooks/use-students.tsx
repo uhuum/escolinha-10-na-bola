@@ -173,6 +173,8 @@ function mapStudentFromDB(dbStudent: any, payments: MonthlyPayment[]): Student {
     thumbnailUrl: dbStudent.thumbnail_url || undefined,
     archivedAt: dbStudent.archived_at || undefined,
     archiveReason: dbStudent.archive_reason || undefined,
+    paymentDueDay: dbStudent.payment_due_day || 10,
+    enrollmentCategory: dbStudent.enrollment_category || undefined,
     registrationDate: dbStudent.registration_date || dbStudent.created_at || undefined,
     payments,
   }
@@ -226,8 +228,8 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
 
   const fetchStudents = useCallback(async () => {
     const STUDENT_LIST_COLUMNS = lightweightPhotos
-      ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
-      : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+      ? "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,thumbnail_url,archived_at,archive_reason,payment_due_day,enrollment_category,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
+      : "id,name,responsible,monthly_value,is_active,is_scholarship,class_schedule,class_days,schedule_configs,photo,thumbnail_url,archived_at,archive_reason,payment_due_day,enrollment_category,registration_date,created_at,rg,birth_date,responsible_cpf,responsible_email,father_phone,mother_phone,updated_at"
 
     const loadOnce = async (forceRefreshSession = false) => {
       // Never start protected queries before Supabase has a usable session.
@@ -376,6 +378,10 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
 
   const generateStudentPayments = useCallback(
     async (studentId: string, monthlyValue: number, isScholarship = false, registrationDate?: string) => {
+      const { data: billingStudent, error: billingError } = await supabase
+        .from("students").select("payment_due_day").eq("id", studentId).single()
+      if (billingError) throw billingError
+      const dueDay = billingStudent?.payment_due_day || 10
       const currentDate = new Date()
       const currentYear = currentDate.getFullYear()
       const currentMonth = currentDate.getMonth() + 1
@@ -396,7 +402,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
         const endMonth = 12
 
         for (let month = startMonth; month <= endMonth; month++) {
-          const dueDate = createDueDate(year, month, 10)
+          const dueDate = createDueDate(year, month, dueDay)
           const dueDateObj = new Date(dueDate)
           const monthName = getMonthNameFromNumber(month)
 
@@ -411,8 +417,8 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
             if (isPastMonth) {
               status = "Não Pagou"
             } else if (isCurrentMonth) {
-              // Between day 1-10: "Em Aberto", after day 10: "Não Pagou"
-              status = currentDay <= 10 ? "Em Aberto" : "Não Pagou"
+              // Use the billing day agreed during enrollment.
+              status = currentDay <= dueDay ? "Em Aberto" : "Não Pagou"
             } else {
               status = "Em Aberto"
             }

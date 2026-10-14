@@ -53,6 +53,8 @@ export interface Student {
   scheduleConfigs?: DayScheduleConfig[]
   archivedAt?: string
   archiveReason?: string
+  paymentDueDay?: number
+  enrollmentCategory?: string
   registrationDate?: string
 }
 
