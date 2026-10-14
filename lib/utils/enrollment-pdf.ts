@@ -3,243 +3,163 @@ import type { Student, DayScheduleConfig } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils/currency"
 import { formatRG, formatCPF, detectDocumentType } from "@/lib/utils/input-masks"
 
-/**
- * Carrega uma imagem (por URL ou dataURL) e retorna um objeto com o dataURL
- * em PNG e suas dimensões. Retorna null se falhar.
- */
-async function loadImageAsDataUrl(
-  src: string,
-): Promise<{ dataUrl: string; width: number; height: number } | null> {
+/** Imagens são carregadas localmente para preservar o arquivo e a proporção da logo. */
+async function loadImage(src: string): Promise<{ data: string; w: number; h: number } | null> {
   try {
-    return await new Promise((resolve, reject) => {
-      const img = new Image()
-      img.crossOrigin = "anonymous"
-      img.onload = () => {
+    return await new Promise((resolve) => {
+      const image = new Image()
+      image.crossOrigin = "anonymous"
+      image.onload = () => {
         try {
           const canvas = document.createElement("canvas")
-          canvas.width = img.naturalWidth
-          canvas.height = img.naturalHeight
+          canvas.width = image.naturalWidth
+          canvas.height = image.naturalHeight
           const ctx = canvas.getContext("2d")
-          if (!ctx) {
-            resolve(null)
-            return
-          }
-          ctx.drawImage(img, 0, 0)
-          resolve({
-            dataUrl: canvas.toDataURL("image/png"),
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          })
-        } catch {
-          resolve(null)
-        }
+          if (!ctx) { resolve(null); return }
+          ctx.drawImage(image, 0, 0)
+          resolve({ data: canvas.toDataURL("image/png"), w: image.naturalWidth, h: image.naturalHeight })
+        } catch { resolve(null) }
       }
-      img.onerror = () => reject(new Error("Falha ao carregar imagem"))
-      img.src = src
+      image.onerror = () => resolve(null)
+      image.src = src
     })
-  } catch {
-    return null
+  } catch { return null }
+}
+
+function dateBR(input?: string) {
+  if (!input) return "Não informado"
+  if (/^\d{4}-\d{2}-\d{2}/.test(input)) {
+    const [year, month, day] = input.slice(0, 10).split("-")
+    return day + "/" + month + "/" + year
   }
+  return input
 }
 
-/** Formata a data de nascimento (aceita YYYY-MM-DD ou já formatada). */
-function formatBirthDate(birthDate?: string): string {
-  if (!birthDate) return "Não informado"
-  if (/^\d{4}-\d{2}-\d{2}/.test(birthDate)) {
-    const [year, month, day] = birthDate.split("-")
-    return `${day}/${month}/${year}`
-  }
-  return birthDate
+function scheduleText(student: Student) {
+  const schedules: DayScheduleConfig[] = student.scheduleConfigs?.length
+    ? student.scheduleConfigs
+    : (student.classDays || []).map(day => ({ day, schedule: student.classSchedule || "18:00-19:30" }))
+  return schedules.length
+    ? schedules.map(s => s.day + " • " + s.schedule.replace("-", " às ")).join(" | ")
+    : "A confirmar com o administrativo"
 }
 
-/** Monta o texto dos dias e horários da escolinha. */
-function formatSchedule(student: Student): string {
-  const configs: DayScheduleConfig[] =
-    student.scheduleConfigs && student.scheduleConfigs.length > 0
-      ? student.scheduleConfigs
-      : (student.classDays || []).map((day) => ({
-          day,
-          schedule: student.classSchedule || "18:00-19:30",
-        }))
-
-  if (configs.length === 0) return "Não informado"
-
-  return configs.map((c) => `${c.day} (${c.schedule})`).join(", ")
-}
-
-/**
- * Gera e baixa um PDF com a declaração de matrícula do aluno.
- */
 export async function generateEnrollmentPdf(student: Student): Promise<void> {
-  const doc = new jsPDF({ unit: "mm", format: "a4" })
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const marginX = 20
+  const pdf = new jsPDF({ unit: "mm", format: "a4" })
+  const W = 210, H = 297, left = 18, right = 192
+  const navy: [number, number, number] = [16, 31, 64]
+  const red: [number, number, number] = [203, 34, 57]
+  const text: [number, number, number] = [29, 45, 73]
+  const muted: [number, number, number] = [105, 119, 141]
+  const pale: [number, number, number] = [246, 248, 252]
 
-  // Cores
-  const primary: [number, number, number] = [185, 28, 28] // vermelho
-  const secondary: [number, number, number] = [23, 42, 84] // azul escuro
-  const dark: [number, number, number] = [30, 30, 30]
-  const gray: [number, number, number] = [110, 110, 110]
+  const setColor = (color: [number, number, number]) => pdf.setTextColor(...color)
+  const write = (value: string, x: number, y: number, size = 10, bold = false, color = text) => {
+    pdf.setFont("helvetica", bold ? "bold" : "normal")
+    pdf.setFontSize(size)
+    setColor(color)
+    pdf.text(value, x, y)
+  }
 
-  // ===== Logo (acima da linha, no topo) =====
-  const logo = await loadImageAsDataUrl("/logo-ceap.png")
+  pdf.setFillColor(...navy)
+  pdf.rect(0, 0, W, 61, "F")
+  pdf.setFillColor(...red)
+  pdf.rect(0, 61, W, 2, "F")
+
+  // Caixa neutra destaca o escudo original sem deformar.
+  pdf.setFillColor(255, 255, 255)
+  pdf.roundedRect(left, 11, 38, 38, 4, 4, "F")
+  const logo = await loadImage("/logo-ceap.png")
   if (logo) {
-    const logoMax = 22
-    const ratio = logo.width / logo.height
-    let logoW = logoMax
-    let logoH = logoMax
-    if (ratio >= 1) {
-      logoH = logoMax / ratio
-    } else {
-      logoW = logoMax * ratio
-    }
-    // centraliza verticalmente dentro do bloco do cabeçalho (topo em y=12)
-    const logoY = 12 + (logoMax - logoH) / 2
-    doc.addImage(logo.dataUrl, "PNG", marginX, logoY, logoW, logoH)
+    const max = 34
+    const scale = Math.min(max / logo.w, max / logo.h)
+    const w = logo.w * scale, h = logo.h * scale
+    pdf.addImage(logo.data, "PNG", left + (38 - w) / 2, 11 + (38 - h) / 2, w, h)
   }
 
-  // ===== Cabeçalho =====
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(18)
-  doc.setTextColor(...secondary)
-  doc.text("Escola de Futebol 10 na Bola", pageWidth - marginX, 20, { align: "right" })
+  write("10 NA BOLA", 64, 24, 20, true, [255, 255, 255])
+  write("ESCOLA DE FUTEBOL", 64, 32, 10, true, [230, 235, 245])
+  write("COMPROVANTE DE MATRÍCULA", 64, 44, 10, true, [255, 210, 220])
 
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(10)
-  doc.setTextColor(...gray)
-  doc.text("Declaração de Matrícula", pageWidth - marginX, 27, { align: "right" })
+  const today = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" })
+  pdf.setFillColor(234, 248, 239)
+  pdf.roundedRect(left, 71, W - left * 2, 22, 3, 3, "F")
+  write("MATRÍCULA APROVADA", left + 7, 80, 11, true, [29, 117, 74])
+  write("Emissão: " + today, left + 7, 87, 8.5, false, [59, 105, 81])
 
-  // Linha separadora
-  doc.setDrawColor(...primary)
-  doc.setLineWidth(0.8)
-  doc.line(marginX, 40, pageWidth - marginX, 40)
+  let y = 104
+  const section = (title: string, rows: Array<[string, string]>) => {
+    pdf.setFillColor(...navy)
+    pdf.roundedRect(left, y, W - left * 2, 9, 1.6, 1.6, "F")
+    write(title.toUpperCase(), left + 5, y + 6, 9, true, [255, 255, 255])
+    y += 11
 
-  // ===== Título =====
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(16)
-  doc.setTextColor(...secondary)
-  doc.text("DECLARAÇÃO DE MATRÍCULA", pageWidth / 2, 55, { align: "center" })
-
-  // ===== Foto do aluno =====
-  let contentTop = 68
-  const photoSrc = student.photo || student.thumbnailUrl
-  if (photoSrc) {
-    const photo = await loadImageAsDataUrl(photoSrc)
-    if (photo) {
-      // caixa fixa da foto (retrato)
-      const boxW = 38
-      const boxH = 48
-      const boxX = pageWidth / 2 - boxW / 2
-      const boxY = contentTop
-
-      // ajusta a imagem dentro da caixa mantendo a proporção (sem esticar)
-      const imgRatio = photo.width / photo.height
-      const boxRatio = boxW / boxH
-      let drawW = boxW
-      let drawH = boxH
-      if (imgRatio > boxRatio) {
-        // imagem mais larga: limita pela largura
-        drawW = boxW
-        drawH = boxW / imgRatio
-      } else {
-        // imagem mais alta: limita pela altura
-        drawH = boxH
-        drawW = boxH * imgRatio
+    for (const [label, value] of rows) {
+      const safeValue = String(value || "Não informado")
+      pdf.setFont("helvetica", "normal")
+      pdf.setFontSize(9.5)
+      const wrapped = pdf.splitTextToSize(safeValue, 110) as string[]
+      const rowHeight = Math.max(11, wrapped.length * 4.4 + 4)
+      if (y + rowHeight > H - 28) {
+        pdf.addPage()
+        y = 19
       }
-      const drawX = boxX + (boxW - drawW) / 2
-      const drawY = boxY + (boxH - drawH) / 2
-
-      // moldura
-      doc.setDrawColor(...primary)
-      doc.setLineWidth(0.6)
-      doc.rect(boxX - 1, boxY - 1, boxW + 2, boxH + 2)
-      doc.addImage(photo.dataUrl, "PNG", drawX, drawY, drawW, drawH)
-      contentTop += boxH + 12
+      pdf.setFillColor(...pale)
+      pdf.roundedRect(left, y, W - left * 2, rowHeight - 1, 1, 1, "F")
+      write(label, left + 4, y + 6.7, 8.6, true, muted)
+      pdf.setFont("helvetica", "normal")
+      pdf.setFontSize(9.4)
+      setColor(text)
+      pdf.text(wrapped, left + 61, y + 6.5)
+      y += rowHeight
     }
+    y += 5
   }
 
-  // ===== Texto de confirmação =====
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(11)
-  doc.setTextColor(...dark)
-  const bodyText = `Declaramos, para os devidos fins, que o(a) aluno(a) ${student.name} encontra-se regularmente matriculado(a) na Escola de Futebol 10 na Bola, conforme os dados registrados abaixo.`
-  const lines = doc.splitTextToSize(bodyText, pageWidth - marginX * 2)
-  doc.text(lines, marginX, contentTop)
-  contentTop += lines.length * 6 + 6
-
-  // ===== Tabela de dados =====
-  const documentType = student.rg ? detectDocumentType(student.rg) : "RG"
-  const documentLabel = documentType === "CPF" ? "CPF do aluno" : "RG do aluno"
-  const documentValue = student.rg
-    ? documentType === "CPF"
-      ? formatCPF(student.rg)
-      : formatRG(student.rg)
+  const document = student.rg || "Não informado"
+  const documentLabel = detectDocumentType(document) === "CPF" ? "CPF do aluno" : "Documento do aluno"
+  const formattedDocument = student.rg
+    ? (detectDocumentType(student.rg) === "CPF" ? formatCPF(student.rg) : formatRG(student.rg))
     : "Não informado"
 
-  const rows: Array<[string, string]> = [
+  section("Identificação do aluno", [
     ["Nome completo", student.name || "Não informado"],
-    ["Data de nascimento", formatBirthDate(student.birthDate)],
-    [documentLabel, documentValue],
+    ["Data de nascimento", dateBR(student.birthDate)],
+    [documentLabel, formattedDocument],
+  ])
+
+  section("Responsável e contatos", [
     ["Responsável", student.responsible || "Não informado"],
     ["CPF do responsável", student.responsibleCpf ? formatCPF(student.responsibleCpf) : "Não informado"],
-    ["Dias e horários", formatSchedule(student)],
-    ["Valor da mensalidade", formatCurrency(student.monthlyValue || 0)],
-    ...(student.enrollmentCategory ? [["Categoria", student.enrollmentCategory] as [string, string]] : []),
-    ...(student.paymentDueDay ? [["Vencimento", `Dia ${student.paymentDueDay} de cada mês`] as [string, string]] : []),
-    ["Bolsista", student.isScholarship ? "Sim" : "Não"],
-  ]
+    ["E-mail", student.responsibleEmail || "Não informado"],
+    ["Telefone do pai", student.fatherPhone || "Não informado"],
+    ["Telefone da mãe", student.motherPhone || "Não informado"],
+  ])
 
-  const rowHeight = 11
-  const labelW = 55
-  let y = contentTop
+  section("Treinos e mensalidade", [
+    ["Dias e horários", scheduleText(student)],
+    ["Mensalidade", student.isScholarship ? "Bolsa integral" : formatCurrency(student.monthlyValue || 0)],
+    ["Dia de vencimento", student.paymentDueDay ? String(student.paymentDueDay).padStart(2, "0") + " de cada mês" : "A confirmar"],
+    ["Situação", "Matrícula aprovada e ativa"],
+  ])
 
-  rows.forEach(([label, value], index) => {
-    const bg = index % 2 === 0
-    if (bg) {
-      doc.setFillColor(244, 246, 250)
-      doc.rect(marginX, y, pageWidth - marginX * 2, rowHeight, "F")
-    }
-    // label
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(10)
-    doc.setTextColor(...secondary)
-    doc.text(label, marginX + 3, y + 7)
-    // value
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(...dark)
-    const valueLines = doc.splitTextToSize(value, pageWidth - marginX * 2 - labelW - 6)
-    doc.text(valueLines, marginX + labelW, y + 7)
-    y += rowHeight
-  })
+  if (y + 20 > H - 18) { pdf.addPage(); y = 19 }
+  pdf.setDrawColor(222, 228, 238)
+  pdf.line(left, y + 2, right, y + 2)
+  pdf.setFont("helvetica", "normal")
+  pdf.setFontSize(8.5)
+  setColor(muted)
+  pdf.text(pdf.splitTextToSize("Documento emitido pela Escola de Futebol 10 na Bola após a aprovação administrativa da matrícula. Não é necessário assinar este comprovante.", W - left * 2), left, y + 9)
 
-  // borda da tabela
-  doc.setDrawColor(...secondary)
-  doc.setLineWidth(0.3)
-  doc.rect(marginX, contentTop, pageWidth - marginX * 2, y - contentTop)
-
-  // ===== Data de emissão =====
-  const today = new Date().toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
-  y += 18
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(11)
-  doc.setTextColor(...dark)
-  doc.text(`Emitido em ${today}.`, marginX, y)
-
-  // ===== Rodapé =====
-  doc.setFontSize(8)
-  doc.setTextColor(...gray)
-  doc.text(
-    "Este documento confirma a matrícula do aluno na Escola de Futebol 10 na Bola.",
-    pageWidth / 2,
-    pageHeight - 14,
-    { align: "center" },
-  )
+  const pageCount = pdf.getNumberOfPages()
+  for (let page = 1; page <= pageCount; page++) {
+    pdf.setPage(page)
+    pdf.setDrawColor(221, 226, 235)
+    pdf.line(left, H - 17, right, H - 17)
+    write("10 NA BOLA  •  MATRÍCULA DIGITAL", left, H - 11, 7.7, true, navy)
+    write("Página " + page + " de " + pageCount, right - 22, H - 11, 7.6, false, muted)
+  }
 
   const safeName = (student.name || "aluno").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()
-  doc.save(`matricula-${safeName}.pdf`)
+  pdf.save("matricula-aprovada-" + safeName + ".pdf")
 }
