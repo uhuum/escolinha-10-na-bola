@@ -373,14 +373,14 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
 
                 {student.fatherPhone && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Telefone do Pai</p>
+                    <p className="text-sm text-muted-foreground mb-1">{student.enrollmentCategory ? "Contato principal" : "Telefone do Pai"}</p>
                     <p className="font-medium text-foreground">{student.fatherPhone}</p>
                   </div>
                 )}
 
                 {student.motherPhone && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Telefone da Mãe</p>
+                    <p className="text-sm text-muted-foreground mb-1">{student.enrollmentCategory ? "Contato de emergência" : "Telefone da Mãe"}</p>
                     <p className="font-medium text-foreground">{student.motherPhone}</p>
                   </div>
                 )}
@@ -755,7 +755,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                 </div>
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-fatherPhone">Telefone do Pai</Label>
+                    <Label htmlFor="edit-fatherPhone">{student.enrollmentCategory ? "Contato principal" : "Telefone do Pai"}</Label>
                     <Input
                       id="edit-fatherPhone"
                       value={editForm.fatherPhone}
@@ -765,7 +765,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-motherPhone">Telefone da Mãe</Label>
+                    <Label htmlFor="edit-motherPhone">{student.enrollmentCategory ? "Contato de emergência" : "Telefone da Mãe"}</Label>
                     <Input
                       id="edit-motherPhone"
                       value={editForm.motherPhone}

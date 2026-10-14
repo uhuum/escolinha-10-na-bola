@@ -30,6 +30,7 @@ function redirect(request: NextRequest, pathname: string, sourceResponse: NextRe
 
 export async function updateSupabaseSession(request: NextRequest) {
   let response = NextResponse.next({ request })
+  if (request.nextUrl.pathname === "/matricula") return withPrivateCache(response)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
