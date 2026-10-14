@@ -29,6 +29,7 @@ export default function EnrollmentPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [checking, setChecking] = useState(false)
+  const [protocol, setProtocol] = useState("")
 
   // The random invitation secret stays in the URL fragment and is never sent to the server.
   // Only its SHA-256 digest is passed to the restricted status/submission procedures.
@@ -37,6 +38,7 @@ export default function EnrollmentPage() {
       p_token_hash: hash,
     })
     if (requestError) throw requestError
+    setProtocol(typeof result?.protocol === "string" ? result.protocol : "")
     const nextStatus = result?.status
     return (["invited", "pending", "approved", "cancelled", "expired"].includes(nextStatus)
       ? nextStatus
@@ -142,6 +144,7 @@ export default function EnrollmentPage() {
       })
       if (submitError) throw submitError
       setStatus("pending")
+      try { await refreshStatus(tokenHash) } catch { /* The submission succeeded; status can be checked again. */ }
       setData(blank)
     } catch {
       setError("Não foi possível enviar a ficha. Verifique se o convite ainda está válido e tente novamente.")
@@ -190,6 +193,7 @@ export default function EnrollmentPage() {
                   "Peça ao administrativo da 10 na Bola um novo link para preencher a ficha."}
               </p>
               {(status === "pending" || status === "approved") && <>
+                {protocol && <p className="font-mono text-sm text-slate-700">Protocolo: {protocol}</p>}
                 <p className="text-xs text-slate-500">Salve este link para acompanhar a matrícula. O status também será atualizado automaticamente enquanto esta página estiver aberta.</p>
                 <Button type="button" variant="outline" disabled={checking} onClick={checkAgain}><RefreshCw className="mr-2 h-4 w-4" />{checking ? "Consultando..." : "Atualizar status"}</Button>
               </>}
