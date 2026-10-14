@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getBrowserClient } from "@/lib/supabase/client"
+import { SectionLoadingScreen } from "@/components/section-loading-screen"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +26,7 @@ export function UniformStock({ backPath = "/uniforms" }: { backPath?: string }){
  const sizes=[...new Set(groups.map(g=>g.size))].sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}))
  const filtered=groups.filter(g=>(type==="Todos"||g.type===type)&&(size==="Todos"||g.size===size)&&`${g.type} ${g.model} ${g.size} ${g.items.map(k=>k.shirt_number).join(" ")}`.toLowerCase().includes(search.toLowerCase()))
  const total=groups.reduce((n,g)=>n+g.available,0)
- if(loading)return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary"/></div>
+ if(loading)return <SectionLoadingScreen title="Carregando estoque..." description="Consultando tamanhos, numerações e quantidades disponíveis..." />
  return <div className="mx-auto w-full max-w-7xl space-y-6 pb-10">
   <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><Button variant="ghost" className="-ml-3 mb-2" onClick={()=>router.push(backPath)}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar para Uniformes</Button><p className="text-sm font-semibold text-primary">Uniformes</p><h1 className="text-2xl font-bold sm:text-3xl">Consulta de estoque</h1><p className="mt-1 text-sm text-muted-foreground">Pesquise rapidamente por categoria, tamanho ou número da camisa.</p></div><div className="rounded-xl border bg-card px-5 py-3"><b className="text-2xl">{total}</b><span className="ml-2 text-sm text-muted-foreground">kits disponíveis</span></div></div>
   <Card><CardContent className="p-4 sm:p-5"><div className="grid gap-3 md:grid-cols-[1fr_190px_190px]"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input className="h-11 pl-9" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Ex.: nº 16, tamanho P, goleiro..."/></div><Select value={type} onValueChange={v=>setType(v as "Todos"|KitType)}><SelectTrigger className="h-11"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Todos">Todas categorias</SelectItem>{TYPES.map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><Select value={size} onValueChange={setSize}><SelectTrigger className="h-11"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Todos">Todos tamanhos</SelectItem>{sizes.map(s=><SelectItem key={s} value={s}>Tamanho {s}</SelectItem>)}</SelectContent></Select></div></CardContent></Card>

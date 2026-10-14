@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { getBrowserClient } from "@/lib/supabase/client"
+import { SectionLoadingScreen } from "@/components/section-loading-screen"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -30,6 +31,7 @@ export function UniformInventory() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
+  const [firstLoadCompleted, setFirstLoadCompleted] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState("")
   const [type, setType] = useState<KitType>("Jogador")
@@ -55,6 +57,7 @@ export function UniformInventory() {
     if (k.error || d.error || s.error) toast({ title: "Erro ao carregar uniformes", description: k.error?.message || d.error?.message || s.error?.message, variant: "destructive" })
     else { setKits(k.data as Kit[]); setDeliveries(d.data as unknown as Delivery[]); setStudents(s.data as Student[]) }
     setLoading(false)
+    setFirstLoadCompleted(true)
   }
 
   useEffect(() => { void load() }, [])
@@ -150,7 +153,7 @@ export function UniformInventory() {
     await load()
   }
 
-  if (loading) return <div className="flex min-h-[45vh] items-center justify-center"><div className="text-center"><div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" /><p className="text-sm text-muted-foreground">Carregando estoque...</p></div></div>
+  if (loading && !firstLoadCompleted) return <SectionLoadingScreen title="Carregando uniformes..." description="Sincronizando kits, estoque e entregas da escolinha..." />
 
   return <div className="mx-auto w-full max-w-7xl space-y-6 pb-10">
     <header><p className="text-sm font-semibold text-primary">Controle de estoque</p><h1 className="text-2xl font-bold sm:text-3xl">Uniformes</h1><p className="mt-1 text-sm text-muted-foreground">Controle os kits por categoria, tamanho e numeração da camisa.</p></header>
