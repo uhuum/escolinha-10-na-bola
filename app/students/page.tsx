@@ -223,6 +223,11 @@ export default function StudentsPage() {
                   Importar
                 </Link>
               </Button>
+              <Button asChild variant="outline" className="gap-1 sm:gap-2 bg-transparent flex-1 sm:flex-initial text-xs sm:text-sm h-8 sm:h-9">
+                <Link href="/enrollments">
+                  Matrícula por link
+                </Link>
+              </Button>
               <Button asChild className="gap-1 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm h-8 sm:h-9">
                 <Link href="/students/new">
                   <Users className="h-3 w-3 sm:h-4 sm:w-4" />
