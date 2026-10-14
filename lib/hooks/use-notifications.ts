@@ -220,6 +220,26 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
           }
         })]
 
+        // Fichas recebidas ficam visíveis no sino do administrativo até serem aprovadas.
+        const enrollmentResult = await supabase
+          .from("enrollment_requests")
+          .select("id,payload,submitted_at")
+          .eq("status", "pending")
+          .order("submitted_at", { ascending: false })
+          .limit(50)
+        if (enrollmentResult.error) throw enrollmentResult.error
+        for (const enrollment of enrollmentResult.data || []) {
+          const payload = enrollment.payload as { name?: string } | null
+          items.unshift({
+            id: "admin-new-enrollment-" + enrollment.id,
+            title: "Nova matrícula para aprovação",
+            message: payload?.name ? "A ficha de " + payload.name + " está aguardando conferência." : "Uma nova ficha aguarda sua conferência.",
+            href: "/enrollments/" + enrollment.id,
+            actionLabel: "Conferir matrícula",
+            kind: "info",
+          })
+        }
+
         if (isLastDayOfMonth(now)) {
           const [paymentsResult, studentsResult] = await Promise.all([
             supabase
@@ -321,11 +341,11 @@ export function useNotifications({ userId, role }: UseNotificationsArgs) {
     void loadDynamicNotifications()
   }, [loadDynamicNotifications])
 
-  // A chamada pode ser registrada em outra tela/aba. Atualize os lembretes
-  // periodicamente sem recarregar o restante do sistema.
+  // Admin: novas matrículas aparecem em até um minuto com o SIGA aberto.
+  // Coach: mantém a atualização dos lembretes de chamada.
   useEffect(() => {
-    if (role !== "coach") return
-    const interval = window.setInterval(() => void loadDynamicNotifications(), 5 * 60_000)
+    if (!role) return
+    const interval = window.setInterval(() => void loadDynamicNotifications(), role === "admin" ? 60_000 : 5 * 60_000)
     return () => window.clearInterval(interval)
   }, [loadDynamicNotifications, role])
 
