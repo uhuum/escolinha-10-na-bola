@@ -8,6 +8,7 @@ import { createInvitationToken, displayDate, hashInvitationToken, type Enrollmen
 import { generateEnrollmentPdf } from "@/lib/utils/enrollment-pdf"
 import type { Student } from "@/lib/types"
 import { AppHeader } from "@/components/app-header"
+import { SectionLoadingScreen } from "@/components/section-loading-screen"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,6 +31,7 @@ export default function EnrollmentsPage() {
   const supabase = useMemo(() => getBrowserClient(), [])
   const [rows, setRows] = useState<EnrollmentRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [firstLoadCompleted, setFirstLoadCompleted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [label, setLabel] = useState("")
   const [generatedLink, setGeneratedLink] = useState("")
@@ -46,7 +48,7 @@ export default function EnrollmentsPage() {
   useEffect(() => {
     let active = true
     load().catch(() => { if (active) setError("Não foi possível carregar as solicitações.") })
-      .finally(() => { if (active) setLoading(false) })
+      .finally(() => { if (active) { setLoading(false); setFirstLoadCompleted(true) } })
     return () => { active = false }
   }, [load])
 
@@ -128,6 +130,10 @@ export default function EnrollmentsPage() {
       await generateEnrollmentPdf(student)
     } catch { setError("Não foi possível gerar a declaração de matrícula.") }
     finally { setBusy(false) }
+  }
+
+  if (loading && !firstLoadCompleted) {
+    return <SectionLoadingScreen title="Carregando matrículas..." description="Sincronizando convites e solicitações para conferência..." />
   }
 
   return (

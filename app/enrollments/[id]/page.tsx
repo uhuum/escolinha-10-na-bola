@@ -8,6 +8,7 @@ import { WEEK_DAYS, TRAINING_TIMES, type EnrollmentRequest, displayDate } from "
 import { generateEnrollmentPdf } from "@/lib/utils/enrollment-pdf"
 import type { Student } from "@/lib/types"
 import { AppHeader } from "@/components/app-header"
+import { SectionLoadingScreen } from "@/components/section-loading-screen"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -97,6 +98,10 @@ export default function ReviewEnrollmentPage() {
   }
 
   const payload = request?.payload
+
+  if (loading) {
+    return <SectionLoadingScreen title="Carregando conferência..." description="Consultando os dados da ficha de matrícula..." />
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
