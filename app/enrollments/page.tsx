@@ -20,7 +20,7 @@ type Schedule = { day: string; schedule: string }
 function statusName(value: string) {
   switch (value) {
     case "invited": return "Aguardando preenchimento"
-    case "pending": return "Aguardando aprovação"
+    case "pending": return "Em análise — aguardando aprovação"
     case "approved": return "Matrícula aprovada"
     case "cancelled": return "Cancelado"
     default: return value
@@ -87,7 +87,7 @@ export default function EnrollmentsPage() {
         expires_at: expiry,
       })
       if (insertError) throw insertError
-      const url = `${window.location.origin}/enroll#${token}`
+      const url = `${window.location.origin}/matricula-digital#${token}`
       setGeneratedLink(url)
       setLabel("")
       setConfirmation("Convite criado. Copie e envie o link ao responsável pelo WhatsApp.")
@@ -250,7 +250,9 @@ export default function EnrollmentsPage() {
               <p><strong>Documento:</strong> {selected.payload.document}</p>
               <p><strong>Responsável:</strong> {selected.payload.responsible}</p>
               <p><strong>CPF do responsável:</strong> {selected.payload.responsibleCpf}</p>
-              <p><strong>Telefone:</strong> {selected.payload.phone}</p>
+              <p><strong>WhatsApp:</strong> {selected.payload.phone}</p>
+              <p><strong>Telefone do pai:</strong> {selected.payload.fatherPhone || "Não informado"}</p>
+              <p><strong>Telefone da mãe:</strong> {selected.payload.motherPhone || "Não informado"}</p>
               <p><strong>E-mail:</strong> {selected.payload.email}</p>
               <p><strong>Vencimento solicitado:</strong> dia {selected.payload.dueDay}</p>
               <p><strong>Emergência:</strong> {selected.payload.emergencyName || "Não informado"} · {selected.payload.emergencyPhone || "Não informado"}</p>
