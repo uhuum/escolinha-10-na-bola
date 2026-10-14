@@ -8,7 +8,7 @@ export function AppSession({ children }: { children: ReactNode }) {
   const pathname = usePathname()
 
   // Parents using an enrollment invitation do not need an administrative login.
-  if (pathname === "/enroll" || pathname.startsWith("/enroll/")) {
+  if (pathname === "/enroll" || pathname.startsWith("/enroll/") || pathname === "/matricula-digital" || pathname.startsWith("/matricula-digital/")) {
     return <>{children}</>
   }
 
