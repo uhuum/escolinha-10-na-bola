@@ -196,6 +196,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const performLogout = async () => {
     try {
+      // A signed-out/shared device must not continue receiving another person's alerts.
+      if ("serviceWorker" in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.getRegistration("/")
+          const subscription = await registration?.pushManager.getSubscription()
+          if (subscription) {
+            await fetch("/api/push/subscribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ action: "unsubscribe", endpoint: subscription.endpoint }),
+            }).catch(() => null)
+            await subscription.unsubscribe()
+          }
+        } catch (error) {
+          console.warn("[SIGA] Não foi possível desvincular notificações deste aparelho.", error)
+        }
+      }
       await fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
       await supabase.auth.signOut({ scope: "local" })
     } catch (error) {

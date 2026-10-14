@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { isTrustedPushEndpoint, isValidPushKeys } from "@/lib/push/server"
 
 export const dynamic = "force-dynamic"
 
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as SubscriptionBody
     const endpoint = body.endpoint?.trim()
-    if (!endpoint || endpoint.length > 4096 || !endpoint.startsWith("https://")) {
+    if (!isTrustedPushEndpoint(endpoint)) {
       return NextResponse.json({ error: "Inscrição inválida" }, { status: 400 })
     }
 
@@ -53,8 +54,29 @@ export async function POST(request: Request) {
 
     const p256dh = body.keys?.p256dh?.trim()
     const auth = body.keys?.auth?.trim()
-    if (!p256dh || !auth || p256dh.length > 512 || auth.length > 512) {
+    if (!isValidPushKeys(p256dh, auth)) {
       return NextResponse.json({ error: "Chaves da inscrição inválidas" }, { status: 400 })
+    }
+
+    // Never allow one authenticated user to take ownership of another user's device.
+    const { data: existing, error: ownershipError } = await service
+      .from("push_subscriptions").select("auth_user_id")
+      .eq("endpoint", endpoint).maybeSingle()
+    if (ownershipError) throw ownershipError
+    if (existing?.auth_user_id && existing.auth_user_id !== user.id) {
+      return NextResponse.json({ error: "Este dispositivo pertence a outra conta. Desative e ative as notificações novamente." }, { status: 409 })
+    }
+
+    if (!existing) {
+      // Prevent unbounded device registrations from one account.
+      const { count, error: countError } = await service
+        .from("push_subscriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("auth_user_id", user.id)
+      if (countError) throw countError
+      if ((count || 0) >= 8) {
+        return NextResponse.json({ error: "Limite de dispositivos atingido. Remova um aparelho antigo." }, { status: 429 })
+      }
     }
 
     const userAgent = request.headers.get("user-agent")?.slice(0, 500) || null
