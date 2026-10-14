@@ -575,7 +575,7 @@ useEffect(() => {
           !student.isScholarship &&
           student.monthlyValue > 0 &&
           !isArchived &&
-          (payment?.status === "Não Pagou" || payment?.status === "Cobrado" || payment?.status === "Em Aberto"),
+          (payment?.status === "Não Pagou" || payment?.status === "Cobrado"),
       )
       .map(({ student, payment }) => ({
         nome: student.name,

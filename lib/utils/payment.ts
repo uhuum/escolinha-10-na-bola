@@ -168,7 +168,7 @@ export function generateMonthlyPaymentReport(
 
   const paidPayments = periodPayments.filter((p) => p.status === "Pago")
   const pendingPayments = periodPayments.filter(
-    (p) => p.status === "Não Pagou" || p.status === "Cobrado" || p.status === "Em Aberto",
+    (p) => p.status === "Não Pagou" || p.status === "Cobrado",
   )
   const scholarshipPayments = periodPayments.filter((p) => p.status === "Bolsista")
 
