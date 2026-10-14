@@ -4,6 +4,7 @@ const PUBLIC_PAGE_PATHS = new Set(["/login"])
 
 const ADMIN_ROUTE_PREFIXES = [
   "/students",
+  "/enrollments",
   "/payments",
   "/competitions",
   "/uniforms",
