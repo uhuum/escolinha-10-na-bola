@@ -3,10 +3,13 @@ export type EnrollmentStatus = "invited" | "pending" | "approved" | "cancelled"
 export interface EnrollmentFormData {
   name: string
   document: string
+  documentType?: "RG" | "CPF"
   birthDate: string
   responsible: string
   responsibleCpf: string
   phone: string
+  fatherPhone?: string
+  motherPhone?: string
   email: string
   emergencyName: string
   emergencyPhone: string
