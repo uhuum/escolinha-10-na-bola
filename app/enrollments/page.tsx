@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { getBrowserClient } from "@/lib/supabase/client"
-import { createInvitationToken, displayDate, hashInvitationToken, WEEK_DAYS, TRAINING_TIMES, type EnrollmentRequest } from "@/lib/enrollment"
+import { createInvitationToken, displayDate, hashInvitationToken, type EnrollmentRequest } from "@/lib/enrollment"
 import { generateEnrollmentPdf } from "@/lib/utils/enrollment-pdf"
 import type { Student } from "@/lib/types"
 import { AppHeader } from "@/components/app-header"
@@ -13,9 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ClipboardCopy, FileText, Link2, RefreshCcw, CheckCircle2, XCircle, Plus, Trash2 } from "lucide-react"
-
-type Schedule = { day: string; schedule: string }
+import { ClipboardCopy, FileText, Link2, RefreshCcw, CheckCircle2, XCircle, Plus } from "lucide-react"
 
 function statusName(value: string) {
   switch (value) {
@@ -36,18 +34,7 @@ export default function EnrollmentsPage() {
   const [label, setLabel] = useState("")
   const [generatedLink, setGeneratedLink] = useState("")
   const [error, setError] = useState("")
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [category, setCategory] = useState("")
-  const [monthlyValue, setMonthlyValue] = useState("")
-  const [dueDay, setDueDay] = useState(10)
-  const [scheduleConfigs, setScheduleConfigs] = useState<Schedule[]>([{ day: "Segunda", schedule: "18:00-19:30" }])
   const [confirmation, setConfirmation] = useState("")
-  const selected = rows.find((row) => row.id === selectedId) || null
-
-  useEffect(() => {
-    if (selectedId) requestAnimationFrame(() => document.getElementById("review")?.scrollIntoView({ behavior: "smooth", block: "start" }))
-  }, [selectedId])
-
   const load = useCallback(async () => {
     const { data, error: readError } = await supabase.from("enrollment_requests")
       .select("id,label,status,created_at,expires_at,submitted_at,approved_at,student_id,payload,approval")
@@ -106,44 +93,6 @@ export default function EnrollmentsPage() {
     }
   }
 
-  const openApproval = (row: EnrollmentRequest) => {
-    setSelectedId(row.id)
-    setMonthlyValue("")
-    setCategory("")
-    setDueDay(Math.max(1, Math.min(28, Number(row.payload?.dueDay) || 10)))
-    setScheduleConfigs([{ day: "Segunda", schedule: "18:00-19:30" }])
-    setError("")
-    setConfirmation("")
-  }
-
-  const approve = async () => {
-    if (!selected || busy) return
-    const amount = Number(monthlyValue)
-    if (!category || monthlyValue.trim() === "" || !Number.isInteger(amount) || amount < 0 || amount > 10000
-      || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28 || scheduleConfigs.length < 1
-      || new Set(scheduleConfigs.map((item) => item.day)).size !== scheduleConfigs.length) {
-      setError("Informe categoria, valor mensal, vencimento e dias/horários válidos para aprovar.")
-      return
-    }
-    setBusy(true)
-    setError("")
-    try {
-      const { error: approvalError } = await supabase.rpc("approve_enrollment", {
-        p_request_id: selected.id,
-        p_approval: { category, monthlyValue: amount, dueDay, scheduleConfigs },
-      })
-      if (approvalError) {
-        if (approvalError.message.includes("DUPLICATE_STUDENT")) throw new Error("Aluno já cadastrado. Confira antes de prosseguir.")
-        throw approvalError
-      }
-      setSelectedId(null)
-      setConfirmation("Matrícula aprovada! O aluno já está cadastrado no sistema com suas mensalidades.")
-      await load()
-    } catch (cause) {
-      setError(cause instanceof Error && cause.message.includes("Aluno já") ? cause.message : "Não foi possível aprovar. Confira o cadastro e tente novamente.")
-    } finally { setBusy(false) }
-  }
-
   const cancel = async (row: EnrollmentRequest) => {
     if (busy || !window.confirm("Cancelar este convite? Esta ação não apaga alunos já matriculados.")) return
     setBusy(true)
@@ -152,7 +101,7 @@ export default function EnrollmentsPage() {
       const { data: result, error: cancelError } = await supabase.from("enrollment_requests")
         .update({ status: "cancelled" }).eq("id", row.id).in("status", ["invited", "pending"]).select("id")
       if (cancelError || !result?.length) throw new Error("cancel failed")
-      setSelectedId(null)
+      
       setConfirmation("Convite cancelado.")
       await load()
     } catch { setError("Não foi possível cancelar a solicitação.") }
@@ -229,7 +178,7 @@ export default function EnrollmentsPage() {
                     <Badge variant={row.status === "approved" ? "default" : "secondary"}>{statusName(row.status)}</Badge>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {row.status === "pending" && <Button size="sm" onClick={() => openApproval(row)}><CheckCircle2 className="mr-2 h-4 w-4" /> Analisar matrícula</Button>}
+                    {row.status === "pending" && <Button asChild size="sm"><Link href={"/enrollments/" + row.id}><CheckCircle2 className="mr-2 h-4 w-4" /> Abrir conferência</Link></Button>}
                     {row.status === "approved" && row.student_id && <>
                       <Button size="sm" variant="outline" disabled={busy} onClick={() => downloadPdf(row.student_id!)}><FileText className="mr-2 h-4 w-4" /> Baixar PDF</Button>
                       <Button asChild size="sm" variant="outline"><Link href={`/students/${row.student_id}`}>Ver aluno</Link></Button>
@@ -241,52 +190,6 @@ export default function EnrollmentsPage() {
             ))}
         </div>
 
-        {selected && selected.status === "pending" && selected.payload && <Card className="border-2 border-blue-300" id="review">
-          <CardHeader><CardTitle className="text-lg">Conferir matrícula de {selected.payload.name}</CardTitle></CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-2 rounded-lg bg-slate-100 p-4 text-sm sm:grid-cols-2">
-              <p><strong>Nome:</strong> {selected.payload.name}</p>
-              <p><strong>Nascimento:</strong> {selected.payload.birthDate}</p>
-              <p><strong>Documento:</strong> {selected.payload.document}</p>
-              <p><strong>Responsável:</strong> {selected.payload.responsible}</p>
-              <p><strong>CPF do responsável:</strong> {selected.payload.responsibleCpf}</p>
-              <p><strong>WhatsApp:</strong> {selected.payload.phone}</p>
-              <p><strong>Telefone do pai:</strong> {selected.payload.fatherPhone || "Não informado"}</p>
-              <p><strong>Telefone da mãe:</strong> {selected.payload.motherPhone || "Não informado"}</p>
-              <p><strong>E-mail:</strong> {selected.payload.email}</p>
-              <p><strong>Vencimento solicitado:</strong> dia {selected.payload.dueDay}</p>
-              <p><strong>Emergência:</strong> {selected.payload.emergencyName || "Não informado"} · {selected.payload.emergencyPhone || "Não informado"}</p>
-              <p className="sm:col-span-2"><strong>Saúde (acesso administrativo):</strong> {selected.payload.healthNote || "Nada informado"}</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div><Label htmlFor="category">Categoria *</Label><select id="category" className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">Selecionar...</option>{Array.from({ length: 9 }, (_, i) => i + 8).map((n) => <option key={n} value={`Sub-${String(n).padStart(2, "0")}`}>Sub-{String(n).padStart(2, "0")}</option>)}
-              </select></div>
-              <div><Label htmlFor="value">Valor mensal em R$ *</Label><Input id="value" type="number" min={0} max={10000} step={1} placeholder="Ex.: 120" value={monthlyValue} onChange={(e) => setMonthlyValue(e.target.value)} className="mt-1" /></div>
-              <div><Label htmlFor="due">Vencimento *</Label><select id="due" value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))} className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm">{Array.from({ length: 28 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>Dia {n}</option>)}</select></div>
-            </div>
-            <div className="space-y-3"><div className="flex items-center justify-between"><h3 className="font-semibold">Dias e horários de treino</h3>
-              <Button size="sm" variant="outline" disabled={scheduleConfigs.length >= 5} onClick={() => {
-                const freeDay = WEEK_DAYS.find((day) => !scheduleConfigs.some((entry) => entry.day === day))
-                if (freeDay) setScheduleConfigs((old) => [...old, { day: freeDay, schedule: "18:00-19:30" }])
-              }}><Plus className="mr-1 h-4 w-4" /> Adicionar dia</Button></div>
-              {scheduleConfigs.map((item, index) => <div key={index} className="flex flex-wrap items-center gap-2">
-                <select aria-label={`Dia de treino ${index + 1}`} className="h-10 flex-1 rounded-md border bg-white px-2 text-sm" value={item.day} onChange={(e) => setScheduleConfigs((old) => old.map((entry, i) => i === index ? { ...entry, day: e.target.value } : entry))}>
-                  {WEEK_DAYS.map((day) => <option key={day} value={day}>{day}</option>)}
-                </select>
-                <select aria-label={`Horário de treino ${index + 1}`} className="h-10 flex-1 rounded-md border bg-white px-2 text-sm" value={item.schedule} onChange={(e) => setScheduleConfigs((old) => old.map((entry, i) => i === index ? { ...entry, schedule: e.target.value } : entry))}>
-                  {TRAINING_TIMES.map((time) => <option key={time} value={time}>{time.replace("-", " às ")}</option>)}
-                </select>
-                <Button size="icon" variant="outline" aria-label="Remover dia" disabled={scheduleConfigs.length === 1} onClick={() => setScheduleConfigs((old) => old.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4" /></Button>
-              </div>)}
-            </div>
-            <p className="text-xs text-slate-600">Confirme os valores e a turma com o responsável antes de aprovar. A aprovação cadastra o aluno e gera mensalidades.</p>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={busy} onClick={approve} className="bg-green-700 hover:bg-green-800"><CheckCircle2 className="mr-2 h-4 w-4" /> {busy ? "Aprovando..." : "Aprovar e cadastrar aluno"}</Button>
-              <Button variant="outline" onClick={() => setSelectedId(null)}>Voltar</Button>
-            </div>
-          </CardContent>
-        </Card>}
       </main>
     </div>
   )
