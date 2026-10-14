@@ -47,14 +47,16 @@ export async function POST(request: Request) {
     if (!delivery) return NextResponse.json({ notification: null })
 
     const claimedAt = new Date().toISOString()
-    const { error: claimError } = await service
+    const { data: claimed, error: claimError } = await service
       .from("push_notification_deliveries")
       .update({ claimed_at: claimedAt })
+      .eq("id", delivery.id)
       .eq("subscription_id", subscription.id)
       .is("claimed_at", null)
-      .lte("created_at", claimedAt)
+      .select("id")
 
     if (claimError) throw claimError
+    if (!claimed?.length) return NextResponse.json({ notification: null })
 
     return NextResponse.json({
       notification: {

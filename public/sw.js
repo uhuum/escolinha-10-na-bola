@@ -1,4 +1,4 @@
-const SW_VERSION = "siga-push-v1"
+const SW_VERSION = "siga-push-v2"
 
 self.addEventListener("install", () => {
   self.skipWaiting()
@@ -33,17 +33,24 @@ self.addEventListener("push", (event) => {
         const notification = payload?.notification
         if (!notification?.title) return
 
-        await self.registration.showNotification(notification.title, {
+        const options = {
           body: notification.body || "",
           icon: "/icon-192x192.png",
           badge: "/icon-96x96.png",
           tag: notification.id || SW_VERSION,
-          renotify: true,
-          vibrate: [250, 120, 250],
-          data: {
-            href: notification.href || "/",
-          },
-        })
+          data: { href: notification.href || "/" },
+        }
+        try {
+          await self.registration.showNotification(notification.title, options)
+        } catch (displayError) {
+          // Alguns navegadores móveis rejeitam opções de exibição adicionais.
+          // Repetir com apenas os parâmetros essenciais evita descartar o alerta.
+          console.warn("[SIGA] Exibição simplificada de push:", displayError)
+          await self.registration.showNotification(notification.title, {
+            body: notification.body || "",
+            data: { href: notification.href || "/" },
+          })
+        }
       } catch (error) {
         console.error("[SIGA] Falha ao exibir push:", error)
       }
