@@ -32,6 +32,7 @@ export function StudentDetailClient({ id }: { id: string }) {
   const [student, setStudent] = useState<Student | null>(null)
   const [isLoadingStudent, setIsLoadingStudent] = useState(true)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deletingStudent, setDeletingStudent] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<string | File | undefined>()
@@ -100,13 +101,25 @@ export function StudentDetailClient({ id }: { id: string }) {
     loadStudent()
   }, [id, getStudent])
 
-  const handleDelete = () => {
-    deleteStudent(id)
-    toast({
-      title: "Aluno excluído",
-      description: `${student.name} foi removido do sistema.`,
-    })
-    router.push("/students")
+  const handleDelete = async () => {
+    if (deletingStudent) return
+    setDeletingStudent(true)
+    try {
+      await deleteStudent(id)
+      toast({
+        title: "Aluno excluído",
+        description: `${student?.name || "O aluno"} foi removido do sistema.`,
+      })
+      router.push("/students")
+    } catch (error) {
+      toast({
+        title: "Exclusão não concluída",
+        description: error instanceof Error ? error.message : "Não foi possível remover o cadastro.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingStudent(false)
+    }
   }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -610,8 +623,8 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
               <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
                 Cancelar
               </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Excluir
+              <Button variant="destructive" disabled={deletingStudent} onClick={() => void handleDelete()}>
+                {deletingStudent ? "Excluindo..." : "Excluir"}
               </Button>
             </CardContent>
           </Card>

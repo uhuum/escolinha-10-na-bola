@@ -38,6 +38,7 @@ export default function StudentsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
+  const [deletingStudent, setDeletingStudent] = useState(false)
   const [studentToArchive, setStudentToArchive] = useState<string | null>(null)
   const [archiveReason, setArchiveReason] = useState("")
   const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null)
@@ -87,15 +88,25 @@ export default function StudentsPage() {
     setShowDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
-    if (studentToDelete) {
-      deleteStudent(studentToDelete)
+  const confirmDelete = async () => {
+    if (!studentToDelete || deletingStudent) return
+    setDeletingStudent(true)
+    try {
+      await deleteStudent(studentToDelete)
       toast({
         title: "Aluno excluído",
-        description: "O aluno foi removido permanentemente do sistema",
+        description: "O aluno foi removido permanentemente do sistema.",
       })
       setShowDeleteDialog(false)
       setStudentToDelete(null)
+    } catch (error) {
+      toast({
+        title: "Exclusão não concluída",
+        description: error instanceof Error ? error.message : "Não foi possível excluir o aluno. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingStudent(false)
     }
   }
 
@@ -484,8 +495,8 @@ export default function StudentsPage() {
               <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="text-xs sm:text-sm">
                 Cancelar
               </Button>
-              <Button variant="destructive" onClick={confirmDelete} className="text-xs sm:text-sm">
-                Excluir Permanentemente
+              <Button variant="destructive" onClick={() => void confirmDelete()} disabled={deletingStudent} className="text-xs sm:text-sm">
+                {deletingStudent ? "Excluindo..." : "Excluir Permanentemente"}
               </Button>
             </CardContent>
           </Card>

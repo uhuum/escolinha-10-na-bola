@@ -643,11 +643,13 @@ notifyOtherTabs()
 
   const deleteStudent = useCallback(
     async (studentId: string) => {
-      const { error: paymentsError } = await supabase.from("payments").delete().eq("student_id", studentId)
-      if (paymentsError) throw paymentsError
-
-      const { error } = await supabase.from("students").delete().eq("id", studentId)
-      if (error) throw error
+      // Remove cadastro e dependências numa única transação com autorização administrativa.
+      // Não confirma sucesso se a exclusão for bloqueada pelo banco.
+      const { data: deleted, error } = await supabase.rpc("delete_student_permanently", {
+        p_student_id: studentId,
+      })
+      if (error) throw new Error("Não foi possível excluir o aluno. " + error.message)
+      if (deleted !== true) throw new Error("O banco não confirmou a exclusão do aluno.")
 
       setStudents((prev) => prev.filter((s) => s.id !== studentId))
       notifyOtherTabs()
