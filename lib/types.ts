@@ -43,6 +43,8 @@ export interface Student {
   fatherPhone: string
   motherPhone: string
   monthlyValue: number
+  paymentDueDay?: number
+  enrollmentCategory?: string
   payments: MonthlyPayment[]
   photo?: string
   thumbnailUrl?: string // Small thumbnail for listings (WebP, ~200px)
