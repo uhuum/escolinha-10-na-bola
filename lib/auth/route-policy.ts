@@ -3,6 +3,7 @@ export type AppRole = "admin" | "coach"
 const PUBLIC_PAGE_PATHS = new Set(["/login"])
 
 const ADMIN_ROUTE_PREFIXES = [
+  "/security",
   "/students",
   "/enrollments",
   "/payments",
