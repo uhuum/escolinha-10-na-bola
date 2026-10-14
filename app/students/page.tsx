@@ -212,7 +212,7 @@ export default function StudentsPage() {
             alunos {activeTab === "active" ? "ativos" : "arquivados"}
           </p>
           {activeTab === "active" && (
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <Button
                 asChild
                 variant="outline"
