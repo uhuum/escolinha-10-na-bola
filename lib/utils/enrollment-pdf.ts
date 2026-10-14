@@ -185,6 +185,8 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
     ["CPF do responsável", student.responsibleCpf ? formatCPF(student.responsibleCpf) : "Não informado"],
     ["Dias e horários", formatSchedule(student)],
     ["Valor da mensalidade", formatCurrency(student.monthlyValue || 0)],
+    ...(student.enrollmentCategory ? [["Categoria", student.enrollmentCategory] as [string, string]] : []),
+    ...(student.paymentDueDay ? [["Vencimento", `Dia ${student.paymentDueDay} de cada mês`] as [string, string]] : []),
     ["Bolsista", student.isScholarship ? "Sim" : "Não"],
   ]
 
