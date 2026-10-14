@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
-import { sendEmptyWebPush } from "../../lib/push/server"
+import { sendWebPush, isTrustedPushEndpoint, isValidPushKeys } from "../../lib/push/server"
 
-type Subscription = { id:string; auth_user_id:string; role:"admin"|"coach"; endpoint:string }
+type Subscription = { id:string; auth_user_id:string; role:"admin"|"coach"; endpoint:string; p256dh:string; auth_key:string }
 
 export default async (req: Request) => {
   try {
@@ -14,7 +14,7 @@ export default async (req: Request) => {
     if (!url || !key) throw new Error("Supabase não configurado")
 
     const supabase = createClient(url, key, { auth: { persistSession:false, autoRefreshToken:false } })
-    const { data, error } = await supabase.from("push_subscriptions").select("id,auth_user_id,role,endpoint")
+    const { data, error } = await supabase.from("push_subscriptions").select("id,auth_user_id,role,endpoint,p256dh,auth_key")
     if (error) throw error
 
     let sent=0, skipped=0, expired=0
@@ -41,7 +41,15 @@ export default async (req: Request) => {
       if (!delivery) continue
 
       try {
-        const response = await sendEmptyWebPush(subscription.endpoint)
+        if (!isTrustedPushEndpoint(subscription.endpoint) || !isValidPushKeys(subscription.p256dh, subscription.auth_key)) {
+          await supabase.from("push_subscriptions").delete().eq("id", subscription.id)
+          continue
+        }
+        const response = await sendWebPush(subscription, {
+          id: eventKey, title: "SIGA — Sistema atualizado!",
+          body: "Uma nova versão do sistema foi publicada. Toque para conferir.",
+          href: subscription.role === "coach" ? "/trainer/dashboard" : "/",
+        })
         if (response.ok) {
           sent++
           await supabase.from("push_notification_deliveries").update({ sent_at:new Date().toISOString() }).eq("id",delivery.id)

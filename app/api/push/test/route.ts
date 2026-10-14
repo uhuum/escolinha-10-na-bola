@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { sendEmptyWebPush } from "@/lib/push/server"
+import { sendWebPush, isTrustedPushEndpoint } from "@/lib/push/server"
 
 export const dynamic = "force-dynamic"
 
@@ -22,19 +22,32 @@ export async function POST(request: Request) {
     if (role !== "admin" && role !== "coach") return NextResponse.json({ error: "Perfil inválido" }, { status: 403 })
 
     const { endpoint } = await request.json().catch(() => ({})) as { endpoint?: string }
-    if (!endpoint || !endpoint.startsWith("https://")) {
+    if (!isTrustedPushEndpoint(endpoint)) {
       return NextResponse.json({ error: "Aparelho não registrado" }, { status: 400 })
     }
 
     const service = adminClient()
     const { data: subscription, error: subscriptionError } = await service
       .from("push_subscriptions")
-      .select("id,endpoint")
+      .select("id,endpoint,p256dh,auth_key")
       .eq("auth_user_id", user.id)
       .eq("endpoint", endpoint)
       .maybeSingle()
     if (subscriptionError) throw subscriptionError
     if (!subscription) return NextResponse.json({ error: "Aparelho não registrado" }, { status: 404 })
+
+    // Prevent accidental abuse of the push service with repeated test requests.
+    const since = new Date(Date.now() - 60 * 1000).toISOString()
+    const { count: recentTests, error: rateError } = await service
+      .from("push_notification_deliveries")
+      .select("id", { count: "exact", head: true })
+      .eq("auth_user_id", user.id)
+      .like("event_key", "test-%")
+      .gte("created_at", since)
+    if (rateError) throw rateError
+    if ((recentTests || 0) >= 3) {
+      return NextResponse.json({ error: "Aguarde um minuto antes de testar novamente." }, { status: 429 })
+    }
 
     const eventKey = `test-${user.id}-${Date.now()}`
     const { data: delivery, error: deliveryError } = await service
@@ -52,7 +65,13 @@ export async function POST(request: Request) {
       .single()
     if (deliveryError) throw deliveryError
 
-    const response = await sendEmptyWebPush(subscription.endpoint)
+    const response = await sendWebPush(subscription, {
+      id: eventKey, title: "SIGA — Push funcionando!",
+      body: role === "admin"
+        ? "Este aparelho receberá os avisos administrativos do SIGA."
+        : "Este aparelho receberá os lembretes de chamada do SIGA.",
+      href: role === "admin" ? "/" : "/trainer/dashboard",
+    })
     if (!response.ok) {
       if (response.status === 404 || response.status === 410) {
         await service.from("push_subscriptions").delete().eq("id", subscription.id)
