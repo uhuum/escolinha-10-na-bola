@@ -51,7 +51,7 @@ export async function updateSupabaseSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
   // Public invitation form is accessible without an administrative session.
-  if (pathname === "/enroll" || pathname.startsWith("/enroll/")) {
+  if (pathname === "/enroll" || pathname.startsWith("/enroll/") || pathname === "/matricula-digital" || pathname.startsWith("/matricula-digital/")) {
     return withPrivateCache(response)
   }
   const { data } = await supabase.auth.getClaims()
