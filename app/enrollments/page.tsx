@@ -44,6 +44,10 @@ export default function EnrollmentsPage() {
   const [confirmation, setConfirmation] = useState("")
   const selected = rows.find((row) => row.id === selectedId) || null
 
+  useEffect(() => {
+    if (selectedId) requestAnimationFrame(() => document.getElementById("review")?.scrollIntoView({ behavior: "smooth", block: "start" }))
+  }, [selectedId])
+
   const load = useCallback(async () => {
     const { data, error: readError } = await supabase.from("enrollment_requests")
       .select("id,label,status,created_at,expires_at,submitted_at,approved_at,student_id,payload,approval")
@@ -167,6 +171,7 @@ export default function EnrollmentsPage() {
         responsibleEmail: s.responsible_email || "", fatherPhone: s.father_phone || "",
         motherPhone: s.mother_phone || "", monthlyValue: s.monthly_value || 0,
         isActive: s.is_active ?? true, isScholarship: s.is_scholarship ?? false,
+        paymentDueDay: s.payment_due_day, enrollmentCategory: s.enrollment_category,
         classSchedule: s.class_schedule, classDays: s.class_days || [],
         scheduleConfigs: Array.isArray(s.schedule_configs) ? s.schedule_configs : [],
         payments: [],
