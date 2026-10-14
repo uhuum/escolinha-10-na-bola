@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
+import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { AppSession } from "@/components/app-session"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -49,6 +50,7 @@ export default function RootLayout({
         <AppSession>
           {children}
           <Toaster />
+          <SonnerToaster position="top-right" richColors closeButton />
         </AppSession>
       </body>
     </html>

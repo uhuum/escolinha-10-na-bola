@@ -65,14 +65,7 @@ export async function updateSupabaseSession(request: NextRequest) {
 
   // API endpoints perform their own authorization and must not be redirected
   // to HTML pages. The session refresh above still runs for them.
-  if (isApiPath(pathname)) {
-    // Endpoints with administrative privileges must not accept a password-only session.
-    if (role === "admin" && claims?.aal !== "aal2"
-        && pathname !== "/api/auth/login" && pathname !== "/api/auth/logout") {
-      return withPrivateCache(NextResponse.json({ error: "Confirme a autenticação em duas etapas." }, { status: 403 }))
-    }
-    return withPrivateCache(response)
-  }
+  if (isApiPath(pathname)) return withPrivateCache(response)
 
   if (!hasValidRole) {
     if (!isPublicPage(pathname)) return redirect(request, "/login", response)
@@ -80,11 +73,7 @@ export async function updateSupabaseSession(request: NextRequest) {
   }
 
   // Authenticated users never stay on the login page.
-  if (isPublicPage(pathname)) return redirect(request, role === "admin" && claims?.aal !== "aal2" ? "/security" : homeForRole(role), response)
-
-  if (role === "admin" && pathname !== "/security" && claims?.aal !== "aal2") {
-    return redirect(request, "/security", response)
-  }
+  if (isPublicPage(pathname)) return redirect(request, homeForRole(role), response)
 
   // Enforce role boundaries before the page is rendered. This also protects
   // direct URLs, bookmarks, refresh, browser Back/Forward and restored tabs.

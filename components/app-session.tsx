@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { usePathname } from "next/navigation"
 import { AuthProvider } from "@/lib/contexts/auth-context"
 import { PWARegister } from "@/components/pwa-register"
+import { PushForegroundAlerts } from "@/components/push-foreground-alerts"
 
 export function AppSession({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -13,5 +14,5 @@ export function AppSession({ children }: { children: ReactNode }) {
     return <>{children}</>
   }
 
-  return <AuthProvider><PWARegister />{children}</AuthProvider>
+  return <AuthProvider><PWARegister /><PushForegroundAlerts />{children}</AuthProvider>
 }

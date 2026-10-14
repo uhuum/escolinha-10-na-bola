@@ -27,19 +27,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function isAal2(accessToken?: string) {
-  if (!accessToken) return false
-  try {
-    const payload = accessToken.split(".")[1]
-    if (!payload) return false
-    const padded = payload.replace(/-/g, "+").replace(/_/g, "/")
-    const claims = JSON.parse(atob(padded)) as { aal?: string }
-    return claims.aal === "aal2"
-  } catch {
-    return false
-  }
-}
-
 function mapSupabaseUser(authUser: any): User | null {
   if (!authUser) return null
 
@@ -59,7 +46,6 @@ function mapSupabaseUser(authUser: any): User | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [adminMfaVerified, setAdminMfaVerified] = useState(false)
   const [showSplashRole, setShowSplashRole] = useState(false)
   const [pendingUser, setPendingUser] = useState<User | null>(null)
   const [showLogoutSplash, setShowLogoutSplash] = useState(false)
@@ -77,8 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.getUser()
         if (!active) return
         setUser(error ? null : mapSupabaseUser(data.user))
-        const { data: sessionData } = await supabase.auth.getSession()
-        if (active) setAdminMfaVerified(isAal2(sessionData.session?.access_token))
       } catch (error) {
         console.error("[SIGA] Erro ao validar sessão:", error)
         if (active) setUser(null)
@@ -92,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return
       setUser(mapSupabaseUser(session?.user))
-      setAdminMfaVerified(isAal2(session?.access_token))
       setIsLoading(false)
     })
 
@@ -111,19 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (pathname === "/login") {
-      router.replace(user.role === "admin" && !adminMfaVerified ? "/security" : homeForRole(user.role))
-      return
-    }
-
-    if (user.role === "admin" && !adminMfaVerified && pathname !== "/security") {
-      router.replace("/security")
+      router.replace(homeForRole(user.role))
       return
     }
 
     if (!canRoleAccessPath(user.role, pathname)) {
       router.replace(homeForRole(user.role))
     }
-  }, [user, pathname, router, isLoading, adminMfaVerified])
+  }, [user, pathname, router, isLoading])
 
   // Browser Back/Forward can restore a page from memory (bfcache) without a
   // normal server navigation. Revalidate the real Supabase session whenever
@@ -135,9 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.getUser()
         const freshUser = error ? null : mapSupabaseUser(data.user)
         setUser(freshUser)
-        const { data: restoredSession } = await supabase.auth.getSession()
-        const restoredAal2 = isAal2(restoredSession.session?.access_token)
-        setAdminMfaVerified(restoredAal2)
 
         if (!freshUser) {
           if (window.location.pathname !== "/login") window.location.replace("/login")
@@ -145,10 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const currentPath = window.location.pathname
-        if (freshUser.role === "admin" && !restoredAal2 && currentPath !== "/security") {
-          window.location.replace("/security")
-        } else if (currentPath === "/login" || !canRoleAccessPath(freshUser.role, currentPath)) {
-          window.location.replace(freshUser.role === "admin" && !restoredAal2 ? "/security" : homeForRole(freshUser.role))
+        if (currentPath === "/login" || !canRoleAccessPath(freshUser.role, currentPath)) {
+          window.location.replace(homeForRole(freshUser.role))
         }
       } catch (error) {
         console.error("[SIGA] Erro ao revalidar rota restaurada:", error)
@@ -180,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPendingUser(userData)
       setShowSplashRole(true)
 
-      const destination = userData.role === "admin" ? "/security" : homeForRole(userData.role)
+      const destination = homeForRole(userData.role)
       router.replace(destination)
       return true
     } catch (error) {
@@ -220,7 +193,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[SIGA] Erro ao encerrar sessão:", error)
     } finally {
       setUser(null)
-      setAdminMfaVerified(false)
       setShowLogoutSplash(false)
       router.replace("/login")
     }
@@ -236,8 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const routeIsAllowed = user
-    ? pathname === "/login" || (canRoleAccessPath(user.role, pathname) &&
-        (user.role !== "admin" || adminMfaVerified || pathname === "/security"))
+    ? pathname === "/login" || canRoleAccessPath(user.role, pathname)
     : pathname === "/login"
 
   if (isLoading || !routeIsAllowed) {
