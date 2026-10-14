@@ -389,6 +389,8 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
       const regMonth = regDate.getMonth() + 1
 
       const paymentsToInsert: any[] = []
+      const { data: dueStudent } = await supabase.from("students").select("payment_due_day").eq("id", studentId).single()
+      const chosenDay = Math.max(1, Math.min(28, Number(dueStudent?.payment_due_day) || 10))
 
       // Generate payments from registration month through the end of next year.
       // This keeps the UI and new-student flow aligned with the SQL generator.
@@ -398,7 +400,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
         const endMonth = 12
 
         for (let month = startMonth; month <= endMonth; month++) {
-          const dueDate = createDueDate(year, month, 10)
+          const dueDate = createDueDate(year, month, chosenDay)
           const dueDateObj = new Date(dueDate)
           const monthName = getMonthNameFromNumber(month)
 
@@ -414,7 +416,7 @@ export function useStudents(options: UseStudentsOptions = {}): StudentsStore {
               status = "Não Pagou"
             } else if (isCurrentMonth) {
               // Between day 1-10: "Em Aberto", after day 10: "Não Pagou"
-              status = currentDay <= 10 ? "Em Aberto" : "Não Pagou"
+              status = currentDay <= chosenDay ? "Em Aberto" : "Não Pagou"
             } else {
               status = "Em Aberto"
             }

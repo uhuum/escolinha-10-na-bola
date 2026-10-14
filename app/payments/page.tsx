@@ -218,9 +218,10 @@ useEffect(() => {
               selectedYear,
               student.isScholarship || student.monthlyValue === 0 ? "Bolsista" : "Em Aberto",
               false,
+              student.paymentDueDay ?? 10,
             ),
             value: student.isScholarship ? 0 : student.monthlyValue,
-            dueDate: createDueDate(selectedYear, selectedMonthNumber, 10),
+            dueDate: createDueDate(selectedYear, selectedMonthNumber, student.paymentDueDay ?? 10),
             monthNumber: selectedMonthNumber,
             yearNumber: selectedYear,
             isVirtual: true,
@@ -270,7 +271,7 @@ useEffect(() => {
         payment.status !== "Adiado" &&
         payment.status !== "Bolsista"
       ) {
-        const newStatus = determinePaymentStatus(selectedMonthNumber, selectedYear, payment.status, !!payment.receipt)
+        const newStatus = determinePaymentStatus(selectedMonthNumber, selectedYear, payment.status, !!payment.receipt, Number(payment.dueDate?.slice(8, 10)) || student.paymentDueDay || 10)
 
         if (newStatus !== payment.status) {
           updatePaymentStatus(student.id, payment.month || monthString, newStatus)
@@ -733,7 +734,7 @@ useEffect(() => {
             Gerenciamento de Pagamentos
           </h2>
           <p className="text-xs sm:text-sm lg:text-base text-muted-foreground text-pretty">
-            Vencimento: dia 10. Entre dia 1-10: "Em Aberto". Após dia 10: "Não Pagou". Dinheiro ou PIX.
+            Prazo regular: dias 01 a 10. Alunos com vencimento personalizado continuam em aberto até a data individual. Dinheiro ou PIX.
           </p>
         </div>
 

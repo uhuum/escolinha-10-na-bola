@@ -19,6 +19,7 @@ export function determinePaymentStatus(
   yearNumber: number,
   currentStatus: PaymentStatus,
   hasReceipt: boolean,
+  dueDay = 10,
 ): PaymentStatus {
   // Se já está pago ou tem comprovante, manter como Pago
   if (currentStatus === "Pago" || hasReceipt) {
@@ -46,15 +47,15 @@ export function determinePaymentStatus(
   const isPastMonth = yearNumber < currentYearNum || (yearNumber === currentYearNum && monthNumber < currentMonthNum)
 
   if (isCurrentMonth) {
-    // Entre dia 1 e 10: "Em Aberto"
-    if (currentDay >= 1 && currentDay <= 10) {
+    // Permanece em aberto até o dia do vencimento efetivo do aluno.
+    if (currentDay >= 1 && currentDay <= dueDay) {
       if (currentStatus === "Cobrado") {
         return "Cobrado"
       }
       return "Em Aberto"
     }
-    // Após dia 10: "Não Pagou" (se não estava cobrado)
-    if (currentDay > 10) {
+    // Só fica pendente a partir do dia seguinte ao vencimento.
+    if (currentDay > dueDay) {
       if (currentStatus === "Cobrado") {
         return "Cobrado"
       }
