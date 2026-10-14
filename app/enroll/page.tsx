@@ -197,7 +197,7 @@ export default function EnrollmentPage() {
                 <p className="text-xs text-slate-500">Salve este link para acompanhar a matrícula. O status também será atualizado automaticamente enquanto esta página estiver aberta.</p>
                 <Button type="button" variant="outline" disabled={checking} onClick={checkAgain}><RefreshCw className="mr-2 h-4 w-4" />{checking ? "Consultando..." : "Atualizar status"}</Button>
               </>}
-              {error && <p role="alert" className="text-sm text-red-600">{error}</p>
+              {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             </CardContent>
           </Card>
         ) : (
