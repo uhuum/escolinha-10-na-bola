@@ -166,7 +166,14 @@ export default function ReviewEnrollmentPage() {
                     </div>)}
                   </div>
                   <label className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /> Conferi as informações e confirmo os dados de matrícula.</label>
-                  <Button disabled={busy || !confirmed} onClick={approve} className="bg-green-700 hover:bg-green-800"><CheckCircle2 className="mr-2 h-4 w-4" />{busy ? "Aprovando..." : "Aprovar matrícula e gerar guia personalizado"}</Button>
+                  <Button
+                    disabled={busy || !confirmed}
+                    onClick={approve}
+                    className="h-auto min-h-12 w-full min-w-0 max-w-full gap-2 whitespace-normal break-words bg-green-700 px-4 py-3 text-center text-sm leading-snug hover:bg-green-800 sm:w-auto sm:text-base"
+                  >
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    <span className="min-w-0">{busy ? "Aprovando..." : <><span className="sm:hidden">Aprovar matrícula</span><span className="hidden sm:inline">Aprovar matrícula e gerar guia de boas-vindas</span></>}</span>
+                  </Button>
                 </CardContent>
               </Card>
             )}

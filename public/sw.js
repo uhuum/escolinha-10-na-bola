@@ -1,4 +1,4 @@
-const SW_VERSION = "siga-push-v4"
+const SW_VERSION = "siga-push-v5"
 
 self.addEventListener("install", () => {
   self.skipWaiting()
@@ -89,22 +89,9 @@ self.addEventListener("push", event => {
         href: "/",
       }
     }
-    // One visible alert per event: show inside an open SIGA window, otherwise
-    // leave it to the operating system (including lock-screen notifications).
-    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
-    const foreground = windows.find(client => {
-      try {
-        const path = new URL(client.url).pathname
-        return client.visibilityState === "visible" &&
-          !path.startsWith("/login") && !path.startsWith("/enroll") &&
-          !path.startsWith("/matricula-digital")
-      } catch { return false }
-    })
-    if (foreground) {
-      foreground.postMessage({ type: "SIGA_PUSH_RECEIVED", notification })
-    } else {
-      await showPush(notification)
-    }
+    // Native push is shown regardless of whether the SIGA window is open.
+    // No in-app toast; user receives the system notification on the device.
+    await showPush(notification)
   })())
 })
 

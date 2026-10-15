@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { Bell, BellRing, CalendarClock, CheckCheck, CircleAlert, ClipboardCheck, Loader2, Smartphone, UsersRound } from "lucide-react"
 import { toast } from "sonner"
@@ -37,19 +36,7 @@ export function NotificationCenter({ user }: NotificationCenterProps) {
     markAsRead,
     markAllAsRead,
   } = useNotifications({ userId: user.id, role: user.role })
-  const notifiedThisMount = useRef(new Set<string>())
   const push = usePushNotifications()
-
-  useEffect(() => {
-    for (const notification of notifications) {
-      if (isRead(notification.id) || notifiedThisMount.current.has(notification.id)) continue
-      notifiedThisMount.current.add(notification.id)
-      toast(notification.title, {
-        description: notification.message,
-        duration: 7000,
-      })
-    }
-  }, [isRead, notifications])
 
   return (
     <Popover>
