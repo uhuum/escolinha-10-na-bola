@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { getBrowserClient } from "@/lib/supabase/client"
-import { WEEK_DAYS, TRAINING_TIMES, type EnrollmentRequest, displayDate } from "@/lib/enrollment"
+import { WEEK_DAYS, type EnrollmentRequest, displayDate } from "@/lib/enrollment"
+import { formatCPF, formatRG, formatPhone, detectDocumentType } from "@/lib/formatters"
 import { generateEnrollmentPdf } from "@/lib/utils/enrollment-pdf"
 import type { Student } from "@/lib/types"
 import { AppHeader } from "@/components/app-header"
@@ -13,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, CheckCircle2, FileText, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileText } from "lucide-react"
 
 type Schedule = { day: string; schedule: string }
 
@@ -27,7 +28,6 @@ export default function ReviewEnrollmentPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [monthlyValue, setMonthlyValue] = useState("")
-  const [dueDay, setDueDay] = useState(10)
   const [scheduleConfigs, setScheduleConfigs] = useState<Schedule[]>([{ day: "Segunda", schedule: "18:00-19:30" }])
   const [confirmed, setConfirmed] = useState(false)
 
@@ -41,9 +41,12 @@ export default function ReviewEnrollmentPage() {
       if (fetchError || !data) { setError("Solicitação não encontrada ou acesso não autorizado."); setLoading(false); return }
       const row = data as EnrollmentRequest
       setRequest(row)
-      setDueDay(Math.max(1, Math.min(28, Number(row.approval?.dueDay || row.payload?.dueDay) || 10)))
-      if (row.approval?.monthlyValue !== undefined) setMonthlyValue(String(row.approval.monthlyValue))
-      if (row.approval?.scheduleConfigs?.length) setScheduleConfigs(row.approval.scheduleConfigs)
+      setMonthlyValue(String(row.approval?.monthlyValue ?? row.payload?.monthlyValue ?? (row.payload?.planDays === 2 ? 180 : 140)))
+      const proposedSchedules = row.approval?.scheduleConfigs?.length
+        ? row.approval.scheduleConfigs
+        : row.payload?.scheduleConfigs?.length ? row.payload.scheduleConfigs
+        : [{ day: "Segunda", schedule: "18:00-19:30" }]
+      setScheduleConfigs(proposedSchedules)
       setLoading(false)
     }
     void load()
@@ -71,9 +74,9 @@ export default function ReviewEnrollmentPage() {
     if (!request || !request.payload || busy || !confirmed) return
     const amount = Number(monthlyValue)
     if (monthlyValue.trim() === "" || !Number.isInteger(amount) || amount < 0 || amount > 10000
-      || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28
-      || scheduleConfigs.length < 1 || new Set(scheduleConfigs.map((entry) => entry.day)).size !== scheduleConfigs.length) {
-      setError("Confira o valor, vencimento e os dias/horários de treino.")
+      || scheduleConfigs.length < 1 || new Set(scheduleConfigs.map((entry) => entry.day)).size !== scheduleConfigs.length
+      || scheduleConfigs.length !== (request.payload.planDays || scheduleConfigs.length)) {
+      setError("Confira o valor da mensalidade e os dias de treino, sem repetir dias.")
       return
     }
     setBusy(true)
@@ -81,7 +84,7 @@ export default function ReviewEnrollmentPage() {
     try {
       const { data: studentId, error: approvalError } = await supabase.rpc("approve_enrollment", {
         p_request_id: request.id,
-        p_approval: { monthlyValue: amount, dueDay, scheduleConfigs },
+        p_approval: { monthlyValue: amount, scheduleConfigs },
       })
       if (approvalError) {
         if (approvalError.message.includes("DUPLICATE_STUDENT")) throw new Error("Este aluno já está cadastrado. Confira o registro existente.")
@@ -98,6 +101,10 @@ export default function ReviewEnrollmentPage() {
   }
 
   const payload = request?.payload
+  const formattedDocument = (value: string) => !value ? "Não informado"
+    : detectDocumentType(value) === "CPF" ? formatCPF(value) : formatRG(value)
+  const formattedDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? value.slice(8,10)+"/"+value.slice(5,7)+"/"+value.slice(0,4) : value || "Não informado"
 
   if (loading) {
     return <SectionLoadingScreen title="Carregando conferência..." description="Consultando os dados da ficha de matrícula..." />
@@ -122,17 +129,19 @@ export default function ReviewEnrollmentPage() {
                 <p className="text-sm text-slate-500">Enviada em: {request.submitted_at ? displayDate(request.submitted_at) : "Não enviada"} · Situação: {request.status === "approved" ? "Aprovada" : request.status === "pending" ? "Em análise" : "Aguardando preenchimento"}</p>
                 {payload && <div className="grid gap-3 rounded-xl bg-slate-100 p-5 text-sm sm:grid-cols-2">
                   <p><strong>Aluno:</strong> {payload.name}</p>
-                  <p><strong>Data de nascimento:</strong> {payload.birthDate.split("-").reverse().join("/")}</p>
-                  <p><strong>Documento do aluno:</strong> {payload.document}</p>
+                  <p><strong>Data de nascimento:</strong> {formattedDate(payload.birthDate)}</p>
+                  <p><strong>Documento do aluno:</strong> {formattedDocument(payload.document)}</p>
                   <p><strong>Responsável:</strong> {payload.responsible}</p>
-                  <p><strong>CPF do responsável:</strong> {payload.responsibleCpf}</p>
-                  <p><strong>WhatsApp:</strong> {payload.phone}</p>
-                  <p><strong>Telefone do pai:</strong> {payload.fatherPhone || "Não informado"}</p>
-                  <p><strong>Telefone da mãe:</strong> {payload.motherPhone || "Não informado"}</p>
+                  <p><strong>CPF do responsável:</strong> {formatCPF(payload.responsibleCpf)}</p>
+                  <p><strong>WhatsApp:</strong> {formatPhone(payload.phone)}</p>
+                  <p><strong>Telefone do pai:</strong> {payload.fatherPhone ? formatPhone(payload.fatherPhone) : "Não informado"}</p>
+                  <p><strong>Telefone da mãe:</strong> {payload.motherPhone ? formatPhone(payload.motherPhone) : "Não informado"}</p>
                   <p><strong>E-mail:</strong> {payload.email}</p>
-                  <p><strong>Contato de emergência:</strong> {[payload.emergencyName, payload.emergencyPhone].filter(Boolean).join(" — ") || "Não informado"}</p>
+                  <p><strong>Contato de emergência:</strong> {[payload.emergencyName, payload.emergencyPhone ? formatPhone(payload.emergencyPhone) : ""].filter(Boolean).join(" — ") || "Não informado"}</p>
                   <p className="sm:col-span-2"><strong>Vencimento solicitado:</strong> dia {payload.dueDay}. {payload.dueDay > 10 ? "Solicitação excepcional, sujeita à confirmação." : "Dentro do período regular de 01 a 10."}</p>
-                  <p className="sm:col-span-2"><strong>Informações importantes para os treinos:</strong> {payload.healthNote || "Nenhuma informada"}</p>
+                  <p className="sm:col-span-2"><strong>Plano solicitado:</strong> {payload.planDays ? `${payload.planDays} dia${payload.planDays === 1 ? "" : "s"} por semana — R$ ${(payload.monthlyValue || (payload.planDays === 2 ? 180 : 140)).toFixed(2).replace(".", ",")}` : "Plano não especificado na ficha antiga"}</p>
+                  <p className="sm:col-span-2"><strong>Dias e horários escolhidos:</strong> {payload.scheduleConfigs?.length ? payload.scheduleConfigs.map(c=>`${c.day} (${c.schedule.replace("-"," às ")})`).join(" • ") : "Não informados na ficha antiga"}</p>
+                  <p className="sm:col-span-2"><strong>Saúde:</strong> {payload.healthAnswer === "sim" ? `Sim — ${payload.healthNote}` : payload.healthAnswer === "nao" ? "Não" : payload.healthNote || "Não informado"}</p>
                 </div>}
               </CardContent>
             </Card>
@@ -142,23 +151,18 @@ export default function ReviewEnrollmentPage() {
                 <CardHeader><CardTitle className="text-lg">Dados para aprovação</CardTitle></CardHeader>
                 <CardContent className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div><Label htmlFor="value">Mensalidade (R$) *</Label><Input id="value" type="number" min={0} max={10000} step={1} placeholder="Ex.: 120" value={monthlyValue} onChange={(e) => setMonthlyValue(e.target.value)} className="mt-1" /></div>
-                    <div><Label htmlFor="due">Vencimento confirmado *</Label><select id="due" value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))} className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm">{Array.from({ length: 28 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>Dia {n}</option>)}</select>
-                      <p className="mt-1 text-xs text-slate-500">Até o vencimento, a mensalidade permanece Em Aberto. Ficará pendente somente no dia seguinte.</p>
-                    </div>
+                    <div><Label htmlFor="value">Mensalidade (R$) *</Label><Input id="value" type="number" min={0} max={10000} step={1} value={monthlyValue} onChange={(e) => setMonthlyValue(e.target.value)} className="mt-1" /></div>
+                    <div className="rounded-lg bg-slate-50 p-3 text-sm"><strong>Vencimento informado:</strong> dia {payload.dueDay}<p className="text-xs text-slate-500">Este dado é mantido como o responsável informou.</p></div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold">Dias e horários dos treinos</h3>
-                      <Button size="sm" variant="outline" disabled={scheduleConfigs.length >= 5} onClick={() => {
-                        const day = WEEK_DAYS.find((name) => !scheduleConfigs.some((s) => s.day === name))
-                        if (day) setScheduleConfigs((items) => [...items, { day, schedule: "18:00-19:30" }])
-                      }}><Plus className="mr-1 h-4 w-4" /> Adicionar dia</Button>
-                    </div>
-                    {scheduleConfigs.map((item, index) => <div key={index} className="flex flex-wrap items-center gap-2">
-                      <select aria-label={"Dia de treino " + (index + 1)} className="h-10 flex-1 rounded-md border bg-white px-2 text-sm" value={item.day} onChange={(e) => setScheduleConfigs((old) => old.map((s, j) => j === index ? { ...s, day: e.target.value } : s))}>{WEEK_DAYS.map((day) => <option key={day}>{day}</option>)}</select>
-                      <select aria-label={"Horário " + (index + 1)} className="h-10 flex-1 rounded-md border bg-white px-2 text-sm" value={item.schedule} onChange={(e) => setScheduleConfigs((old) => old.map((s, j) => j === index ? { ...s, schedule: e.target.value } : s))}>{TRAINING_TIMES.map((time) => <option key={time} value={time}>{time.replace("-", " às ")}</option>)}</select>
-                      <Button size="icon" variant="outline" aria-label="Remover dia" disabled={scheduleConfigs.length === 1} onClick={() => setScheduleConfigs((items) => items.filter((_, j) => j !== index))}><Trash2 className="h-4 w-4" /></Button>
+                    <h3 className="font-semibold">Dias dos treinos (única alteração de turma permitida)</h3>
+                    <p className="text-xs text-slate-500">Os horários foram escolhidos pelo responsável e permanecem fixos. Você pode alterar apenas os dias.</p>
+                    {scheduleConfigs.map((item,index)=><div key={index} className="flex flex-wrap items-center gap-2">
+                      <select aria-label={"Dia de treino "+(index+1)} className="h-10 flex-1 rounded-md border bg-white px-2 text-sm" value={item.day}
+                        onChange={(e)=>setScheduleConfigs(previous=>previous.map((s,j)=>j===index?{...s,day:e.target.value}:s))}>
+                        {WEEK_DAYS.map(day=><option key={day}>{day}</option>)}
+                      </select>
+                      <div className="flex-1 rounded-md border bg-slate-100 px-3 py-2 text-sm">{item.schedule.replace("-"," às ")}</div>
                     </div>)}
                   </div>
                   <label className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /> Conferi as informações e confirmo os dados de matrícula.</label>

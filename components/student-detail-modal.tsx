@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import type { Student } from "@/lib/types"
+import { formatCPF, formatRG, formatPhone, detectDocumentType } from "@/lib/formatters"
+import { formatBirthDate } from "@/lib/utils/format-birth-date"
 import { useAttendance } from "@/lib/hooks/use-attendance"
 
 interface StudentDetailModalProps {
@@ -75,7 +77,7 @@ export function StudentDetailModal({ student, isOpen, onClose }: StudentDetailMo
                     {student.birthDate ? new Date().getFullYear() - new Date(student.birthDate).getFullYear() : "N/A"}{" "}
                     anos
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">{student.birthDate}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{formatBirthDate(student.birthDate)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -111,11 +113,11 @@ export function StudentDetailModal({ student, isOpen, onClose }: StudentDetailMo
               <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
                 <div>
                   <p className="text-muted-foreground">RG</p>
-                  <p className="font-medium break-words">{student.rg || "N/A"}</p>
+                  <p className="font-medium break-words">{student.rg ? (detectDocumentType(student.rg) === "CPF" ? formatCPF(student.rg) : formatRG(student.rg)) : "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">CPF do Responsável</p>
-                  <p className="font-medium break-words">{student.responsibleCpf || "N/A"}</p>
+                  <p className="font-medium break-words">{student.responsibleCpf ? formatCPF(student.responsibleCpf) : "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Email do Responsável</p>
@@ -123,11 +125,11 @@ export function StudentDetailModal({ student, isOpen, onClose }: StudentDetailMo
                 </div>
                 <div>
                   <p className="text-muted-foreground">Telefone (Pai)</p>
-                  <p className="font-medium break-words">{student.fatherPhone || "N/A"}</p>
+                  <p className="font-medium break-words">{student.fatherPhone ? formatPhone(student.fatherPhone) : "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Telefone (Mãe)</p>
-                  <p className="font-medium break-words">{student.motherPhone || "N/A"}</p>
+                  <p className="font-medium break-words">{student.motherPhone ? formatPhone(student.motherPhone) : "N/A"}</p>
                 </div>
               </div>
             </CardContent>

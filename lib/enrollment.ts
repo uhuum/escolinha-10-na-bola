@@ -14,6 +14,10 @@ export interface EnrollmentFormData {
   emergencyName: string
   emergencyPhone: string
   healthNote: string
+  healthAnswer?: "sim" | "nao"
+  planDays?: 1 | 2
+  monthlyValue?: number
+  scheduleConfigs?: Array<{ day: string; schedule: string }>
   dueDay: number
 }
 

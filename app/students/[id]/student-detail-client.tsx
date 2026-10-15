@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { AppHeader } from "@/components/app-header"
 import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/formatters"
+import { formatBirthDate } from "@/lib/utils/format-birth-date"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
 import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth } from "@/lib/utils/payment"
 import { formatDueDate } from "@/lib/utils/date"
@@ -387,14 +388,14 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                 {student.fatherPhone && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Telefone do Pai</p>
-                    <p className="font-medium text-foreground">{student.fatherPhone}</p>
+                    <p className="font-medium text-foreground">{formatPhone(student.fatherPhone)}</p>
                   </div>
                 )}
 
                 {student.motherPhone && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Telefone da Mãe</p>
-                    <p className="font-medium text-foreground">{student.motherPhone}</p>
+                    <p className="font-medium text-foreground">{formatPhone(student.motherPhone)}</p>
                   </div>
                 )}
 
@@ -408,21 +409,21 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                 {student.rg && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{detectDocumentType(student.rg)}</p>
-                    <p className="font-medium text-foreground">{student.rg}</p>
+                    <p className="font-medium text-foreground">{detectDocumentType(student.rg) === "CPF" ? formatCPF(student.rg) : formatRG(student.rg)}</p>
                   </div>
                 )}
 
                 {student.responsibleCpf && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">CPF do Responsável</p>
-                    <p className="font-medium text-foreground">{student.responsibleCpf}</p>
+                    <p className="font-medium text-foreground">{formatCPF(student.responsibleCpf)}</p>
                   </div>
                 )}
 
                 {student.birthDate && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Data de Nascimento</p>
-                    <p className="font-medium text-foreground">{student.birthDate}</p>
+                    <p className="font-medium text-foreground">{formatBirthDate(student.birthDate)}</p>
                   </div>
                 )}
 
