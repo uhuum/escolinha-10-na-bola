@@ -9,3 +9,6 @@
 
 [functions."push-notifications"]
   schedule = "*/10 * * * *"
+
+[functions."push-new-enrollments"]
+  schedule = "* * * * *"
