@@ -6,7 +6,6 @@ import Link from "next/link"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { WEEK_DAYS, type EnrollmentRequest, displayDate } from "@/lib/enrollment"
 import { formatCPF, formatRG, formatPhone, detectDocumentType } from "@/lib/formatters"
-import { generateEnrollmentPdf } from "@/lib/utils/enrollment-pdf"
 import { generateWelcomeGuidePdf } from "@/lib/utils/welcome-guide-pdf"
 import type { Student } from "@/lib/types"
 import { AppHeader } from "@/components/app-header"
@@ -54,7 +53,7 @@ export default function ReviewEnrollmentPage() {
     return () => { active = false }
   }, [id, supabase])
 
-  const downloadPdf = async (studentId: string, format: "both" | "guide" = "both") => {
+  const downloadPdf = async (studentId: string) => {
     const { data: s, error: studentError } = await supabase.from("students").select("*").eq("id", studentId).single()
     if (studentError || !s) throw new Error("Não foi possível consultar os dados do aluno para gerar o PDF.")
     const student: Student = {
@@ -68,8 +67,7 @@ export default function ReviewEnrollmentPage() {
       scheduleConfigs: Array.isArray(s.schedule_configs) ? s.schedule_configs : [],
       payments: [],
     }
-    if (format === "guide") generateWelcomeGuidePdf(student)
-    else await generateEnrollmentPdf(student)
+    await generateWelcomeGuidePdf(student)
   }
 
   const approve = async () => {
@@ -94,9 +92,9 @@ export default function ReviewEnrollmentPage() {
       }
       if (!studentId || typeof studentId !== "string") throw new Error("A aprovação não retornou o aluno cadastrado.")
       setRequest({ ...request, status: "approved", student_id: studentId })
-      setSuccess("Matrícula aprovada! O comprovante e o guia de boas-vindas personalizado estão disponíveis para baixar e enviar à família.")
+      setSuccess("Matrícula aprovada! O guia de boas-vindas personalizado está disponível para enviar à família.")
       try { await downloadPdf(studentId) }
-      catch { setError("A matrícula foi aprovada, mas não foi possível baixar o comprovante com o guia automaticamente. Use os botões abaixo para tentar novamente.") }
+      catch { setError("A matrícula foi aprovada, mas não foi possível baixar o guia automaticamente. Use o botão abaixo para tentar novamente.") }
     } catch (cause) {
       setError(cause instanceof Error && cause.message.includes("já está") ? cause.message : "Não foi possível aprovar a matrícula. Confira os campos e tente novamente.")
     } finally { setBusy(false) }
@@ -175,8 +173,7 @@ export default function ReviewEnrollmentPage() {
             {request.status === "approved" && request.student_id && (
               <Card className="border-green-200 bg-green-50"><CardContent className="flex flex-wrap items-center gap-3 p-5">
                 <CheckCircle2 className="h-7 w-7 text-green-700" /><span className="font-semibold text-green-900">Matrícula aprovada</span>
-                <Button variant="outline" disabled={busy} onClick={() => { setError(""); void downloadPdf(request.student_id!).catch(() => setError("Não foi possível gerar o PDF. Tente novamente.")) }}><FileText className="mr-2 h-4 w-4" /> Baixar matrícula + guia</Button>
-                <Button variant="outline" disabled={busy} onClick={() => { setError(""); void downloadPdf(request.student_id!, "guide").catch(() => setError("Não foi possível gerar o guia de boas-vindas. Tente novamente.")) }}><FileText className="mr-2 h-4 w-4" /> Baixar somente o guia</Button>
+                <Button variant="outline" disabled={busy} onClick={() => { setError(""); void downloadPdf(request.student_id!).catch(() => setError("Não foi possível gerar o PDF. Tente novamente.")) }}><FileText className="mr-2 h-4 w-4" /> Baixar guia de boas-vindas</Button>
                 <Button asChild variant="outline"><Link href={"/students/" + request.student_id}>Abrir cadastro do aluno</Link></Button>
               </CardContent></Card>
             )}
