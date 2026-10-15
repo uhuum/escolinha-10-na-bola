@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf"
 import type { Student, DayScheduleConfig } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils/currency"
 import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/utils/input-masks"
+import { appendWelcomeGuide } from "@/lib/utils/welcome-guide-pdf"
 
 /** Imagens são carregadas localmente para preservar o arquivo e a proporção da logo. */
 async function loadImage(src: string): Promise<{ data: string; w: number; h: number } | null> {
@@ -161,5 +162,7 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
   }
 
   const safeName = (student.name || "aluno").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()
-  pdf.save("matricula-aprovada-" + safeName + ".pdf")
+  // Documento único: comprovante da matrícula seguido do guia personalizado.
+  appendWelcomeGuide(pdf, student)
+  pdf.save("matricula-e-boas-vindas-" + safeName + ".pdf")
 }
