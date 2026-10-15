@@ -54,6 +54,11 @@ export async function updateSupabaseSession(request: NextRequest) {
   )
 
   const pathname = request.nextUrl.pathname
+  // Server-to-server Netlify function handles its own bearer authorization.
+  // Do not send POST webhook requests to the HTML login page.
+  if (pathname === "/.netlify/functions/notify-enrollment-now") {
+    return withPrivateCache(response)
+  }
   // Public invitation form is accessible without an administrative session.
   if (pathname === "/enroll" || pathname.startsWith("/enroll/") || pathname === "/matricula-digital" || pathname.startsWith("/matricula-digital/") || pathname === "/matricula-digital" || pathname.startsWith("/matricula-digital/")) {
     return withPrivateCache(response)
