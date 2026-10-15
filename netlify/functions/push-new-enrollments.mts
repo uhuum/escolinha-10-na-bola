@@ -6,7 +6,7 @@ export const config = { schedule: "* * * * *" }
 type Device = { id: string; auth_user_id: string; role: "admin"; endpoint: string; p256dh: string; auth_key: string }
 type Delivery = { id: number; sent_at: string | null }
 
-export default async () => {
+export async function processEnrollmentNotifications() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error("Banco indisponível")
@@ -76,3 +76,5 @@ export default async () => {
     status:200,headers:{"Content-Type":"application/json"}
   })
 }
+
+export default async () => processEnrollmentNotifications()
