@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto"
-import { processEnrollmentNotifications } from "./push-new-enrollments"
+import { processEnrollmentNotifications } from "./push-new-enrollments.mts"
 
 export default async function notifyEnrollmentNow(request: Request): Promise<Response> {
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 })
