@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf"
 import type { Student, DayScheduleConfig } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils/currency"
-import { formatRG, formatCPF, detectDocumentType } from "@/lib/utils/input-masks"
+import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/utils/input-masks"
 
 /** Imagens são carregadas localmente para preservar o arquivo e a proporção da logo. */
 async function loadImage(src: string): Promise<{ data: string; w: number; h: number } | null> {
@@ -132,8 +132,8 @@ export async function generateEnrollmentPdf(student: Student): Promise<void> {
     ["Responsável", student.responsible || "Não informado"],
     ["CPF do responsável", student.responsibleCpf ? formatCPF(student.responsibleCpf) : "Não informado"],
     ["E-mail", student.responsibleEmail || "Não informado"],
-    ["Telefone do pai", student.fatherPhone || "Não informado"],
-    ["Telefone da mãe", student.motherPhone || "Não informado"],
+    ["Telefone do pai", student.fatherPhone ? formatPhone(student.fatherPhone) : "Não informado"],
+    ["Telefone da mãe", student.motherPhone ? formatPhone(student.motherPhone) : "Não informado"],
   ])
 
   section("Treinos e mensalidade", [
