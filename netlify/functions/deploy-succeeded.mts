@@ -5,9 +5,40 @@ type Subscription = { id:string; auth_user_id:string; role:"admin"|"coach"; endp
 
 export default async (req: Request) => {
   try {
-    const { payload } = await req.json() as { payload?: { id?:string; context?:string; branch?:string } }
-    if (!payload?.id) return new Response("ignored", { status: 200 })
-    if (payload.context && payload.context !== "production") return new Response("non-production ignored", { status: 200 })
+    const { payload } = await req.json() as {
+      payload?: {
+        id?: string
+        site_id?: string
+        context?: string
+        branch?: string
+        state?: string
+        published_at?: string | null
+        commit_ref?: string | null
+      }
+    }
+    if (!payload?.id || !/^[0-9a-f]{16,64}$/.test(payload.id)) return new Response("ignored", { status: 200 })
+    // A successful build isn't necessarily the version visitors are using.
+    if (payload.context !== "production" || (payload.branch && payload.branch !== "main")) {
+      return new Response("non-production ignored", { status: 200 })
+    }
+    if (payload.site_id && payload.site_id !== "fc957316-76ec-422f-9e19-205905f88d2f") {
+      return new Response("another site ignored", { status: 200 })
+    }
+    if (payload.state && payload.state !== "ready" && payload.state !== "current") {
+      return new Response("deploy not ready", { status: 200 })
+    }
+    const publishTime = payload.published_at ? Date.parse(payload.published_at) : NaN
+    if (!Number.isFinite(publishTime) || publishTime > Date.now() + 60000) {
+      return new Response("not published yet", { status: 200 })
+    }
+
+    // Re-publishing an identical Git revision isn't a new system version.
+    const versionId = /^[0-9a-f]{40}$/.test(payload.commit_ref || "")
+      ? payload.commit_ref!
+      : payload.id
+    const eventKey = `system-update-${versionId}`
+    const title = "SIGA — Sistema atualizado!"
+    const body = "Uma nova versão do SIGA foi publicada. Toque para conferir."
 
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -19,25 +50,21 @@ export default async (req: Request) => {
 
     let sent=0, skipped=0, expired=0
     for (const subscription of (data || []) as Subscription[]) {
-      const eventKey = `system-update-${payload.id}`
-      const { data: delivery, error: deliveryError } = await supabase
-        .from("push_notification_deliveries")
-        .insert({
-          event_key:eventKey,
-          subscription_id:subscription.id,
-          auth_user_id:subscription.auth_user_id,
-          role:subscription.role,
-          title:"SIGA — Sistema atualizado!",
-          body:"Uma nova versão do sistema acabou de ser publicada. Toque para conferir agora.",
-          href:subscription.role === "coach" ? "/trainer/dashboard" : "/",
+      // Unique database reservation + ten-minute consolidation across nearby publishes.
+      const { data: reservedId, error: deliveryError } = await supabase
+        .rpc("reserve_siga_system_update_push", {
+          p_event_key: eventKey,
+          p_subscription_id: subscription.id,
+          p_auth_user_id: subscription.auth_user_id,
+          p_role: subscription.role,
+          p_title: title,
+          p_body: body,
+          p_href: subscription.role === "coach" ? "/trainer/dashboard" : "/",
         })
-        .select("id")
-        .maybeSingle()
+      if (deliveryError) throw deliveryError
+      if (!reservedId) { skipped++; continue }
+      const delivery = { id: reservedId }
 
-      if (deliveryError) {
-        if ((deliveryError as any).code === "23505") { skipped++; continue }
-        throw deliveryError
-      }
       if (!delivery) continue
 
       try {
@@ -46,8 +73,8 @@ export default async (req: Request) => {
           continue
         }
         const response = await sendWebPush(subscription, {
-          id: eventKey, title: "SIGA — Sistema atualizado!",
-          body: "Uma nova versão do sistema foi publicada. Toque para conferir.",
+          id: eventKey, title,
+          body,
           href: subscription.role === "coach" ? "/trainer/dashboard" : "/",
         })
         if (response.ok) {
@@ -65,7 +92,7 @@ export default async (req: Request) => {
       }
     }
 
-    console.log("[SIGA] Push de atualização:", { deploy:payload.id, sent, skipped, expired })
+    console.log("[SIGA] Push de atualização:", { deploy:payload.id, version:versionId, sent, skipped, expired })
     return new Response(JSON.stringify({ ok:true, sent, skipped, expired }), { status:200 })
   } catch (error) {
     console.error("[SIGA] Erro no push pós-deploy:", error)

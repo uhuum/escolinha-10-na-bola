@@ -39,6 +39,15 @@ export function PushForegroundAlerts() {
       if (!notification?.title || typeof notification.title !== "string") return
       const key = String(notification.id || notification.event_key || "")
       if (key && seen.has(key)) return
+      if (key.startsWith("system-update-")) {
+        // Deduplicate even across reloads, multiple tabs and repeated subscriptions.
+        const storeKey = `siga:system-update:last:${user.id}`
+        try {
+          const stored = JSON.parse(window.localStorage.getItem(storeKey) || "null") as { id?: string; at?: number } | null
+          if (stored?.id === key || (stored?.at && Date.now() - stored.at < 10 * 60 * 1000)) return
+          window.localStorage.setItem(storeKey, JSON.stringify({ id: key, at: Date.now() }))
+        } catch { /* localStorage may be unavailable */ }
+      }
       if (key) seen.add(key)
       toast(notification.title, {
         id: key ? `push-${key}` : undefined,

@@ -1,4 +1,4 @@
-const SW_VERSION = "siga-push-v3"
+const SW_VERSION = "siga-push-v4"
 
 self.addEventListener("install", () => {
   self.skipWaiting()
@@ -25,7 +25,8 @@ async function showPush(notification) {
     body: notification.body || "Abra o SIGA para conferir as atualizações.",
     icon: "/icon-192x192.png",
     badge: "/icon-96x96.png",
-    tag: notification.id || undefined,
+    tag: notification.id?.startsWith("system-update-") ? "siga-system-update" : (notification.id || undefined),
+    renotify: false,
     data: { href: safeDestination(notification.href) },
   }
   try {
@@ -88,7 +89,22 @@ self.addEventListener("push", event => {
         href: "/",
       }
     }
-    await showPush(notification)
+    // One visible alert per event: show inside an open SIGA window, otherwise
+    // leave it to the operating system (including lock-screen notifications).
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
+    const foreground = windows.find(client => {
+      try {
+        const path = new URL(client.url).pathname
+        return client.visibilityState === "visible" &&
+          !path.startsWith("/login") && !path.startsWith("/enroll") &&
+          !path.startsWith("/matricula-digital")
+      } catch { return false }
+    })
+    if (foreground) {
+      foreground.postMessage({ type: "SIGA_PUSH_RECEIVED", notification })
+    } else {
+      await showPush(notification)
+    }
   })())
 })
 
