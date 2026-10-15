@@ -1,4 +1,4 @@
-const SW_VERSION = "siga-push-v5"
+const SW_VERSION = "siga-push-v6"
 
 self.addEventListener("install", () => {
   self.skipWaiting()
