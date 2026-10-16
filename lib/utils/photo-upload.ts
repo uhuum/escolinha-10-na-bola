@@ -3,6 +3,7 @@
 const MAX_FILE_BYTES = 20 * 1024 * 1024
 const HEIF_EXTENSION = /\.(?:heic|heif)$/i
 const ACCEPTED_TYPE = /^(image\/(?:jpeg|png|webp|heic|heif|heic-sequence|heif-sequence))$/i
+const ACCEPTED_EXTENSION = /\.(?:jpe?g|png|webp|heic|heif)$/i
 
 function readDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,7 +35,7 @@ async function convertWithBrowser(file: File): Promise<Blob> {
 /** Only a JPEG preview is generated; the final portrait is a transparent PNG. */
 export async function photoPreviewDataUrl(file: File): Promise<string> {
   const heif = HEIF_EXTENSION.test(file.name) || /image\/hei[cf]/i.test(file.type)
-  if (!heif && !ACCEPTED_TYPE.test(file.type)) {
+  if (!heif && !ACCEPTED_TYPE.test(file.type) && !ACCEPTED_EXTENSION.test(file.name)) {
     throw new Error("Selecione uma foto JPG, PNG, WebP, HEIC ou HEIF.")
   }
   if (!file.size || file.size > MAX_FILE_BYTES) {
@@ -43,18 +44,36 @@ export async function photoPreviewDataUrl(file: File): Promise<string> {
 
   if (!heif) return readDataUrl(file)
 
-  // Try the device decoder first (Safari), then an offline, on-device HEIF decoder.
+  // The device decoder works on some Apple browsers; newer HEIF/HEIC files
+  // require libheif. All conversion is local to the browser, not a photo API.
   try {
     return await readDataUrl(await convertWithBrowser(file))
   } catch {
+    // Prefer a current libheif decoder for modern iPhone HEIF variants.
+    // Imported only when a user actually chooses a HEIF/HEIC image.
     try {
-      const { default: heic2any } = await import("heic2any")
-      const conversion = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 })
-      const jpeg = Array.isArray(conversion) ? conversion[0] : conversion
-      if (!jpeg) throw new Error("Sem imagem")
-      return await readDataUrl(jpeg)
-    } catch {
-      throw new Error("Este arquivo HEIF não pôde ser convertido. Exporte a foto como JPEG e tente novamente.")
+      const { heicTo } = await import("heic-to")
+      const converted = await heicTo({ blob: file, type: "image/jpeg", quality: 0.92 })
+      if (!converted || converted.size === 0) throw new Error("Arquivo não decodificado")
+      // Downsample large camera files before opening the crop editor.
+      try {
+        const jpeg = new File([converted], "foto-decodificada.jpg", { type: "image/jpeg" })
+        return await readDataUrl(await convertWithBrowser(jpeg))
+      } catch {
+        return await readDataUrl(converted)
+      }
+    } catch (modernError) {
+      console.warn("[SIGA] Conversão HEIF moderna não disponível:", modernError)
+      // Backward-compatible decoder for HEIC files supported by the old codec.
+      try {
+        const { default: heic2any } = await import("heic2any")
+        const conversion = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 })
+        const jpeg = Array.isArray(conversion) ? conversion[0] : conversion
+        if (!jpeg || jpeg.size === 0) throw new Error("Arquivo não decodificado")
+        return await readDataUrl(jpeg)
+      } catch {
+        throw new Error("Não foi possível decodificar esta foto HEIF/HEIC. Verifique se o arquivo terminou de ser transferido e tente novamente.")
+      }
     }
   }
 }

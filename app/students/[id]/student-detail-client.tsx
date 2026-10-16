@@ -682,7 +682,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                   </Button>
                     {isLoadingPhoto && <span role="status" className="text-xs text-muted-foreground">Convertendo a foto do iPhone...</span>}
                   <p className="text-xs text-muted-foreground text-center">
-                    Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (máx. 5MB)
+                    Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (até 20 MB)
                   </p>
                 </div>
               </div>

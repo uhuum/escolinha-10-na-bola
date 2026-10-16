@@ -51,6 +51,7 @@
     "date-fns": "latest",
     "embla-carousel-react": "latest",
     "heic2any": "0.0.4",
+    "heic-to": "1.6.6",
     "immer": "latest",
     "input-otp": "latest",
     "jspdf": "4.0.0",

@@ -298,7 +298,7 @@ export default function NewStudentPage() {
                       {isLoadingPhoto && <span role="status" className="text-xs text-muted-foreground">Preparando a foto...</span>}
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (máx. 5MB)
+                    Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (até 20 MB)
                   </p>
                 </div>
               </CardContent>
