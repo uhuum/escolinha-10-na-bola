@@ -30,9 +30,17 @@ export async function removeStudentBackground(image: HTMLCanvasElement): Promise
   const segmenter = await loadSegmenter()
   const output = segmenter.segment(image)
   try {
-    // MediaPipe's selfie model: background = 0, person = 1.
-    const person = output.confidenceMasks?.[1]
-    if (!person) throw new Error("Não foi possível identificar uma pessoa na foto.")
+    // MediaPipe SelfieSegmenter normally outputs a single confidence mask:
+    // the foreground/person probability. Other segmentation models provide
+    // separate background (0) and foreground (1) masks.
+    // Do not assume mask[1] exists: this falsely rejected real portraits.
+    const confidenceMasks = output.confidenceMasks
+    const person = confidenceMasks?.length === 1
+      ? confidenceMasks[0]
+      : confidenceMasks?.[1]
+    if (!person) {
+      throw new Error("O modelo de recorte não retornou uma máscara de pessoa. Tente novamente.")
+    }
 
     const confidence = person.getAsFloat32Array()
     const width = person.width, height = person.height
