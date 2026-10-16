@@ -32,6 +32,34 @@ async function convertWithBrowser(file: File): Promise<Blob> {
   }
 }
 
+/** Safari can display some HEIF photos as an <img> even when createImageBitmap cannot. */
+async function convertWithDomImage(file: File): Promise<Blob> {
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error("Formato não suportado pelo navegador"))
+      element.src = objectUrl
+    })
+    const width = image.naturalWidth
+    const height = image.naturalHeight
+    if (!width || !height) throw new Error("Imagem vazia")
+    const scale = Math.min(1, 1800 / Math.max(width, height))
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.max(1, Math.round(width * scale))
+    canvas.height = Math.max(1, Math.round(height * scale))
+    const context = canvas.getContext("2d")
+    if (!context) throw new Error("Canvas indisponível")
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Falha na conversão")), "image/jpeg", 0.92)
+    })
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 /** Only a JPEG preview is generated; the final portrait is a transparent PNG. */
 export async function photoPreviewDataUrl(file: File): Promise<string> {
   const heif = HEIF_EXTENSION.test(file.name) || /image\/hei[cf]/i.test(file.type)
@@ -49,6 +77,11 @@ export async function photoPreviewDataUrl(file: File): Promise<string> {
   try {
     return await readDataUrl(await convertWithBrowser(file))
   } catch {
+    // Some iPhone/Safari combinations can render HEIF in <img> but not ImageBitmap.
+    try {
+      return await readDataUrl(await convertWithDomImage(file))
+    } catch { /* Continue with the local HEIF decoder. */ }
+
     // Prefer a current libheif decoder for modern iPhone HEIF variants.
     // Imported only when a user actually chooses a HEIF/HEIC image.
     try {
