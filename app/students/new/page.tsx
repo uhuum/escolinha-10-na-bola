@@ -295,7 +295,7 @@ export default function NewStudentPage() {
                         />
                       </label>
                     </Button>
-                      {isLoadingPhoto && <span role="status" className="text-xs text-muted-foreground">Convertendo a foto do iPhone...</span>}
+                      {isLoadingPhoto && <span role="status" className="text-xs text-muted-foreground">Preparando a foto...</span>}
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
                     Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (máx. 5MB)
