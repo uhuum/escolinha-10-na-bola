@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { createInvitationToken, displayDate, hashInvitationToken, type EnrollmentRequest } from "@/lib/enrollment"
-import { generateEnrollmentPdf } from "@/lib/utils/enrollment-pdf"
+import { generateWelcomeGuidePdf } from "@/lib/utils/welcome-guide-pdf"
 import type { Student } from "@/lib/types"
 import { AppHeader } from "@/components/app-header"
 import { SectionLoadingScreen } from "@/components/section-loading-screen"
@@ -127,8 +127,8 @@ export default function EnrollmentsPage() {
         scheduleConfigs: Array.isArray(s.schedule_configs) ? s.schedule_configs : [],
         payments: [],
       }
-      await generateEnrollmentPdf(student)
-    } catch { setError("Não foi possível gerar a declaração de matrícula.") }
+      await generateWelcomeGuidePdf(student)
+    } catch { setError("Não foi possível gerar o guia de boas-vindas.") }
     finally { setBusy(false) }
   }
 
@@ -186,7 +186,7 @@ export default function EnrollmentsPage() {
                   <div className="flex flex-wrap gap-2">
                     {row.status === "pending" && <Button asChild size="sm"><Link href={"/enrollments/" + row.id}><CheckCircle2 className="mr-2 h-4 w-4" /> Abrir conferência</Link></Button>}
                     {row.status === "approved" && row.student_id && <>
-                      <Button size="sm" variant="outline" disabled={busy} onClick={() => downloadPdf(row.student_id!)}><FileText className="mr-2 h-4 w-4" /> Baixar PDF</Button>
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => downloadPdf(row.student_id!)}><FileText className="mr-2 h-4 w-4" /> Baixar guia</Button>
                       <Button asChild size="sm" variant="outline"><Link href={`/students/${row.student_id}`}>Ver aluno</Link></Button>
                     </>}
                     {(row.status === "invited" || row.status === "pending") && <Button size="sm" variant="outline" disabled={busy} onClick={() => cancel(row)}><XCircle className="mr-2 h-4 w-4" /> Cancelar</Button>}
