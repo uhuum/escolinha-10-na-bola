@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
 import { AppHeader } from "@/components/app-header"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
+import { photoPreviewDataUrl } from "@/lib/utils/photo-upload"
 import { formatRG, formatCPF, formatPhone } from "@/lib/formatters" // Added imports for format functions
 
 export default function NewStudentPage() {
@@ -45,23 +46,31 @@ export default function NewStudentPage() {
 
   const [photoPreview, setPhotoPreview] = useState<string>("/diverse-students.png")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false)
   const [showCropModal, setShowCropModal] = useState(false)
   const [tempPhotoForCrop, setTempPhotoForCrop] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
 
   const weekDays: WeekDay[] = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.currentTarget.files?.[0]
+    e.currentTarget.value = ""
+    if (!file) return
+    setIsLoadingPhoto(true)
+    try {
+      const source = await photoPreviewDataUrl(file)
       setPhotoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const result = reader.result as string
-        setTempPhotoForCrop(result)
-        setShowCropModal(true)
-      }
-      reader.readAsDataURL(file)
+      setTempPhotoForCrop(source)
+      setShowCropModal(true)
+    } catch (error) {
+      toast({
+        title: "Não foi possível abrir a foto",
+        description: error instanceof Error ? error.message : "Selecione uma foto JPG, PNG, HEIC ou HEIF.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingPhoto(false)
     }
   }
 
@@ -71,7 +80,7 @@ export default function NewStudentPage() {
     setTempPhotoForCrop("")
     toast({
       title: "Foto ajustada",
-      description: "Sua foto foi cortada com sucesso.",
+      description: "O fundo foi removido. A foto será salva com transparência.",
     })
   }
 
@@ -173,8 +182,8 @@ export default function NewStudentPage() {
 
       if (photoFile && photoPreview.startsWith("data:image/")) {
         const adjustedPhotoBlob = await fetch(photoPreview).then((response) => response.blob())
-        const adjustedPhotoFile = new File([adjustedPhotoBlob], "student-photo.jpg", {
-          type: "image/jpeg",
+        const adjustedPhotoFile = new File([adjustedPhotoBlob], "student-photo.png", {
+          type: "image/png",
         })
         const photoUploadData = new FormData()
         photoUploadData.append("file", adjustedPhotoFile)
@@ -262,7 +271,7 @@ export default function NewStudentPage() {
                       src={photoPreview || "/placeholder.svg"}
                       alt="Preview da foto"
                       fill
-                      className="object-cover"
+                      className="object-contain"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -279,15 +288,17 @@ export default function NewStudentPage() {
                         <input
                           id="photo-upload"
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                          disabled={isLoadingPhoto}
                           onChange={handlePhotoChange}
                           className="hidden"
                         />
                       </label>
+                      {isLoadingPhoto && <span role="status" className="text-xs text-muted-foreground">Convertendo a foto do iPhone...</span>}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Formatos aceitos: JPG, PNG, GIF (máx. 5MB)
+                    Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (máx. 5MB)
                   </p>
                 </div>
               </CardContent>
@@ -610,6 +621,7 @@ export default function NewStudentPage() {
           onCancel={() => {
             setShowCropModal(false)
             setTempPhotoForCrop("")
+          setPhotoFile(null)
           }}
         />
       </main>

@@ -23,6 +23,7 @@ import { AppHeader } from "@/components/app-header"
 import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/formatters"
 import { formatBirthDate } from "@/lib/utils/format-birth-date"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
+import { photoPreviewDataUrl } from "@/lib/utils/photo-upload"
 import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth } from "@/lib/utils/payment"
 import { formatDueDate } from "@/lib/utils/date"
 
@@ -41,6 +42,7 @@ export function StudentDetailClient({ id }: { id: string }) {
   const [showCropModal, setShowCropModal] = useState(false)
   const [tempPhotoForCrop, setTempPhotoForCrop] = useState<string>("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false)
 
   const [editDocumentType, setEditDocumentType] = useState<"RG" | "CPF">("RG")
 
@@ -123,17 +125,24 @@ export function StudentDetailClient({ id }: { id: string }) {
     }
   }
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.currentTarget.files?.[0]
+    e.currentTarget.value = ""
+    if (!file) return
+    setIsLoadingPhoto(true)
+    try {
+      const source = await photoPreviewDataUrl(file)
       setPhotoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const result = reader.result as string
-        setTempPhotoForCrop(result)
-        setShowCropModal(true)
-      }
-      reader.readAsDataURL(file)
+      setTempPhotoForCrop(source)
+      setShowCropModal(true)
+    } catch (error) {
+      toast({
+        title: "Não foi possível abrir a foto",
+        description: error instanceof Error ? error.message : "Selecione uma foto JPG, PNG, HEIC ou HEIF.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingPhoto(false)
     }
   }
 
@@ -143,7 +152,7 @@ export function StudentDetailClient({ id }: { id: string }) {
     setTempPhotoForCrop("")
     toast({
       title: "Foto ajustada",
-      description: "Sua foto foi cortada com sucesso.",
+      description: "O fundo foi removido. A foto será salva com transparência.",
     })
   }
 
@@ -193,6 +202,7 @@ export function StudentDetailClient({ id }: { id: string }) {
   }
 
   const handleSaveEdit = async () => {
+    try {
     const allDays: WeekDay[] = [...new Set(scheduleConfigs.map((c) => c.day))]
     const primarySchedule = scheduleConfigs[0]?.schedule || "18:00-19:30"
 
@@ -205,8 +215,8 @@ if (photoFile && photoPreview) {
 
   const croppedFile = new File(
     [blob],
-    photoFile.name || "foto-aluno.jpg",
-    { type: blob.type || "image/jpeg" }
+    "foto-aluno.png",
+    { type: "image/png" }
   )
 
   const formData = new FormData()
@@ -217,14 +227,13 @@ if (photoFile && photoPreview) {
     body: formData,
   })
 
-  if (uploadRes.ok) {
-    const uploadData = await uploadRes.json()
-    photoUrl = uploadData.photoUrl
-    thumbnailUrl = uploadData.thumbnailUrl
-  }
+  if (!uploadRes.ok) throw new Error("Não foi possível salvar a foto. Tente novamente.")
+  const uploadData = await uploadRes.json()
+  photoUrl = uploadData.photoUrl
+  thumbnailUrl = uploadData.thumbnailUrl
 }
 
-    updateStudent(id, {
+    await updateStudent(id, {
       name: editForm.name,
       rg: editForm.rg,
       birthDate: editForm.birthDate,
@@ -247,7 +256,14 @@ if (photoFile && photoPreview) {
       description: "Os dados do aluno foram salvos com sucesso.",
     })
 
+    setStudent(current => current ? { ...current, photo: photoUrl, thumbnailUrl } : current)
+    setPhotoFile(null)
     setShowEditDialog(false)
+    } catch (error) {
+      toast({ title: "Não foi possível salvar",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive" })
+    }
   }
 
   const handleViewReceipt = (receipt?: string | File) => {
@@ -355,12 +371,12 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center text-center mb-6">
-                <div className="relative h-32 w-32 rounded-full overflow-hidden bg-primary/10 mb-4 border-4 border-primary/20">
+                <div className="relative h-32 w-32 rounded-full overflow-hidden bg-white mb-4 border-4 border-primary/20">
                   <Image
                     src={student.photo || "/placeholder.svg?height=200&width=200&query=student"}
                     alt={student.name}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </div>
                 <h2 className="text-2xl font-bold text-foreground mb-1">{student.name}</h2>
@@ -648,7 +664,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                 </h3>
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative h-32 w-32 rounded-full overflow-hidden bg-muted border-4 border-primary/20">
-                    <Image src={photoPreview || "/placeholder.svg"} alt="Preview" fill className="object-cover" />
+                    <Image src={photoPreview || "/placeholder.svg"} alt="Preview" fill className="object-contain" />
                   </div>
                   <Button type="button" variant="outline" size="sm" asChild className="bg-transparent">
                     <label htmlFor="edit-photo-upload" className="cursor-pointer">
@@ -657,14 +673,16 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                       <input
                         id="edit-photo-upload"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                        disabled={isLoadingPhoto}
                         onChange={handlePhotoChange}
                         className="hidden"
                       />
                     </label>
+                    {isLoadingPhoto && <span role="status" className="text-xs text-muted-foreground">Convertendo a foto do iPhone...</span>}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Formatos aceitos: JPG, PNG, GIF (máx. 5MB)
+                    Formatos aceitos: JPG, PNG, WebP, HEIC e HEIF (máx. 5MB)
                   </p>
                 </div>
               </div>
@@ -919,6 +937,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
         onCancel={() => {
           setShowCropModal(false)
           setTempPhotoForCrop("")
+          setPhotoFile(null)
         }}
       />
     </div>
