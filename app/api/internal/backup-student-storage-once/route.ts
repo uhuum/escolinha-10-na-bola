@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js"
 // only in Supabase Vault. Never expose the service role or student photo data
 // through unauthenticated endpoints.
 export async function POST(request: NextRequest) {
-  const bearer = request.headers.get("authorization")?.match(/^Bearer\\s+(\\S+)$/i)?.[1] || ""
+  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1] || ""
   if (!/^[a-f0-9]{64}$/i.test(bearer)) {
     return new NextResponse("Unauthorized", { status: 401 })
   }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         limit: 1000, offset: 0, sortBy: { column: "name", order: "asc" },
       })
       if (error || !data) throw new Error("Failed to list storage files")
-      const paths = data.filter(entry => /^[a-f0-9-]+\\.webp$/i.test(entry.name))
+      const paths = data.filter(entry => /^[a-f0-9-]+\.webp$/i.test(entry.name))
         .map(entry => prefix + "/" + entry.name)
       if (paths.length !== data.length) throw new Error("Unexpected storage file")
       return paths
