@@ -116,6 +116,11 @@ export function AttendanceEditDialog({ attendance, students, onSave, onDelete, o
           <p className="mt-1 text-sm text-muted-foreground">
             {attendance.dayOfWeek} • {attendance.classSchedule} • {attendance.trainerName}
           </p>
+          {!isToday && (
+            <p className="mt-1 text-xs font-medium text-amber-700">
+              Correção do dia seguinte: você pode salvar até 23h59 de hoje.
+            </p>
+          )}
           <button
             type="button"
             onClick={onClose}
