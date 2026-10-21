@@ -60,9 +60,20 @@ async function convertWithDomImage(file: File): Promise<Blob> {
   }
 }
 
-/** Only a JPEG preview is generated; the final portrait is a transparent PNG. */
+async function hasHeifContainerSignature(file: File): Promise<boolean> {
+  // Some iPhones and file-sharing apps omit the HEIF MIME type or extension.
+  // ISO BMFF containers identify their codec in the ftyp major/compatible brands.
+  const header = new Uint8Array(await file.slice(0, 64).arrayBuffer())
+  if (header.length < 12) return false
+  const brand = String.fromCharCode(...header.slice(4, 8))
+  if (brand !== "ftyp") return false
+  const compatible = new TextDecoder("ascii").decode(header.subarray(8))
+  return /(?:heic|heix|hevc|hevx|heis|heim|mif1|msf1)/i.test(compatible)
+}
+
+/** JPEG preview for the editor; the confirmed portrait is a transparent PNG. */
 export async function photoPreviewDataUrl(file: File): Promise<string> {
-  const heif = HEIF_EXTENSION.test(file.name) || /image\/hei[cf]/i.test(file.type)
+  const heif = HEIF_EXTENSION.test(file.name) || /image\/hei[cf]/i.test(file.type) || await hasHeifContainerSignature(file)
   if (!heif && !ACCEPTED_TYPE.test(file.type) && !ACCEPTED_EXTENSION.test(file.name)) {
     throw new Error("Selecione uma foto JPG, PNG, WebP, HEIC ou HEIF.")
   }

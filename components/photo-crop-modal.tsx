@@ -45,6 +45,32 @@ function drawCrop(
   ctx.restore()
 }
 
+async function generateTransparentPortrait(
+  imageSrc: string,
+  zoom: number,
+  rotation: number,
+  offsetX: number,
+  offsetY: number,
+): Promise<string> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error("Não foi possível abrir a imagem"))
+    img.src = imageSrc
+  })
+  const canvas = document.createElement("canvas")
+  drawCrop(canvas, image, EXPORT, zoom, rotation, offsetX, offsetY)
+  const { removeStudentBackground } = await import("@/lib/utils/remove-student-background")
+  return removeStudentBackground(canvas)
+}
+
+function friendlyCropError(cause: unknown): string {
+  return cause instanceof Error && /Não foi possível|Máscara|recortar/.test(cause.message)
+    ? cause.message
+    : "Não foi possível remover o fundo agora. Verifique sua conexão e tente novamente."
+}
+
+
 export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: PhotoCropModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [zoom, setZoom] = useState(1)
@@ -83,27 +109,35 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
     setDragStart({ x: event.clientX, y: event.clientY })
   }
 
+  // A newly selected photo is cut out automatically. The original pixels are
+  // preserved; only the alpha mask is changed, and the user approves the preview.
+  useEffect(() => {
+    if (!isOpen || !imageSrc) return
+    let active = true
+    setProcessing(true)
+    setError("")
+    setProcessedPhoto(null)
+    void generateTransparentPortrait(imageSrc, 1, 0, 0, 0)
+      .then(result => {
+        if (active) setProcessedPhoto(result)
+      })
+      .catch(cause => {
+        if (active) setError(friendlyCropError(cause))
+      })
+      .finally(() => {
+        if (active) setProcessing(false)
+      })
+    return () => { active = false }
+  }, [isOpen, imageSrc])
+
   const removeBackground = async () => {
     if (processing || !imageSrc) return
     setProcessing(true)
     setError("")
     try {
-      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new window.Image()
-        img.onload = () => resolve(img)
-        img.onerror = () => reject(new Error("Não foi possível abrir a imagem"))
-        img.src = imageSrc
-      })
-      const canvas = document.createElement("canvas")
-      drawCrop(canvas, image, EXPORT, zoom, rotation, offsetX, offsetY)
-      // Lazy load: the segmentation engine is downloaded only while editing a photo.
-      const { removeStudentBackground } = await import("@/lib/utils/remove-student-background")
-      const result = await removeStudentBackground(canvas)
-      setProcessedPhoto(result)
+      setProcessedPhoto(await generateTransparentPortrait(imageSrc, zoom, rotation, offsetX, offsetY))
     } catch (cause) {
-      setError(cause instanceof Error && /Não foi possível|Máscara|recortar/.test(cause.message)
-        ? cause.message
-        : "Não foi possível remover o fundo agora. Verifique sua conexão e tente novamente.")
+      setError(friendlyCropError(cause))
     } finally {
       setProcessing(false)
     }
@@ -124,7 +158,7 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
         <DialogHeader>
           <DialogTitle>Foto do aluno sem fundo</DialogTitle>
           <DialogDescription>
-            Posicione o aluno e toque em Remover fundo. Confira o resultado antes de salvar.
+            O sistema remove o fundo automaticamente. Confira o recorte antes de salvar.
           </DialogDescription>
         </DialogHeader>
 
@@ -177,7 +211,7 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
               </div>
               <Card className="border-primary/20 bg-primary/5 p-3">
                 <p className="text-xs text-muted-foreground">
-                  O recorte é processado no seu aparelho. Na primeira vez, aguarde o carregamento do modelo.
+                  O recorte é feito no próprio aparelho, sem enviar a foto a outro serviço. Na primeira vez, aguarde o carregamento do modelo.
                 </p>
               </Card>
             </div>
