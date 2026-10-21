@@ -356,7 +356,7 @@ Para realizar o pagamento via PIX:
 Pedimos desculpas caso o pagamento já tenha sido efetuado. Nesse caso, por gentileza, nos envie o comprovante novamente para darmos baixa no sistema.
 
 Atenciosamente,
-*Equipe 10 na Bola*`
+*Administrativo 10 na Bola*`
 
   return encodeURIComponent(message)
 }
