@@ -67,7 +67,7 @@ async function generateTransparentPortrait(
 function friendlyCropError(cause: unknown): string {
   return cause instanceof Error && /Não foi possível|Máscara|recortar/.test(cause.message)
     ? cause.message
-    : "Não foi possível remover o fundo agora. Verifique sua conexão e tente novamente."
+    : "Não foi possível remover o fundo. Confira a conexão e use Remover fundo para tentar novamente."
 }
 
 
