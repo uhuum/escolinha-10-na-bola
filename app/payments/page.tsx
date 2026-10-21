@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useStudents } from "@/lib/hooks/use-students"
+import { getBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
@@ -170,6 +171,36 @@ useEffect(() => {
   const currentMonthNum = getCurrentMonthNumber()
   const currentYearNum = getCurrentYear()
   const currentDay = getCurrentDay()
+  const [pendingHistoryCounts, setPendingHistoryCounts] = useState<Record<string, number>>({})
+  useEffect(() => {
+    if (isLoading) return
+    let active = true
+    setPendingHistoryCounts({})
+    const load = async () => {
+      const counts: Record<string, Set<string>> = {}
+      for (let start = 0; ; start += 1000) {
+        const { data, error } = await getBrowserClient().from("payments")
+          .select("student_id,due_date")
+          .in("status", ["Não Pagou", "Cobrado"])
+          .gte("due_date", `${BASE_YEAR}-${String(BASE_MONTH).padStart(2, "0")}-01`)
+          .lte("due_date", paymentThrough)
+          .order("due_date").order("student_id")
+          .range(start, start + 999)
+        if (error) { console.error("Falha ao contar pendências", error); return }
+        for (const payment of data || []) {
+          const student = students.find((item) => item.id === payment.student_id)
+          if (!student || !payment.due_date || (student.registrationDate &&
+            payment.due_date.slice(0, 7) < student.registrationDate.slice(0, 7))) continue
+          ;(counts[payment.student_id] ??= new Set()).add(payment.due_date.slice(0, 7))
+        }
+        if (!data || data.length < 1000) break
+      }
+      if (active) setPendingHistoryCounts(Object.fromEntries(
+        Object.entries(counts).map(([id, months]) => [id, months.size])))
+    }
+    void load()
+    return () => { active = false }
+  }, [students, isLoading, paymentThrough])
 
   const handlePreviousMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
@@ -298,6 +329,8 @@ useEffect(() => {
       (s.payment?.status === "Não Pagou" || s.payment?.status === "Cobrado"),
   )
   const pendingCount = pendingStudents.length
+  const monthlyPendingTotal = pendingStudents.reduce((total, { student }) =>
+    total + Math.max(1, pendingHistoryCounts[student.id] || 0), 0)
 
   const openStudents = studentsWithPayments.filter(
     (s) => !s.student.isScholarship && s.student.monthlyValue > 0 && !s.isArchived && s.payment?.status === "Em Aberto",
@@ -848,7 +881,9 @@ useEffect(() => {
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
               <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-destructive mb-1">{pendingCount}</div>
-              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">Clique para cobrar</p>
+              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">
+                {monthlyPendingTotal} mensalidade(s) pendente(s) · Clique para cobrar
+              </p>
             </CardContent>
           </Card>
 
@@ -1368,7 +1403,7 @@ useEffect(() => {
               ) : (
                 pendingStudents.map(({ student, payment }) => {
                   const paymentMonth = payment?.month || formatMonthYearFromNumbers(selectedMonthNumber, selectedYear)
-                  const allPendingPayments = getPendingPaymentsInfo(student.payments, student.registrationDate)
+                  const monthlyPending = Math.max(1, pendingHistoryCounts[student.id] || 0)
 
                   return (
                     <div key={student.id} className="flex items-center justify-between p-4 border-b hover:bg-accent/50">
@@ -1384,11 +1419,9 @@ useEffect(() => {
                         <div>
                           <p className="font-medium text-foreground">{student.name}</p>
                           <p className="text-sm text-muted-foreground">{student.responsible}</p>
-                          {allPendingPayments.length > 1 && (
-                            <p className="text-xs text-destructive mt-0.5">
-                              {allPendingPayments.length} mensalidades pendentes
-                            </p>
-                          )}
+                          <p className="text-xs text-destructive mt-0.5">
+                            {monthlyPending} {monthlyPending === 1 ? "mensalidade pendente" : "mensalidades pendentes"}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
