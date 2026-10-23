@@ -500,7 +500,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
           </Card>
 
           <div className="lg:col-span-2 space-y-6">
-            <StudentAttendanceHistory studentId={id} registrationDate={student.registrationDate} isActive={student.isActive} />
+            <StudentAttendanceHistory studentId={id} registrationDate={student.registrationDate} isActive={student.isActive} classSchedule={student.classSchedule} classDays={student.classDays} scheduleConfigs={student.scheduleConfigs} />
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader className="pb-3">
