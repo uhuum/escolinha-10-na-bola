@@ -149,7 +149,7 @@ export function AttendanceFollowUp({
   const urgentCount = followUp.length
 
   return (
-    <Card className="border-2 overflow-hidden">
+    <Card className="min-w-0 border-2 overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -159,7 +159,7 @@ export function AttendanceFollowUp({
             </CardTitle>
             <CardDescription className="mt-1">{description}</CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{followUp.length} em risco</Badge>
             {urgentCount > 0 && <Badge className="bg-red-600 hover:bg-red-600">3+ semanas</Badge>}
           </div>
@@ -179,16 +179,16 @@ export function AttendanceFollowUp({
             Nenhum aluno faltou por 3 semanas consecutivas neste momento.
           </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid min-w-0 gap-3 md:grid-cols-2">
             {filtered.map(({ student, rate, consecutiveAbsentWeeks, total, absent, level, lastDate }) => {
               const fatherWhats = whatsappUrl(student.fatherPhone, student.name)
               const motherWhats = whatsappUrl(student.motherPhone, student.name)
               const primaryWhats = motherWhats || fatherWhats
               return (
-                <div key={student.id} className={`rounded-xl border p-4 ${level === "urgent" ? "border-red-200 bg-red-50/60" : "border-amber-200 bg-amber-50/60"}`}>
-                  <div className="flex items-start justify-between gap-3">
+                <div key={student.id} className={`min-w-0 rounded-xl border p-4 ${level === "urgent" ? "border-red-200 bg-red-50/60" : "border-amber-200 bg-amber-50/60"}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{student.name}</p>
+                      <p className="font-semibold break-words">{student.name}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Últimas {total} chamadas: {absent} falta(s) • {rate}% de presença
                       </p>
@@ -198,10 +198,10 @@ export function AttendanceFollowUp({
                     </Badge>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-2 text-sm">
+                  <div className="mt-3 flex flex-wrap items-start gap-2 text-sm">
                     <AlertTriangle className={`h-4 w-4 ${level === "urgent" ? "text-red-600" : "text-amber-600"}`} />
-                    <span className="font-medium">{consecutiveAbsentWeeks} semanas seguidas sem presença</span>
-                    {lastDate && <span className="text-xs text-muted-foreground">• última chamada {new Date(lastDate + "T00:00:00").toLocaleDateString("pt-BR")}</span>}
+                    <span className="min-w-0 break-words font-medium">{consecutiveAbsentWeeks} semanas seguidas sem presença</span>
+                    {lastDate && <span className="break-words text-xs text-muted-foreground">• última chamada {new Date(lastDate + "T00:00:00").toLocaleDateString("pt-BR")}</span>}
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
