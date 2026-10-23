@@ -20,11 +20,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { Attendance } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { canEditAttendance, getEditDisabledReason } from "@/lib/utils/attendance-permissions"
-import { AttendanceFollowUp } from "@/components/attendance-follow-up"
+import { AdminAttendanceFollowUp } from "@/components/admin-attendance-follow-up"
 
 export default function PresencasPage() {
-  const { attendances, updateAttendance, deleteAttendance } = useAttendance()
-  const { students } = useStudents({ includePayments: false, lightweightPhotos: true })
+  const { attendances, updateAttendance, deleteAttendance, isLoading: attendanceLoading } = useAttendance()
+  const { students, isLoading: studentsLoading, loadError } = useStudents({ includePayments: false, lightweightPhotos: true })
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -201,12 +201,11 @@ export default function PresencasPage() {
             </p>
           </div>
 
-          <AttendanceFollowUp
+          <AdminAttendanceFollowUp
             students={students}
             attendances={attendances}
-            title="Alunos com risco de afastamento"
-            description="Aparecem aqui somente alunos que faltaram por 3 semanas consecutivas."
-            maxItems={12}
+            loading={studentsLoading || attendanceLoading}
+            loadError={loadError}
           />
 
           <Tabs defaultValue="historico" className="w-full">

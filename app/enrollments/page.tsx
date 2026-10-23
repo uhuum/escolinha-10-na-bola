@@ -14,8 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ClipboardCopy, FileText, Link2, RefreshCcw, CheckCircle2, XCircle, Plus, AlertTriangle, MessageCircle } from "lucide-react"
-import { absentForThreeConsecutiveWeeks, localToday, type AttendanceEntry } from "@/lib/utils/attendance-insights"
+import { ClipboardCopy, FileText, Link2, RefreshCcw, CheckCircle2, XCircle, Plus } from "lucide-react"
 
 function statusName(value: string) {
   switch (value) {
@@ -25,29 +24,6 @@ function statusName(value: string) {
     case "cancelled": return "Cancelado"
     default: return value
   }
-}
-
-type AbsentStudent = {
-  id: string; name: string; responsible: string; fatherPhone: string; motherPhone: string
-}
-type AttendanceJoin = {
-  student_id: string
-  status: string
-  attendance: { date: string; class_schedule: string } | { date: string; class_schedule: string }[] | null
-}
-
-function absenceWhatsAppLink(student: AbsentStudent, phone: string) {
-  const digits = phone.replace(/\D/g, "")
-  const number = digits.startsWith("55") ? digits : "55" + digits
-  const message = `Olá, ${student.responsible || "responsável"}!
-
-Aqui é do Administrativo 10 na Bola. Verificamos que o(a) aluno(a) *${student.name}* tem faltas registradas em três semanas consecutivas de treino.
-
-Gostaríamos de saber se está tudo bem e se há alguma situação em que possamos ajudar. Aguardamos seu retorno!
-
-Atenciosamente,
-*Administrativo 10 na Bola*`
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 
 export default function EnrollmentsPage() {
@@ -61,10 +37,6 @@ export default function EnrollmentsPage() {
   const [generatedLink, setGeneratedLink] = useState("")
   const [error, setError] = useState("")
   const [confirmation, setConfirmation] = useState("")
-  const [absentStudents, setAbsentStudents] = useState<AbsentStudent[]>([])
-  const [absenceLoading, setAbsenceLoading] = useState(true)
-  const [absenceError, setAbsenceError] = useState("")
-  const [absenceRevision, setAbsenceRevision] = useState(0)
   const load = useCallback(async () => {
     const { data, error: readError } = await supabase.from("enrollment_requests")
       .select("id,label,status,created_at,expires_at,submitted_at,approved_at,student_id,payload,approval")
@@ -80,62 +52,7 @@ export default function EnrollmentsPage() {
     return () => { active = false }
   }, [load])
 
-  useEffect(() => {
-    let alive = true
-    const loadAbsences = async () => {
-      setAbsenceLoading(true)
-      setAbsenceError("")
-      try {
-        const { data: studentRows, error: studentsError } = await supabase.from("students")
-          .select("id,name,responsible,father_phone,mother_phone,registration_date,class_schedule,class_days,schedule_configs,is_active,archived_at")
-          .eq("is_active", true).is("archived_at", null)
-        if (studentsError) throw studentsError
-        const entries: AttendanceEntry[] = []
-        for (let offset = 0; ; offset += 1000) {
-          const { data, error: attendanceError } = await supabase.from("attendance_records")
-            .select("student_id,status,attendance:attendance_id(date,class_schedule)")
-            .order("id").range(offset, offset + 999)
-          if (attendanceError) throw attendanceError
-          for (const row of (data || []) as AttendanceJoin[]) {
-            const attendance = Array.isArray(row.attendance) ? row.attendance[0] : row.attendance
-            if (!attendance || (row.status !== "Presente" && row.status !== "Ausente")) continue
-            entries.push({
-              studentId: row.student_id,
-              date: attendance.date,
-              schedule: attendance.class_schedule,
-              status: row.status,
-            })
-          }
-          if (!data || data.length < 1000) break
-        }
-        const today = localToday()
-        const candidates = (studentRows || []).filter(student => absentForThreeConsecutiveWeeks({
-          id: student.id,
-          registrationDate: student.registration_date,
-          isActive: student.is_active,
-          archivedAt: student.archived_at,
-          classSchedule: student.class_schedule,
-          classDays: student.class_days || [],
-          scheduleConfigs: Array.isArray(student.schedule_configs) ? student.schedule_configs : [],
-        }, entries, today)).map(student => ({
-          id: student.id,
-          name: student.name,
-          responsible: student.responsible || "",
-          fatherPhone: student.father_phone || "",
-          motherPhone: student.mother_phone || "",
-        })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-        if (alive) setAbsentStudents(candidates)
-      } catch (cause) {
-        console.error("[SIGA] Falha no relatório de faltas:", cause)
-        if (alive) setAbsenceError("Não foi possível consultar as faltas. Use Atualizar para tentar novamente.")
-      } finally { if (alive) setAbsenceLoading(false) }
-    }
-    void loadAbsences()
-    return () => { alive = false }
-  }, [supabase, absenceRevision])
-
   const refresh = async () => {
-    setAbsenceRevision(value => value + 1)
     setError("")
     setLoading(true)
     try { await load() } catch { setError("Não foi possível atualizar a lista.") }
@@ -249,37 +166,6 @@ export default function EnrollmentsPage() {
 
         {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         {confirmation && <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{confirmation}</p>}
-
-        <Card className="border-amber-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertTriangle className="h-5 w-5 text-amber-600" /> Acompanhamento de frequência
-            </CardTitle>
-            <p className="text-sm text-slate-600">Alunos com faltas registradas em três semanas consecutivas, de acordo com os dias e horários de treino. Dias sem chamada não contam como ausência.</p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {absenceLoading ? <p className="text-sm text-slate-600">Consultando chamadas...</p>
-              : absenceError ? <p role="alert" className="text-sm text-red-600">{absenceError}</p>
-              : absentStudents.length === 0 ? <p className="text-sm text-slate-600">Nenhum aluno atingiu o critério de três semanas consecutivas de faltas registradas.</p>
-              : <>
-                <p className="text-sm font-semibold text-amber-800">{absentStudents.length} aluno(s) precisam de contato com a família</p>
-                {absentStudents.map(student => (
-                  <div key={student.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-                    <div>
-                      <Link href={`/students/${student.id}`} className="font-semibold text-blue-700 hover:underline">{student.name}</Link>
-                      <p className="text-sm text-slate-600">Responsável: {student.responsible || "Não informado"}</p>
-                      <p className="text-xs text-amber-800">Três semanas consecutivas com faltas registradas</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {student.fatherPhone && <Button asChild size="sm" variant="outline"><a href={absenceWhatsAppLink(student, student.fatherPhone)} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp pai</a></Button>}
-                      {student.motherPhone && student.motherPhone.replace(/\D/g, "") !== student.fatherPhone.replace(/\D/g, "") && <Button asChild size="sm" variant="outline"><a href={absenceWhatsAppLink(student, student.motherPhone)} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp mãe</a></Button>}
-                      {!student.fatherPhone && !student.motherPhone && <span className="text-xs text-red-600">Sem telefone cadastrado</span>}
-                    </div>
-                  </div>
-                ))}
-              </>}
-          </CardContent>
-        </Card>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Solicitações recebidas</h2>
