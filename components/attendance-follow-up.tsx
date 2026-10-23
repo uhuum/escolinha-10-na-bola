@@ -1,12 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, MessageCircle, Phone, Search, UserRoundX } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { Attendance, Student } from "@/lib/types"
+import { useAuth } from "@/lib/contexts/auth-context"
+import { getBrowserClient } from "@/lib/supabase/client"
 
 interface AttendanceFollowUpProps {
   students: Student[]
@@ -15,6 +17,8 @@ interface AttendanceFollowUpProps {
   description?: string
   maxItems?: number
 }
+
+type CoachContact = { student_id: string; father_phone: string | null; mother_phone: string | null }
 
 type FollowUpStudent = {
   student: Student
@@ -49,6 +53,43 @@ export function AttendanceFollowUp({
   maxItems = 12,
 }: AttendanceFollowUpProps) {
   const [search, setSearch] = useState("")
+  const { user } = useAuth()
+  const [coachContacts, setCoachContacts] = useState<Record<string, CoachContact>>({})
+  const [contactsLoading, setContactsLoading] = useState(false)
+  const [contactsError, setContactsError] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    if (user?.role !== "coach") {
+      setCoachContacts({})
+      setContactsLoading(false)
+      setContactsError(false)
+      return () => { active = false }
+    }
+    setContactsLoading(true)
+    setContactsError(false)
+    const load = async () => {
+      try {
+        // O RPC so libera os telefones de alunos com tres semanas de faltas
+        // nas chamadas do proprio treinador. Nao expoe os outros cadastros.
+        const { data, error } = await getBrowserClient().rpc("coach_followup_contacts")
+        if (error) throw error
+        if (!active) return
+        const mapped: Record<string, CoachContact> = {}
+        for (const entry of (data || []) as CoachContact[]) {
+          mapped[entry.student_id] = entry
+        }
+        setCoachContacts(mapped)
+      } catch (error) {
+        console.error("[SIGA] Falha ao obter contatos do acompanhamento:", error)
+        if (active) setContactsError(true)
+      } finally {
+        if (active) setContactsLoading(false)
+      }
+    }
+    void load()
+    return () => { active = false }
+  }, [user?.id, user?.role])
   const studentMap = useMemo(() => new Map(students.map((student) => [student.id, student])), [students])
 
   const followUp = useMemo(() => {
@@ -181,8 +222,10 @@ export function AttendanceFollowUp({
         ) : (
           <div className="grid min-w-0 gap-3 md:grid-cols-2">
             {filtered.map(({ student, rate, consecutiveAbsentWeeks, total, absent, level, lastDate }) => {
-              const fatherWhats = whatsappUrl(student.fatherPhone, student.name)
-              const motherWhats = whatsappUrl(student.motherPhone, student.name)
+              const fatherPhone = student.fatherPhone || coachContacts[student.id]?.father_phone || ""
+              const motherPhone = student.motherPhone || coachContacts[student.id]?.mother_phone || ""
+              const fatherWhats = whatsappUrl(fatherPhone, student.name)
+              const motherWhats = whatsappUrl(motherPhone, student.name)
               const primaryWhats = motherWhats || fatherWhats
               return (
                 <div key={student.id} className={`min-w-0 rounded-xl border p-4 ${level === "urgent" ? "border-red-200 bg-red-50/60" : "border-amber-200 bg-amber-50/60"}`}>
@@ -212,11 +255,11 @@ export function AttendanceFollowUp({
                         </a>
                       </Button>
                     ) : (
-                      <Badge variant="outline" className="h-9 px-3 text-muted-foreground">Sem WhatsApp cadastrado</Badge>
+                      <Badge variant="outline" className="min-h-9 max-w-full whitespace-normal px-3 py-2 text-muted-foreground">{contactsLoading ? "Carregando contatos..." : contactsError && user?.role === "coach" ? "Não foi possível consultar os contatos" : "Sem WhatsApp cadastrado"}</Badge>
                     )}
-                    {student.fatherPhone && (
+                    {fatherPhone && (
                       <Button size="sm" variant="outline" asChild className="h-9">
-                        <a href={`tel:${onlyDigits(student.fatherPhone)}`}><Phone className="mr-2 h-4 w-4" /> Responsável</a>
+                        <a href={`tel:${onlyDigits(fatherPhone)}`}><Phone className="mr-2 h-4 w-4" /> Responsável</a>
                       </Button>
                     )}
                   </div>

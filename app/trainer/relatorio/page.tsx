@@ -146,11 +146,16 @@ export default function TrainerRelatorioPage() {
       setCancellationRevision((value) => value + 1)
     } catch (cause) {
       console.error("[SIGA] Não foi possível registrar o cancelamento:", cause)
-      toast({
-        title: "Não foi possível cancelar",
-        description: cause instanceof Error ? cause.message : "Verifique se já existe uma chamada para a turma ou tente atualizar o calendário.",
-        variant: "destructive",
-      })
+      const databaseError = cause && typeof cause === "object"
+        ? cause as { code?: string; message?: string } : null
+      const description = databaseError?.code === "23514"
+        ? "Já existe uma chamada nessa turma ou os dados do cancelamento não são válidos."
+        : databaseError?.code === "23505"
+          ? "Essa turma já possui um cancelamento registrado."
+          : databaseError?.code === "42501"
+            ? "Seu acesso de treinador não foi autorizado para esta operação. Atualize sua sessão e tente novamente."
+            : databaseError?.message || (cause instanceof Error ? cause.message : "Tente atualizar o calendário e repetir a operação.")
+      toast({ title: "Não foi possível cancelar", description, variant: "destructive" })
     } finally {
       setCancelSaving(false)
     }
