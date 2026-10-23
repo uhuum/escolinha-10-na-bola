@@ -171,7 +171,7 @@ useEffect(() => {
   const currentYearNum = getCurrentYear()
   const currentDay = getCurrentDay()
   // Fetch all historical overdue installments, regardless of the viewed month.
-  type DebtRow = { id: string; student_id: string; due_date: string; status: string; month: string; month_number: number; year_number: number; value: number }
+  type DebtRow = { id: string; student_id: string; due_date: string; postponed_to: string | null; status: string; month: string; month_number: number; year_number: number; value: number }
   const [debtRows, setDebtRows] = useState<DebtRow[]>([])
   const [debtLoading, setDebtLoading] = useState(true)
   const [debtRevision, setDebtRevision] = useState(0)
@@ -186,8 +186,8 @@ useEffect(() => {
           year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
         for (let offset = 0; ; offset += 1000) {
           const { data, error } = await getBrowserClient().from("payments")
-            .select("id,student_id,due_date,status,month,month_number,year_number,value")
-            .in("status", ["Não Pagou", "Cobrado", "Em Aberto"])
+            .select("id,student_id,due_date,postponed_to,status,month,month_number,year_number,value")
+            .in("status", ["Não Pagou", "Cobrado", "Em Aberto", "Adiado"])
             .gte("due_date", `${BASE_YEAR}-${String(BASE_MONTH).padStart(2,"0")}-01`)
             .lte("due_date", today)
             .order("due_date").order("id").range(offset,offset+999)
@@ -214,6 +214,7 @@ useEffect(() => {
       const student = studentsById.get(debt.student_id)
       if (!student || !student.isActive || student.archivedAt || student.isScholarship || student.monthlyValue === 0) continue
       if (!debt.due_date || (debt.status === "Em Aberto" && debt.due_date >= today)) continue
+      if (debt.status === "Adiado" && (!debt.postponed_to || debt.postponed_to.slice(0, 10) >= today)) continue
       if (student.registrationDate && debt.due_date.slice(0,7) < student.registrationDate.slice(0,7)) continue
       const items = map.get(debt.student_id) || []
       items.push(debt)
@@ -227,7 +228,9 @@ useEffect(() => {
   const debtMonth = (row: DebtRow) => row.month_number && row.year_number
     ? formatMonthYearFromNumbers(row.month_number,row.year_number) : row.month || row.due_date.slice(0,7)
   const debtMessageRows = (studentId: string) =>
-    (debtByStudent.get(studentId)||[]).map(row=>({month:debtMonth(row),value:row.value||0}))
+    [...(debtByStudent.get(studentId)||[])]
+      .sort((a,b)=>a.year_number-b.year_number || a.month_number-b.month_number)
+      .map(row=>({month:debtMonth(row),value:row.value||0}))
 
   const handlePreviousMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
@@ -1058,6 +1061,12 @@ useEffect(() => {
                             formatCurrency(payment?.value || student.monthlyValue)
                           )}
                         </p>
+                        {!isArchived && !isScholarship && (debtByStudent.get(student.id)?.length || 0) > 0 && (
+                          <button type="button" onClick={() => setShowPendingModal(true)} className="mt-1 rounded-md bg-red-50 px-2 py-1 text-left text-xs font-semibold text-red-700 hover:bg-red-100">
+                            {debtByStudent.get(student.id)!.length} {debtByStudent.get(student.id)!.length === 1 ? "mensalidade pendente" : "mensalidades pendentes"} (todos os meses)
+                            {" · "}{formatCurrency(debtByStudent.get(student.id)!.reduce((total, item) => total + (item.value || 0), 0))}
+                          </button>
+                        )}
                         {payment?.dueDate && !isScholarship && !isArchived && (
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Venc: {(() => {
@@ -1394,7 +1403,7 @@ useEffect(() => {
             <CardHeader className="border-b">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-destructive">Alunos Pendentes</CardTitle>
+                  <CardTitle className="text-destructive">Alunos Pendentes — todos os meses</CardTitle>
                   <CardDescription>
                     {pendingCount} aluno(s) · {monthlyPendingTotal} mensalidade(s) · {formatCurrency(debtTotalValue)} no total
                   </CardDescription>
