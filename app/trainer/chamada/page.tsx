@@ -18,7 +18,6 @@ import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
 import { getTodayDateString } from "@/lib/utils/date"
 import { LoadingStudents } from "@/components/loading-students"
-import { AttendanceFollowUp } from "@/components/attendance-follow-up"
 
 function getDayOfWeekInPortuguese(date: Date): string {
   const days = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
@@ -186,13 +185,6 @@ export default function TrainerChamadaPage() {
         <p className="text-sm sm:text-base text-muted-foreground">Registre a presença dos alunos em tempo real</p>
       </div>
 
-      <AttendanceFollowUp
-        students={students}
-        attendances={attendances.filter((attendance) => !user?.id || attendance.trainerId === user.id)}
-        title="Alunos para acompanhar"
-        description="Aparecem aqui somente alunos que faltaram por 3 semanas consecutivas. Use os contatos para falar com a família."
-        maxItems={8}
-      />
 
       <Card className="border-2 bg-accent/5">
         <CardHeader className="pb-3 p-3 sm:p-6">
