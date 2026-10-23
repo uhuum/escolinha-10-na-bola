@@ -65,7 +65,6 @@ export function absentForThreeConsecutiveWeeks(
     if (row.studentId !== student.id || !ISO_DATE.test(row.date) || row.date > today || row.date < registered) continue
     if (!slotsForDay(student, row.date).includes(row.schedule)) continue
     if (row.status === "Presente" && (!lastPresence || row.date > lastPresence)) lastPresence = row.date
-    if (daysBetween(row.date, today) > 70) continue
     const monday = weekStart(row.date)
     const week = weeks.get(monday) || { hasPresence: false, hasAbsence: false, lastDate: row.date }
     if (row.status === "Presente") week.hasPresence = true
@@ -77,7 +76,6 @@ export function absentForThreeConsecutiveWeeks(
   return lastThree.length === 3
     && lastThree.every(([, week]) => week.hasAbsence && !week.hasPresence)
     && daysBetween(lastThree[2][0], lastThree[0][0]) === 14
-    && daysBetween(lastThree[0][1].lastDate, today) <= 7
     && (!lastPresence || daysBetween(lastPresence, today) >= 21)
 }
 
