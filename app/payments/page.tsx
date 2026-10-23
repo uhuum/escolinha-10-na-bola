@@ -891,9 +891,9 @@ useEffect(() => {
               </div>
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-destructive mb-1">{debtLoading ? "…" : pendingCount}</div>
+              <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-destructive mb-1">{debtLoading ? "…" : monthlyPendingTotal}</div>
               <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">
-                {monthlyPendingTotal} mensalidade(s) pendente(s) de todos os meses · {formatCurrency(debtTotalValue)}
+                {pendingCount} aluno(s) com pendências de todos os meses · {formatCurrency(debtTotalValue)}
               </p>
             </CardContent>
           </Card>
