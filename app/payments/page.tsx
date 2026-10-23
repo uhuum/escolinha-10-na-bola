@@ -60,7 +60,6 @@ import { matchesMonthYearByNumbers } from "@/lib/utils/date"
 import { LoadingStudents } from "@/components/loading-students"
 import {
   determinePaymentStatus,
-  getPendingPaymentsInfo,
   generateWhatsAppMessage,
   BASE_YEAR,
   BASE_MONTH,
@@ -171,36 +170,64 @@ useEffect(() => {
   const currentMonthNum = getCurrentMonthNumber()
   const currentYearNum = getCurrentYear()
   const currentDay = getCurrentDay()
-  const [pendingHistoryCounts, setPendingHistoryCounts] = useState<Record<string, number>>({})
+  // Fetch all historical overdue installments, regardless of the viewed month.
+  type DebtRow = { id: string; student_id: string; due_date: string; status: string; month: string; month_number: number; year_number: number; value: number }
+  const [debtRows, setDebtRows] = useState<DebtRow[]>([])
+  const [debtLoading, setDebtLoading] = useState(true)
+  const [debtRevision, setDebtRevision] = useState(0)
   useEffect(() => {
     if (isLoading) return
-    let active = true
-    setPendingHistoryCounts({})
-    const load = async () => {
-      const counts: Record<string, Set<string>> = {}
-      for (let start = 0; ; start += 1000) {
-        const { data, error } = await getBrowserClient().from("payments")
-          .select("student_id,due_date")
-          .in("status", ["Não Pagou", "Cobrado"])
-          .gte("due_date", `${BASE_YEAR}-${String(BASE_MONTH).padStart(2, "0")}-01`)
-          .lte("due_date", paymentThrough)
-          .order("due_date").order("student_id")
-          .range(start, start + 999)
-        if (error) { console.error("Falha ao contar pendências", error); return }
-        for (const payment of data || []) {
-          const student = students.find((item) => item.id === payment.student_id)
-          if (!student || !payment.due_date || (student.registrationDate &&
-            payment.due_date.slice(0, 7) < student.registrationDate.slice(0, 7))) continue
-          ;(counts[payment.student_id] ??= new Set()).add(payment.due_date.slice(0, 7))
+    let mounted = true
+    const fetchDebts = async () => {
+      setDebtLoading(true)
+      try {
+        const records: DebtRow[] = []
+        const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo",
+          year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
+        for (let offset = 0; ; offset += 1000) {
+          const { data, error } = await getBrowserClient().from("payments")
+            .select("id,student_id,due_date,status,month,month_number,year_number,value")
+            .in("status", ["Não Pagou", "Cobrado", "Em Aberto"])
+            .gte("due_date", `${BASE_YEAR}-${String(BASE_MONTH).padStart(2,"0")}-01`)
+            .lte("due_date", today)
+            .order("due_date").order("id").range(offset,offset+999)
+          if (error) throw error
+          records.push(...(data || []) as DebtRow[])
+          if (!data || data.length < 1000) break
         }
-        if (!data || data.length < 1000) break
-      }
-      if (active) setPendingHistoryCounts(Object.fromEntries(
-        Object.entries(counts).map(([id, months]) => [id, months.size])))
+        if (mounted) setDebtRows(records)
+      } catch (error) {
+        console.error("[SIGA] Erro ao carregar dívidas históricas:", error)
+        if (mounted) toast({title:"Não foi possível consultar todos os meses",description:"Atualize a página para tentar novamente.",variant:"destructive"})
+      } finally {if(mounted)setDebtLoading(false)}
     }
-    void load()
-    return () => { active = false }
-  }, [students, isLoading, paymentThrough])
+    void fetchDebts()
+    return () => {mounted=false}
+  }, [isLoading, students, debtRevision])
+
+  const debtByStudent = useMemo(() => {
+    const map = new Map<string, DebtRow[]>()
+    const studentsById = new Map(students.map(student=>[student.id,student]))
+    const today = new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paulo",
+      year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())
+    for (const debt of debtRows) {
+      const student = studentsById.get(debt.student_id)
+      if (!student || !student.isActive || student.archivedAt || student.isScholarship || student.monthlyValue === 0) continue
+      if (!debt.due_date || (debt.status === "Em Aberto" && debt.due_date >= today)) continue
+      if (student.registrationDate && debt.due_date.slice(0,7) < student.registrationDate.slice(0,7)) continue
+      const items = map.get(debt.student_id) || []
+      items.push(debt)
+      map.set(debt.student_id,items)
+    }
+    return map
+  },[debtRows,students])
+  const debtStudents = students.filter(s=>(debtByStudent.get(s.id)?.length||0)>0)
+  const debtTotalCount = [...debtByStudent.values()].reduce((sum,rows)=>sum+rows.length,0)
+  const debtTotalValue = [...debtByStudent.values()].reduce((sum,rows)=>sum+rows.reduce((n,row)=>n+(row.value||0),0),0)
+  const debtMonth = (row: DebtRow) => row.month_number && row.year_number
+    ? formatMonthYearFromNumbers(row.month_number,row.year_number) : row.month || row.due_date.slice(0,7)
+  const debtMessageRows = (studentId: string) =>
+    (debtByStudent.get(studentId)||[]).map(row=>({month:debtMonth(row),value:row.value||0}))
 
   const handlePreviousMonth = () => {
     const currentIndex = months.indexOf(selectedMonth)
@@ -321,16 +348,8 @@ useEffect(() => {
 
   const paidCount = studentsWithPayments.filter((s) => s.payment?.status === "Pago").length
 
-  const pendingStudents = studentsWithPayments.filter(
-    (s) =>
-      !s.student.isScholarship &&
-      s.student.monthlyValue > 0 &&
-      !s.isArchived &&
-      (s.payment?.status === "Não Pagou" || s.payment?.status === "Cobrado"),
-  )
-  const pendingCount = pendingStudents.length
-  const monthlyPendingTotal = pendingStudents.reduce((total, { student }) =>
-    total + Math.max(1, pendingHistoryCounts[student.id] || 0), 0)
+  const pendingCount = debtStudents.length
+  const monthlyPendingTotal = debtTotalCount
 
   const openStudents = studentsWithPayments.filter(
     (s) => !s.student.isScholarship && s.student.monthlyValue > 0 && !s.isArchived && s.payment?.status === "Em Aberto",
@@ -428,6 +447,7 @@ useEffect(() => {
       // A animação agora acompanha a operação REAL no Supabase.
       // Só exibimos sucesso depois que a atualização foi confirmada pelo banco.
       await markAsPaidCash(studentId, paymentMonth, paymentType)
+      setDebtRevision(n=>n+1)
       setPaymentSplashStatus("success")
 
       const paymentTypeText = paymentType === "dinheiro" ? "dinheiro" : "PIX"
@@ -581,7 +601,7 @@ useEffect(() => {
   }
 
   const sendWhatsAppMessage = (student: Student, phone: string) => {
-    const pendingPayments = getPendingPaymentsInfo(student.payments, student.registrationDate)
+    const pendingPayments = debtMessageRows(student.id)
     if (pendingPayments.length === 0) {
       toast({
         title: "Sem pendências",
@@ -602,22 +622,13 @@ useEffect(() => {
   }
 
   const handleDownloadPendingReport = () => {
-    const pendingReportData = studentsWithPayments
-      .filter(
-        ({ student, payment, isArchived }) =>
-          !student.isScholarship &&
-          student.monthlyValue > 0 &&
-          !isArchived &&
-          (payment?.status === "Não Pagou" || payment?.status === "Cobrado"),
-      )
-      .map(({ student, payment }) => ({
-        nome: student.name,
-        responsavel: student.responsible,
-        telefone: student.fatherPhone || student.motherPhone || "-",
-        mesAno: `${selectedMonth}/${selectedYear}`,
-        status: payment?.status || "Sem registro",
-        valor: payment?.value || student.monthlyValue,
-      }))
+    const pendingReportData = debtStudents.flatMap(student =>
+      (debtByStudent.get(student.id)||[]).map(row=>({
+        nome:student.name, responsavel:student.responsible,
+        telefone:student.fatherPhone||student.motherPhone||"-",
+        mesAno:debtMonth(row),status:row.status==="Em Aberto"?"Não Pagou":row.status,
+        valor:row.value||0
+      })))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 
     const doc = new jsPDF()
@@ -628,7 +639,7 @@ useEffect(() => {
 
     doc.setFontSize(12)
     doc.setFont("helvetica", "normal")
-    doc.text(`Período: ${selectedMonth}/${selectedYear}`, 14, 30)
+    doc.text("Período: todas as mensalidades vencidas", 14, 30)
     doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, 14, 37)
     doc.text(`Total de pendentes: ${pendingReportData.length}`, 14, 44)
 
@@ -880,9 +891,9 @@ useEffect(() => {
               </div>
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-destructive mb-1">{pendingCount}</div>
+              <div className="text-xl sm:text-2xl lg:text-4xl font-bold text-destructive mb-1">{debtLoading ? "…" : pendingCount}</div>
               <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground">
-                {monthlyPendingTotal} mensalidade(s) pendente(s) · Clique para cobrar
+                {monthlyPendingTotal} mensalidade(s) pendente(s) de todos os meses · {formatCurrency(debtTotalValue)}
               </p>
             </CardContent>
           </Card>
@@ -1385,7 +1396,7 @@ useEffect(() => {
                 <div>
                   <CardTitle className="text-destructive">Alunos Pendentes</CardTitle>
                   <CardDescription>
-                    {pendingCount} aluno(s) com pagamento pendente em {selectedMonth}/{selectedYear}
+                    {pendingCount} aluno(s) · {monthlyPendingTotal} mensalidade(s) · {formatCurrency(debtTotalValue)} no total
                   </CardDescription>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setShowPendingModal(false)}>
@@ -1394,16 +1405,17 @@ useEffect(() => {
               </div>
             </CardHeader>
             <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
-              {pendingStudents.length === 0 ? (
+              {debtStudents.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Check className="h-12 w-12 mx-auto mb-3 text-green-500" />
                   <p className="font-medium">Nenhum pagamento pendente!</p>
-                  <p className="text-sm">Todos os alunos estão em dia neste período</p>
+                  <p className="text-sm">Nenhum valor vencido nos meses anteriores</p>
                 </div>
               ) : (
-                pendingStudents.map(({ student, payment }) => {
-                  const paymentMonth = payment?.month || formatMonthYearFromNumbers(selectedMonthNumber, selectedYear)
-                  const monthlyPending = Math.max(1, pendingHistoryCounts[student.id] || 0)
+                debtStudents.map(student => {
+                  const charges = debtByStudent.get(student.id) || []
+                  const monthlyPending = charges.length
+                  const amountDue = charges.reduce((sum,row)=>sum+(row.value||0),0)
 
                   return (
                     <div key={student.id} className="flex items-center justify-between p-4 border-b hover:bg-accent/50">
@@ -1421,15 +1433,16 @@ useEffect(() => {
                           <p className="text-sm text-muted-foreground">{student.responsible}</p>
                           <p className="text-xs text-destructive mt-0.5">
                             {monthlyPending} {monthlyPending === 1 ? "mensalidade pendente" : "mensalidades pendentes"}
+                            {" · "}{charges.map(debtMonth).join(", ")}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="font-semibold text-foreground">
-                            {formatCurrency(payment?.value || student.monthlyValue)}
+                            {formatCurrency(amountDue)}
                           </p>
-                          <PaymentStatusBadge status={payment?.status || "Não Pagou"} />
+                          <span className="text-xs text-destructive">Total vencido</span>
                         </div>
                         <Button
                           size="sm"

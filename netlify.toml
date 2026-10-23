@@ -12,3 +12,6 @@
 
 [functions."push-new-enrollments"]
   schedule = "* * * * *"
+
+[functions."push-student-absences"]
+  schedule = "0 12 * * *"

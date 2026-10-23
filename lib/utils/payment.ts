@@ -340,11 +340,11 @@ export function generateWhatsAppMessage(
   pixKey: string,
 ): string {
   const totalValue = pendingPayments.reduce((sum, p) => sum + p.value, 0)
-  const monthsList = pendingPayments.map((p) => `• ${p.month}`).join("\n")
+  const monthsList = pendingPayments.map((p) => `• ${p.month} — R$ ${p.value.toFixed(2).replace(".", ",")}`).join("\n")
 
   const message = `Olá, ${responsibleName}!
 
-Verificamos que o(a) aluno(a) *${studentName}* possui *${pendingPayments.length} mensalidade(s) pendente(s)*:
+Verificamos que o(a) aluno(a) *${studentName}* possui *${pendingPayments.length} mensalidade(s) pendente(s)* nos meses abaixo:
 
 ${monthsList}
 

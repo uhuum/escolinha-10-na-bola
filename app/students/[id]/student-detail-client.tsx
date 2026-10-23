@@ -23,6 +23,7 @@ import { AppHeader } from "@/components/app-header"
 import { formatRG, formatCPF, formatPhone, detectDocumentType } from "@/lib/formatters"
 import { formatBirthDate } from "@/lib/utils/format-birth-date"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
+import { StudentAttendanceHistory } from "@/components/student-attendance-history"
 import { photoPreviewDataUrl } from "@/lib/utils/photo-upload"
 import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth } from "@/lib/utils/payment"
 import { formatDueDate } from "@/lib/utils/date"
@@ -499,6 +500,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
           </Card>
 
           <div className="lg:col-span-2 space-y-6">
+            <StudentAttendanceHistory studentId={id} registrationDate={student.registrationDate} isActive={student.isActive} />
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader className="pb-3">
