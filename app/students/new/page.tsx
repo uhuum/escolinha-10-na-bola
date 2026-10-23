@@ -266,7 +266,7 @@ export default function NewStudentPage() {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="flex flex-col items-center gap-3 sm:gap-4">
-                  <div className="relative h-32 w-32 sm:h-40 sm:w-40 rounded-full overflow-hidden bg-muted border-4 border-primary/20">
+                  <div className="relative h-32 w-32 sm:h-40 sm:w-40 rounded-full overflow-hidden bg-white border-4 border-primary/20">
                     <Image
                       src={photoPreview || "/placeholder.svg"}
                       alt="Preview da foto"

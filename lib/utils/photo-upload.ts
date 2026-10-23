@@ -107,17 +107,51 @@ export async function photoPreviewDataUrl(file: File): Promise<string> {
         return await readDataUrl(converted)
       }
     } catch (modernError) {
-      console.warn("[SIGA] Conversão HEIF moderna não disponível:", modernError)
-      // Backward-compatible decoder for HEIC files supported by the old codec.
+      console.warn("[SIGA] Conversor HEIF principal indisponível:", modernError)
+
+      // Some browsers block nested workers used by the default heic-to build.
+      // This alternative runs the same decoder in the current browsing context.
+      try {
+        const { heicTo } = await import("heic-to/next")
+        const converted = await heicTo({ blob: file, type: "image/jpeg", quality: 0.92 })
+        if (converted.size > 0) return await readDataUrl(converted)
+      } catch (decoderError) {
+        console.warn("[SIGA] Conversor HEIF alternativo indisponível:", decoderError)
+      }
+
       try {
         const { default: heic2any } = await import("heic2any")
         const conversion = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 })
         const jpeg = Array.isArray(conversion) ? conversion[0] : conversion
-        if (!jpeg || jpeg.size === 0) throw new Error("Arquivo não decodificado")
-        return await readDataUrl(jpeg)
-      } catch {
-        throw new Error("Não foi possível decodificar esta foto HEIF/HEIC. Verifique se o arquivo terminou de ser transferido e tente novamente.")
+        if (jpeg && jpeg.size > 0) return await readDataUrl(jpeg)
+      } catch (legacyError) {
+        console.warn("[SIGA] Conversor HEIF de compatibilidade indisponível:", legacyError)
       }
+
+      // Last resort: protected server endpoint. Some Android and older Safari
+      // versions cannot decode the same HEIF profile as the native iPhone app.
+      if (file.size <= 3_500_000) {
+        try {
+          const formData = new FormData()
+          formData.append("file", file, file.name || "foto.heif")
+          const response = await fetch("/api/convert-heif", {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+            cache: "no-store",
+          })
+          if (response.ok) {
+            const jpeg = await response.blob()
+            if (jpeg.type === "image/jpeg" && jpeg.size > 0) {
+              return await readDataUrl(jpeg)
+            }
+          }
+        } catch (serverError) {
+          console.warn("[SIGA] Conversão HEIF de reserva indisponível:", serverError)
+        }
+      }
+
+      throw new Error("Não conseguimos abrir este HEIF/HEIC neste aparelho. Tente escolher a foto diretamente da Fototeca do iPhone, em vez de Arquivos. O recorte transparente continua disponível para JPG e PNG.")
     }
   }
 }

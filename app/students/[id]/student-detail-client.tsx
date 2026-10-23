@@ -665,7 +665,7 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
                   Foto do Aluno
                 </h3>
                 <div className="flex flex-col items-center gap-4">
-                  <div className="relative h-32 w-32 rounded-full overflow-hidden bg-muted border-4 border-primary/20">
+                  <div className="relative h-32 w-32 rounded-full overflow-hidden bg-white border-4 border-primary/20">
                     <Image src={photoPreview || "/placeholder.svg"} alt="Preview" fill className="object-contain" />
                   </div>
                   <Button type="button" variant="outline" size="sm" asChild className="bg-transparent">
