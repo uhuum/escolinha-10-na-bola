@@ -55,7 +55,7 @@ export function PaymentHistoryTable({
         <TableBody>
           {sortedPayments.map((payment, index) => {
             const displayStatus =
-              isArchived && payment.status !== "Pago" && payment.status !== "Bolsista" ? "AFASTADO" : payment.status
+              isArchived && payment.status !== "Pago" && payment.status !== "Bolsista" && payment.status !== "Isento" ? "AFASTADO" : payment.status
 
             return (
               <TableRow key={index}>
