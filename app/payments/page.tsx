@@ -330,7 +330,8 @@ useEffect(() => {
         !(payment as { isVirtual?: boolean }).isVirtual &&
         payment.status !== "Pago" &&
         payment.status !== "Adiado" &&
-        payment.status !== "Bolsista"
+        payment.status !== "Bolsista" &&
+        payment.status !== "Isento"
       ) {
         const newStatus = determinePaymentStatus(selectedMonthNumber, selectedYear, payment.status, !!payment.receipt, Number(payment.dueDate?.slice(8, 10)) || student.paymentDueDay || 10)
 
@@ -687,7 +688,7 @@ useEffect(() => {
         status: isArchived ? "AFASTADO" : payment?.status || "Sem registro",
         valor: payment?.value || student.monthlyValue,
         arquivado: isArchived ? "Sim" : "Não",
-        isento: student.isScholarship || student.monthlyValue === 0 ? "Sim" : "Não",
+        isento: student.isScholarship || student.monthlyValue === 0 || payment?.status === "Isento" ? "Sim" : "Não",
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")) // Sort by name
 
@@ -1023,7 +1024,7 @@ useEffect(() => {
                 const isNotPaid = payment?.status === "Não Pagou"
                 const isCharged = payment?.status === "Cobrado"
                 const isOpen = payment?.status === "Em Aberto"
-                const isExemptThisMonth = payment?.status === "Bolsista" && !isScholarship
+                const isExemptThisMonth = payment?.status === "Isento"
                 const paymentMonth = payment?.month || formatMonthYearFromNumbers(selectedMonthNumber, selectedYear)
 
                 return (
@@ -1058,7 +1059,7 @@ useEffect(() => {
                           ) : isScholarship ? (
                             <span className="text-blue-500">Bolsista - Isento</span>
                           ) : (
-                            formatCurrency(payment?.value || student.monthlyValue)
+                            isExemptThisMonth ? "Isento" : formatCurrency(payment?.value ?? student.monthlyValue)
                           )}
                         </p>
                         {!isArchived && !isScholarship && (debtByStudent.get(student.id)?.length || 0) > 0 && (
