@@ -31,6 +31,7 @@ export function PaymentStatusBadge({ status, size = "sm" }: PaymentStatusBadgePr
       className: "border-yellow-500 text-yellow-700 dark:text-yellow-400",
     },
     Bolsista: { variant: "secondary", label: "Bolsista" },
+    Isento: { variant: "secondary", label: "Isento", className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-100" },
     AFASTADO: { variant: "outline", label: "Afastado" },
     Novo: { variant: "secondary", label: "Novo" },
     Cobrado: {
