@@ -1,4 +1,4 @@
-export type PaymentStatus = "Pago" | "Não Pagou" | "Bolsista" | "AFASTADO" | "Novo" | "Cobrado" | "Adiado" | "Em Aberto"
+export type PaymentStatus = "Pago" | "Não Pagou" | "Bolsista" | "Isento" | "AFASTADO" | "Novo" | "Cobrado" | "Adiado" | "Em Aberto"
 
 export type ClassSchedule = "18:00-19:30" | "19:30-21:00"
 
