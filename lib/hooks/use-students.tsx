@@ -938,7 +938,7 @@ notifyOtherTabs()
       const { error } = await supabase
         .from("payments")
         .update({
-          status: "Bolsista",
+          status: "Isento",
           value: 0,
           updated_at: new Date().toISOString(),
         })
@@ -946,7 +946,7 @@ notifyOtherTabs()
         .eq("month", month)
 
       if (error) throw error
-      patchPaymentLocal(studentId, (payment) => payment.month === month, { status: "Bolsista", value: 0 })
+      patchPaymentLocal(studentId, (payment) => payment.month === month, { status: "Isento", value: 0 })
       notifyOtherTabs()
     },
     [supabase, patchPaymentLocal, notifyOtherTabs],
@@ -1072,7 +1072,7 @@ notifyOtherTabs()
       })
 
       const totalExpected = activeStudents.reduce((sum, s) => {
-        if (!s.isScholarship) return sum + (s.monthlyValue || 0)
+        if (!s.isScholarship && !currentMonthPayments.some(({ student, payment }) => student.id === s.id && payment?.status === "Isento")) return sum + (s.monthlyValue || 0)
         return sum
       }, 0)
 
