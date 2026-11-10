@@ -27,8 +27,8 @@ export function determinePaymentStatus(
   }
 
   // Bolsista não muda
-  if (currentStatus === "Bolsista") {
-    return "Bolsista"
+  if (currentStatus === "Bolsista" || currentStatus === "Isento") {
+    return currentStatus
   }
 
   // Adiado não muda automaticamente
@@ -174,7 +174,7 @@ export function generateMonthlyPaymentReport(
 
   const totalReceived = paidPayments.reduce((sum, p) => sum + (p.value || 0), 0)
   const totalExpected = periodPayments
-    .filter((p) => p.status !== "Bolsista")
+    .filter((p) => p.status !== "Bolsista" && p.status !== "Isento")
     .reduce((sum, p) => sum + (p.value || 0), 0)
 
   return {
@@ -388,7 +388,7 @@ export function generatePDFReportData(
     if (!payment) return
 
     const isArchived = !student.isActive || !!student.archivedAt
-    const isExempt = student.isScholarship || student.monthlyValue === 0 || payment.status === "Bolsista"
+    const isExempt = student.isScholarship || student.monthlyValue === 0 || payment.status === "Bolsista" || payment.status === "Isento"
 
     reportData.push({
       studentName: student.name,
