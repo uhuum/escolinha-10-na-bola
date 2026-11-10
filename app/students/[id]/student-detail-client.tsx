@@ -336,7 +336,7 @@ const totalPaid = filteredPayments.reduce((sum, payment) => {
 }, 0)
 
 const totalExpected = filteredPayments.reduce((sum, payment) => {
-  if (payment.status !== "Bolsista" && payment.status !== "AFASTADO") {
+  if (payment.status !== "Bolsista" && payment.status !== "Isento" && payment.status !== "AFASTADO") {
     return sum + student.monthlyValue
   }
   return sum
