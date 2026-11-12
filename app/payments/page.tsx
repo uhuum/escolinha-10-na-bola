@@ -5,6 +5,7 @@ import { useStudents } from "@/lib/hooks/use-students"
 import { getBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
 import { ReceiptViewerModal } from "@/components/receipt-viewer-modal"
 import { PaymentSplash } from "@/components/payment-splash"
@@ -68,6 +69,10 @@ import type { MonthlyPayment, PaymentType, Student } from "@/lib/types"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 
+function normalizeSearch(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLowerCase().trim()
+}
+
 const PIX_KEY = "43.602.144/0001-20"
 
 export default function PaymentsPage() {
@@ -96,6 +101,7 @@ export default function PaymentsPage() {
     isLoading,
     updatePaymentStatus,
     postponePayment,
+    markOverduePaymentsCharged,
     attachReceipt,
     updateMonthlyValue,
     deleteReceipt,
@@ -119,6 +125,7 @@ useEffect(() => {
 }, [isLoading])
   const { toast } = useToast()
   const [showPendingModal, setShowPendingModal] = useState(false)
+  const [pendingSearch, setPendingSearch] = useState("")
   const [searchFilter, setSearchFilter] = useState("")
   const [receiptModal, setReceiptModal] = useState<{
     isOpen: boolean
@@ -132,6 +139,8 @@ useEffect(() => {
     month: "",
   })
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false)
+  const [whatsAppCharge, setWhatsAppCharge] = useState<{ student: Student; paymentIds: string[] } | null>(null)
+  const [savingCharge, setSavingCharge] = useState(false)
   const [whatsAppStudent, setWhatsAppStudent] = useState<Student | null>(null)
 
   const [photoModal, setPhotoModal] = useState<{
@@ -223,6 +232,11 @@ useEffect(() => {
     return map
   },[debtRows,students])
   const debtStudents = students.filter(s=>(debtByStudent.get(s.id)?.length||0)>0)
+  const pendingQuery = normalizeSearch(pendingSearch)
+  const filteredDebtStudents = debtStudents.filter((student) =>
+    normalizeSearch(student.name).includes(pendingQuery) ||
+    normalizeSearch(student.responsible || "").includes(pendingQuery),
+  )
   const debtTotalCount = [...debtByStudent.values()].reduce((sum,rows)=>sum+rows.length,0)
   const debtTotalValue = [...debtByStudent.values()].reduce((sum,rows)=>sum+rows.reduce((n,row)=>n+(row.value||0),0),0)
   const debtMonth = (row: DebtRow) => row.month_number && row.year_number
@@ -396,9 +410,14 @@ useEffect(() => {
     setShowPostponeDialog(true)
   }
 
-  const confirmPostpone = () => {
-    if (selectedStudent && postponeDate && selectedPaymentMonth) {
-      postponePayment(selectedStudent, selectedPaymentMonth, postponeDate.toISOString())
+  const [savingPostponement, setSavingPostponement] = useState(false)
+
+  const confirmPostpone = async () => {
+    if (!selectedStudent || !postponeDate || !selectedPaymentMonth || savingPostponement) return
+
+    setSavingPostponement(true)
+    try {
+      await postponePayment(selectedStudent, selectedPaymentMonth, format(postponeDate, "yyyy-MM-dd"))
       toast({
         title: "Pagamento adiado",
         description: `Nova data: ${format(postponeDate, "dd/MM/yyyy", { locale: ptBR })}`,
@@ -407,6 +426,10 @@ useEffect(() => {
       setSelectedStudent(null)
       setSelectedPaymentMonth("")
       setPostponeDate(undefined)
+    } catch {
+      toast({ title: "Não foi possível adiar o pagamento", variant: "destructive" })
+    } finally {
+      setSavingPostponement(false)
     }
   }
 
@@ -620,9 +643,40 @@ useEffect(() => {
     const message = generateWhatsAppMessage(student.name, student.responsible, pendingPayments, PIX_KEY)
     const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${message}`
 
-    window.open(whatsappUrl, "_blank")
+    const tab = window.open("about:blank", "_blank")
+    if (!tab) {
+      toast({ title: "Permita abrir o WhatsApp em outra aba", variant: "destructive" })
+      return
+    }
+    tab.opener = null
+    tab.location.replace(whatsappUrl)
+    const paymentIds = (debtByStudent.get(student.id) || [])
+      .filter((row) => row.status !== "Cobrado")
+      .map((row) => row.id)
+    if (paymentIds.length) setWhatsAppCharge({ student, paymentIds })
     setShowWhatsAppDialog(false)
     setWhatsAppStudent(null)
+  }
+
+  const confirmWhatsAppCharge = async () => {
+    if (!whatsAppCharge || savingCharge) return
+
+    setSavingCharge(true)
+    try {
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo",
+        year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
+      const ids = new Set(await markOverduePaymentsCharged(
+        whatsAppCharge.student.id, whatsAppCharge.paymentIds, today,
+      ))
+      setDebtRows((rows) => rows.map((row) => ids.has(row.id) ? { ...row, status: "Cobrado" } : row))
+      setDebtRevision((revision) => revision + 1)
+      setWhatsAppCharge(null)
+      toast({ title: ids.size ? "Cobrança registrada" : "Nenhuma mensalidade precisava ser atualizada" })
+    } catch {
+      toast({ title: "Não foi possível registrar a cobrança", variant: "destructive" })
+    } finally {
+      setSavingCharge(false)
+    }
   }
 
   const handleDownloadPendingReport = () => {
@@ -1077,6 +1131,11 @@ useEffect(() => {
                             })()}
                           </p>
                         )}
+                        {payment?.status === "Adiado" && payment.postponedTo && (
+                          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+                            Adiado para {payment.postponedTo.slice(0, 10).split("-").reverse().join("/")}
+                          </p>
+                        )}
                         {isPaid && payment?.paymentType && (
                           <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
                             {payment.paymentType === "dinheiro" ? (
@@ -1288,10 +1347,10 @@ useEffect(() => {
                 </PopoverContent>
               </Popover>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowPostponeDialog(false)} className="bg-transparent">
+                <Button variant="outline" onClick={() => setShowPostponeDialog(false)} disabled={savingPostponement} className="bg-transparent">
                   Cancelar
                 </Button>
-                <Button onClick={confirmPostpone} disabled={!postponeDate}>
+                <Button onClick={confirmPostpone} disabled={!postponeDate || savingPostponement}>
                   Confirmar
                 </Button>
               </div>
@@ -1400,7 +1459,7 @@ useEffect(() => {
 
       {showPendingModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden border-2">
+          <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden border-2">
             <CardHeader className="border-b">
               <div className="flex items-center justify-between">
                 <div>
@@ -1409,12 +1468,23 @@ useEffect(() => {
                     {pendingCount} aluno(s) · {monthlyPendingTotal} mensalidade(s) · {formatCurrency(debtTotalValue)} no total
                   </CardDescription>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowPendingModal(false)}>
+                <Button variant="ghost" size="icon" onClick={() => { setShowPendingModal(false); setPendingSearch("") }}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+              <div className="relative mt-3">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  type="search"
+                  aria-label="Buscar aluno ou responsável nas pendências"
+                  placeholder="Buscar aluno ou responsável"
+                  className="pl-9"
+                  value={pendingSearch}
+                  onChange={(event) => setPendingSearch(event.target.value)}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
+            <CardContent className="min-h-0 p-0 overflow-y-auto">
               {debtStudents.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Check className="h-12 w-12 mx-auto mb-3 text-green-500" />
@@ -1422,7 +1492,9 @@ useEffect(() => {
                   <p className="text-sm">Nenhum valor vencido nos meses anteriores</p>
                 </div>
               ) : (
-                debtStudents.map(student => {
+                filteredDebtStudents.length === 0 ? (
+                  <p className="p-8 text-center text-sm text-muted-foreground">Nenhum aluno encontrado.</p>
+                ) : filteredDebtStudents.map(student => {
                   const charges = debtByStudent.get(student.id) || []
                   const monthlyPending = charges.length
                   const amountDue = charges.reduce((sum,row)=>sum+(row.value||0),0)
@@ -1443,7 +1515,7 @@ useEffect(() => {
                           <p className="text-sm text-muted-foreground">{student.responsible}</p>
                           <p className="text-xs text-destructive mt-0.5">
                             {monthlyPending} {monthlyPending === 1 ? "mensalidade pendente" : "mensalidades pendentes"}
-                            {" · "}{charges.map(debtMonth).join(", ")}
+                            {" · "}{charges.map((row) => `${debtMonth(row)}${row.status === "Cobrado" ? " (Cobrado)" : ""}`).join(", ")}
                           </p>
                         </div>
                       </div>
@@ -1527,6 +1599,28 @@ useEffect(() => {
           </Card>
         </div>
       )}
+
+      <Dialog open={!!whatsAppCharge} onOpenChange={(open) => {
+        if (!open && !savingCharge) setWhatsAppCharge(null)
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar cobrança</DialogTitle>
+            <DialogDescription>
+              Depois de enviar a mensagem no WhatsApp, confirme o envio para marcar as mensalidades
+              de {whatsAppCharge?.student.name} como cobradas.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={savingCharge} onClick={() => setWhatsAppCharge(null)}>
+              Cancelar
+            </Button>
+            <Button disabled={savingCharge} onClick={confirmWhatsAppCharge}>
+              {savingCharge ? "Registrando..." : "Confirmei o envio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showPaymentSplash && paymentSplashData && (
         <PaymentSplash

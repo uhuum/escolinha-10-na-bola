@@ -71,12 +71,6 @@ export default function TrainerRelatorioPage() {
   const dayAttendances = attendances.filter((item) => item.date === selected)
   const dayCancellations = cancellations.filter((item) => item.date === selected)
   const loading = isLoading || loadingCancellations || studentsLoading
-  const stats = attendances.reduce((acc, item) => {
-    acc.total += item.records.length
-    acc.present += item.records.filter((record) => record.status === "Presente").length
-    acc.absent += item.records.filter((record) => record.status === "Ausente").length
-    return acc
-  }, { total: 0, present: 0, absent: 0 })
   const changeMonth = (offset: number) => {
     const next = new Date(month.getFullYear(), month.getMonth() + offset, 1)
     setLoadingCancellations(true)
@@ -204,7 +198,6 @@ export default function TrainerRelatorioPage() {
       description="Aparecem aqui alunos que faltaram por três semanas consecutivas. Use os contatos para falar com a família."
       maxItems={8}
     />
-    {!loading && <section className="grid gap-3 sm:grid-cols-3" aria-label="Estatísticas de presença"><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Total de registros</p><p className="text-2xl font-bold">{stats.total}</p></div><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Presenças</p><p className="text-2xl font-bold text-emerald-600">{stats.present}</p></div><div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">Ausências</p><p className="text-2xl font-bold text-rose-600">{stats.absent}</p></div></section>}
     <Dialog open={cancelSchedule !== null} onOpenChange={(open) => { if (!open && !cancelSaving) { setCancelSchedule(null); setCancelReason("") } }}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>

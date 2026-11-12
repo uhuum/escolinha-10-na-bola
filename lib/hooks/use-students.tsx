@@ -20,6 +20,7 @@ interface StudentsStore {
   loadError: string | null
   retryLoad: () => Promise<void>
   updatePaymentStatus: (studentId: string, month: string, status: PaymentStatus) => Promise<void>
+  markOverduePaymentsCharged: (studentId: string, paymentIds: string[], today: string) => Promise<string[]>
   postponePayment: (studentId: string, month: string, newDate: string) => Promise<void>
   attachReceipt: (studentId: string, month: string, receipt: File | string, paymentType?: PaymentType) => Promise<void>
   deleteReceipt: (studentId: string, month: string) => Promise<void>
@@ -786,6 +787,32 @@ notifyOtherTabs()
     [supabase, patchPaymentLocal, notifyOtherTabs],
   )
 
+  const markOverduePaymentsCharged = useCallback(
+    async (studentId: string, paymentIds: string[], today: string) => {
+      const now = new Date().toISOString()
+      const { data, error } = await supabase
+        .from("payments")
+        .update({ status: "Cobrado", charged_at: now, updated_at: now })
+        .eq("student_id", studentId)
+        .in("id", paymentIds)
+        .or(`and(status.eq.Não Pagou,due_date.lte.${today}),and(status.eq.Em Aberto,due_date.lt.${today}),and(status.eq.Adiado,postponed_to.lt.${today})`)
+        .select("id,month")
+
+      if (error) throw error
+      const rows = data as Array<{ id: string; month: string }>
+      if (rows.length) {
+        const months = new Set(rows.map((row) => row.month))
+        patchPaymentLocal(studentId, (payment) => months.has(payment.month), {
+          status: "Cobrado",
+          chargedAt: now,
+        })
+        notifyOtherTabs()
+      }
+      return rows.map((row) => row.id)
+    },
+    [supabase, patchPaymentLocal, notifyOtherTabs],
+  )
+
   const postponePayment = useCallback(
     async (studentId: string, month: string, newDate: string) => {
       const { error } = await supabase
@@ -797,6 +824,9 @@ notifyOtherTabs()
         })
         .eq("student_id", studentId)
         .eq("month", month)
+        .in("status", ["Em Aberto", "Não Pagou", "Cobrado", "Adiado"])
+        .select("id")
+        .single()
 
       if (error) throw error
       patchPaymentLocal(studentId, (payment) => payment.month === month, {
@@ -1039,6 +1069,7 @@ notifyOtherTabs()
     retryLoad,
     updatePaymentStatus,
     updatePaymentStatusByDate,
+    markOverduePaymentsCharged,
     postponePayment,
     attachReceipt,
     attachReceiptByDate,
