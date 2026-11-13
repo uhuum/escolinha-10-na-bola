@@ -361,6 +361,55 @@ Atenciosamente,
   return encodeURIComponent(message)
 }
 
+export function generatePaymentSituationMessage(
+  studentName: string,
+  responsibleName: string,
+  payments: MonthlyPayment[],
+  today: string,
+): string {
+  const months = payments.map((payment) => {
+    const dueDate = payment.dueDate?.slice(0, 10)
+    const postponedTo = payment.postponedTo?.slice(0, 10)
+    let status: string
+
+    switch (payment.status) {
+      case "Pago":
+        status = "✅ Pago"
+        break
+      case "Bolsista":
+      case "Isento":
+        status = "Isento"
+        break
+      case "AFASTADO":
+        status = "Afastado"
+        break
+      case "Adiado":
+        status = postponedTo && postponedTo < today ? "Em atraso" : "Adiado"
+        if (postponedTo) status += ` (até ${postponedTo.split("-").reverse().join("/")})`
+        break
+      default:
+        status = dueDate
+          ? (dueDate < today ? "Em atraso" : "Em aberto")
+          : (payment.status === "Não Pagou" || payment.status === "Cobrado" ? "Em atraso" : "Em aberto")
+    }
+
+    return `• ${formatPaymentPeriod(payment)} — ${status}`
+  }).join("\n")
+
+  const greeting = responsibleName.trim() ? `Olá, ${responsibleName.trim()}!` : "Olá!"
+
+  return `${greeting}
+
+Veja a situação do(a) aluno(a) *${studentName}* em relação às mensalidades:
+
+${months}
+
+Caso haja alguma dificuldade para regularizar a mensalidade, por gentileza, nos avise o quanto antes.
+
+Atenciosamente,
+*Administração 10 na Bola*`
+}
+
 /**
  * Generate PDF report data
  */

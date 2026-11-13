@@ -5,9 +5,10 @@ import type React from "react"
 import { useStudents } from "@/lib/hooks/use-students"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PaymentStatusBadge } from "@/components/payment-status-badge"
 import { formatCurrency } from "@/lib/utils/currency"
-import { ArrowLeft, DollarSign, Calendar, User, FileText, Trash2, Camera, Eye, Plus } from "lucide-react"
+import { ArrowLeft, DollarSign, Calendar, User, FileText, Trash2, Camera, Eye, Plus, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { useRouter } from "next/navigation"
@@ -25,8 +26,8 @@ import { formatBirthDate } from "@/lib/utils/format-birth-date"
 import { PhotoCropModal } from "@/components/photo-crop-modal"
 import { StudentAttendanceHistory } from "@/components/student-attendance-history"
 import { photoPreviewDataUrl } from "@/lib/utils/photo-upload"
-import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth } from "@/lib/utils/payment"
-import { formatDueDate } from "@/lib/utils/date"
+import { formatPaymentPeriod, sortPaymentsByDueDate, filterPaymentsUpToCurrentMonth, generatePaymentSituationMessage } from "@/lib/utils/payment"
+import { formatDueDate, getTodayDateString } from "@/lib/utils/date"
 
 export function StudentDetailClient({ id }: { id: string }) {
   const { getStudent, deleteStudent, updateStudent } = useStudents({ includePayments: false, lightweightPhotos: true })
@@ -37,6 +38,7 @@ export function StudentDetailClient({ id }: { id: string }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deletingStudent, setDeletingStudent] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showPaymentSituation, setShowPaymentSituation] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<string | File | undefined>()
 
@@ -348,6 +350,26 @@ const pendingPayments = filteredPayments.filter(
 
 const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
 
+  const paymentContacts = [
+    { label: "Pai", phone: student.fatherPhone },
+    { label: "Mãe", phone: student.motherPhone },
+  ].flatMap(({ label, phone }) => {
+    const digits = (phone || "").replace(/\D/g, "")
+    const number = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits
+    return /^55\d{10,11}$/.test(number) ? [{ label, phone, number }] : []
+  })
+  const openPaymentSituation = () => {
+    if (!paymentContacts.length) {
+      toast({ title: "Nenhum telefone válido cadastrado para o pai ou a mãe", variant: "destructive" })
+      return
+    }
+    setShowPaymentSituation(true)
+  }
+  const paymentSituationLink = (number: string) => {
+    const message = generatePaymentSituationMessage(student.name, student.responsible || "", sortedPayments, getTodayDateString())
+    return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
@@ -538,14 +560,26 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Histórico de Pagamentos
-                </CardTitle>
-                <CardDescription>
-                  Registro completo de todos os pagamentos mensais ordenados por data de vencimento
-                </CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1.5">
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Histórico de Pagamentos
+                  </CardTitle>
+                  <CardDescription>
+                    Registro completo de todos os pagamentos mensais ordenados por data de vencimento
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-fit shrink-0 gap-2 bg-green-700 text-white hover:bg-green-800"
+                  disabled={!sortedPayments.length}
+                  onClick={openPaymentSituation}
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  Enviar situação
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
@@ -600,6 +634,26 @@ const sortedPayments = sortPaymentsByDueDate(filteredPayments, "asc")
           </div>
         </div>
       </main>
+
+      <Dialog open={showPaymentSituation} onOpenChange={setShowPaymentSituation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar situação pelo WhatsApp</DialogTitle>
+            <DialogDescription>Escolha o telefone para abrir a mensagem com o histórico de mensalidades.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {paymentContacts.map(({ label, phone, number }) => (
+              <Button key={label} asChild variant="outline" className="justify-start gap-2">
+                <a href={paymentSituationLink(number)} target="_blank" rel="noopener noreferrer"
+                  onClick={() => setShowPaymentSituation(false)}>
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  {label} · {phone}
+                </a>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {showReceiptModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
