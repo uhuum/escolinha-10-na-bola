@@ -45,13 +45,13 @@ function drawCrop(
   ctx.restore()
 }
 
-async function generateTransparentPortrait(
+async function createPortraitCanvas(
   imageSrc: string,
   zoom: number,
   rotation: number,
   offsetX: number,
   offsetY: number,
-): Promise<string> {
+): Promise<HTMLCanvasElement> {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new window.Image()
     img.onload = () => resolve(img)
@@ -60,8 +60,7 @@ async function generateTransparentPortrait(
   })
   const canvas = document.createElement("canvas")
   drawCrop(canvas, image, EXPORT, zoom, rotation, offsetX, offsetY)
-  const { removeStudentBackground } = await import("@/lib/utils/remove-student-background")
-  return removeStudentBackground(canvas)
+  return canvas
 }
 
 function friendlyCropError(cause: unknown): string {
@@ -89,16 +88,22 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
     image.onload = () => drawCrop(canvas, image, PREVIEW, zoom, rotation, offsetX, offsetY)
     image.onerror = () => setError("Não foi possível abrir esta foto.")
     image.src = imageSrc
+    return () => {
+      image.onload = null
+      image.onerror = null
+    }
   }, [isOpen, imageSrc, zoom, rotation, offsetX, offsetY, processedPhoto])
 
   useEffect(() => {
+    if (!isOpen) return
     setProcessedPhoto(null)
     setError("")
+    setDragStart(null)
     setZoom(1)
     setRotation(0)
     setOffsetX(0)
     setOffsetY(0)
-  }, [imageSrc])
+  }, [isOpen, imageSrc])
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!dragStart) return
@@ -109,35 +114,21 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
     setDragStart({ x: event.clientX, y: event.clientY })
   }
 
-  // A newly selected photo is cut out automatically. The original pixels are
-  // preserved; only the alpha mask is changed, and the user approves the preview.
-  useEffect(() => {
-    if (!isOpen || !imageSrc) return
-    let active = true
-    setProcessing(true)
-    setError("")
-    setProcessedPhoto(null)
-    void generateTransparentPortrait(imageSrc, 1, 0, 0, 0)
-      .then(result => {
-        if (active) setProcessedPhoto(result)
-      })
-      .catch(cause => {
-        if (active) setError(friendlyCropError(cause))
-      })
-      .finally(() => {
-        if (active) setProcessing(false)
-      })
-    return () => { active = false }
-  }, [isOpen, imageSrc])
-
-  const removeBackground = async () => {
+  const preparePhoto = async (removeBackground: boolean) => {
     if (processing || !imageSrc) return
     setProcessing(true)
+    setDragStart(null)
     setError("")
     try {
-      setProcessedPhoto(await generateTransparentPortrait(imageSrc, zoom, rotation, offsetX, offsetY))
+      const canvas = await createPortraitCanvas(imageSrc, zoom, rotation, offsetX, offsetY)
+      if (removeBackground) {
+        const { removeStudentBackground } = await import("@/lib/utils/remove-student-background")
+        setProcessedPhoto(await removeStudentBackground(canvas))
+      } else {
+        onCropComplete(canvas.toDataURL("image/png"))
+      }
     } catch (cause) {
-      setError(friendlyCropError(cause))
+      setError(removeBackground ? friendlyCropError(cause) : "Não foi possível preparar a foto com o fundo original.")
     } finally {
       setProcessing(false)
     }
@@ -156,9 +147,9 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
     <Dialog open={isOpen} onOpenChange={open => !open && !processing && onCancel()}>
       <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Foto do aluno sem fundo</DialogTitle>
+          <DialogTitle>Foto do aluno</DialogTitle>
           <DialogDescription>
-            O sistema remove o fundo automaticamente. Confira o recorte antes de salvar.
+            Ajuste o enquadramento e escolha se deseja manter ou remover o fundo.
           </DialogDescription>
         </DialogHeader>
 
@@ -217,21 +208,32 @@ export function PhotoCropModal({ isOpen, imageSrc, onCropComplete, onCancel }: P
             </div>
           )}
 
+          {processing && (
+            <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Preparando foto…
+            </p>
+          )}
+
           {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <Button variant="outline" disabled={processing} onClick={reset} className="flex-1">
-              {processedPhoto ? "Refazer recorte" : "Redefinir"}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button variant="outline" disabled={processing} onClick={processedPhoto ? () => setProcessedPhoto(null) : reset} className="flex-1">
+              {processedPhoto ? "Voltar ao fundo original" : "Redefinir"}
             </Button>
             <Button variant="outline" disabled={processing} onClick={onCancel} className="flex-1">Cancelar</Button>
             {processedPhoto ? (
               <Button className="flex-1" onClick={() => onCropComplete(processedPhoto)}>
-                Confirmar foto
+                Usar sem fundo
               </Button>
             ) : (
-              <Button className="flex-1" disabled={processing} onClick={() => void removeBackground()}>
-                {processing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Removendo...</> : "Remover fundo"}
-              </Button>
+              <>
+                <Button variant="outline" disabled={processing} onClick={() => void preparePhoto(true)}>
+                  Remover fundo
+                </Button>
+                <Button disabled={processing} onClick={() => void preparePhoto(false)}>
+                  Manter fundo original
+                </Button>
+              </>
             )}
           </div>
         </div>
